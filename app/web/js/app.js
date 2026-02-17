@@ -151,7 +151,8 @@ const state = {
     currentQuickPresetId: null,
     editingTextIndex: null,
     aiRewriteTarget: null,
-    lanRiskToastShown: false
+    lanRiskToastShown: false,
+    startupUpdateChecked: false
 };
 
 // --- DOM Elements ---
@@ -277,6 +278,11 @@ async function loadInitialData() {
             fetchPresets()
         ]);
         showToast('系统已就绪', 'success');
+
+        if (!state.startupUpdateChecked) {
+            state.startupUpdateChecked = true;
+            checkGitHubUpdate();
+        }
     } catch (e) {
         showToast('初始化失败: ' + e.message, 'error');
     }
