@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
@@ -24,21 +26,53 @@ from app.core.config import load_config, update_config
 WEB_DIR = Path(__file__).resolve().parent / "app" / "web"
 
 
-def _configure_windows_event_loop_policy() -> None:
-    """Use selector loop on Windows to reduce Proactor disconnect errors."""
-    policy_cls = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
-    set_policy = getattr(asyncio, "set_event_loop_policy", None)
-    if policy_cls is None or set_policy is None:
-        return
+def _is_ignorable_proactor_disconnect(context: dict[str, object]) -> bool:
+    """Check whether callback exception is the known Proactor disconnect noise."""
+    exc = context.get("exception")
+    if not isinstance(exc, ConnectionResetError):
+        return False
 
-    set_policy(policy_cls())
+    if getattr(exc, "winerror", None) != 10054:
+        return False
+
+    marker = "_ProactorBasePipeTransport._call_connection_lost"
+    handle_text = str(context.get("handle", ""))
+    message = str(context.get("message", ""))
+    return marker in handle_text or marker in message
+
+
+def _install_asyncio_exception_filter() -> None:
+    """Suppress noisy WinError 10054 callback tracebacks from Proactor shutdown."""
+    loop = asyncio.get_running_loop()
+    previous_handler = loop.get_exception_handler()
+
+    def _exception_handler(
+        current_loop: asyncio.AbstractEventLoop,
+        context: dict[str, object],
+    ) -> None:
+        if _is_ignorable_proactor_disconnect(context):
+            return
+
+        if previous_handler is not None:
+            previous_handler(current_loop, context)
+            return
+
+        current_loop.default_exception_handler(context)
+
+    loop.set_exception_handler(_exception_handler)
 
 
 def create_app() -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        _install_asyncio_exception_filter()
+        yield
+
     app = FastAPI(
         title="VanceSender",
         description="FiveM /me /do 文本发送器 & AI生成工具",
         version="1.0.0",
+        lifespan=lifespan,
     )
 
     # CORS — allow LAN devices
@@ -68,8 +102,6 @@ app = create_app()
 
 
 def main() -> None:
-    _configure_windows_event_loop_policy()
-
     parser = argparse.ArgumentParser(description="VanceSender Server")
     parser.add_argument("--lan", action="store_true", help="启用局域网访问 (0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="服务端口")
