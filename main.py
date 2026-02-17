@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import multiprocessing
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
@@ -22,8 +22,9 @@ from fastapi.responses import FileResponse
 
 from app.api.routes import api_router
 from app.core.config import load_config, update_config
+from app.core.runtime_paths import get_bundle_root
 
-WEB_DIR = Path(__file__).resolve().parent / "app" / "web"
+WEB_DIR = get_bundle_root() / "app" / "web"
 
 
 def _is_ignorable_proactor_disconnect(context: dict[str, object]) -> bool:
@@ -158,7 +159,7 @@ def main() -> None:
 
     try:
         uvicorn.run(
-            "main:app",
+            app,
             host=host,
             port=port,
             reload=False,
@@ -170,4 +171,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()

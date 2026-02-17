@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 from typing import Any
 
 import yaml
 
+from app.core.runtime_paths import get_runtime_root
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.yaml"
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+
+RUNTIME_ROOT = get_runtime_root()
+CONFIG_PATH = RUNTIME_ROOT / "config.yaml"
+DATA_DIR = RUNTIME_ROOT / "data"
 PRESETS_DIR = DATA_DIR / "presets"
 
 

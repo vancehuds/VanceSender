@@ -1291,6 +1291,47 @@ input:checked + .slider:before {
     border-style: dashed;
 }
 
+#setting-overlay-capture-hotkey-btn {
+    position: relative;
+}
+
+#setting-overlay-capture-hotkey-btn.is-capturing {
+    color: #ffd7de;
+    border-color: rgba(251, 113, 133, 0.58);
+    background: rgba(251, 113, 133, 0.24);
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.42);
+    animation: hotkeyCapturePulse 1.05s ease-out infinite;
+}
+
+#setting-overlay-capture-hotkey-btn.is-capturing:hover {
+    color: #ffe5ea;
+    border-color: rgba(251, 113, 133, 0.72);
+    background: rgba(251, 113, 133, 0.3);
+}
+
+@keyframes hotkeyCapturePulse {
+    0% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.45);
+    }
+
+    55% {
+        transform: translateY(-1px) scale(1.03);
+        box-shadow: 0 0 0 10px rgba(251, 113, 133, 0.04);
+    }
+
+    100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #setting-overlay-capture-hotkey-btn.is-capturing {
+        animation: none;
+    }
+}
+
 /* Loading Spinner */
 .loading-spinner {
     width: 24px;

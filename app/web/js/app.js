@@ -207,7 +207,9 @@ const dom = {
     settingOverlayEnabled: document.getElementById('setting-overlay-enabled'),
     settingOverlayShowWebuiStatus: document.getElementById('setting-overlay-show-webui-status'),
     settingOverlayCompactMode: document.getElementById('setting-overlay-compact-mode'),
+    settingOverlayHotkeyMode: document.getElementById('setting-overlay-hotkey-mode'),
     settingOverlayHotkey: document.getElementById('setting-overlay-hotkey'),
+    settingOverlayCaptureHotkeyBtn: document.getElementById('setting-overlay-capture-hotkey-btn'),
     settingOverlayMouseSideButton: document.getElementById('setting-overlay-mouse-side-button'),
     settingOverlayPollIntervalMs: document.getElementById('setting-overlay-poll-interval-ms'),
     settingSystemPrompt: document.getElementById('setting-system-prompt'),
@@ -1172,8 +1174,227 @@ window.deletePreset = async (id, event) => {
 };
 
 // --- Settings Logic ---
+const HOTKEY_MODE_SINGLE = 'single';
+const HOTKEY_MODE_COMBO = 'combo';
+const HOTKEY_MODIFIER_ORDER = ['ctrl', 'shift', 'alt', 'win'];
+const HOTKEY_MODIFIER_ALIASES = {
+    ctrl: 'ctrl',
+    control: 'ctrl',
+    shift: 'shift',
+    alt: 'alt',
+    win: 'win',
+    meta: 'win',
+    super: 'win'
+};
+const HOTKEY_SPECIAL_KEY_ALIASES = {
+    space: 'space',
+    enter: 'enter',
+    return: 'enter',
+    tab: 'tab',
+    esc: 'esc',
+    escape: 'esc',
+    up: 'up',
+    arrowup: 'up',
+    down: 'down',
+    arrowdown: 'down',
+    left: 'left',
+    arrowleft: 'left',
+    right: 'right',
+    arrowright: 'right',
+    home: 'home',
+    end: 'end',
+    pageup: 'pageup',
+    pagedown: 'pagedown',
+    insert: 'insert',
+    delete: 'delete'
+};
+
+let overlayHotkeyCaptureActive = false;
+let overlayHotkeyCaptureHandler = null;
+
+function normalizeOverlayHotkeyToken(token) {
+    if (token === ' ') return 'space';
+
+    const lowered = String(token || '').trim().toLowerCase();
+    if (!lowered) return '';
+
+    if (HOTKEY_MODIFIER_ALIASES[lowered]) {
+        return HOTKEY_MODIFIER_ALIASES[lowered];
+    }
+    if (HOTKEY_SPECIAL_KEY_ALIASES[lowered]) {
+        return HOTKEY_SPECIAL_KEY_ALIASES[lowered];
+    }
+    if (/^f([1-9]|1[0-9]|2[0-4])$/.test(lowered)) {
+        return lowered;
+    }
+    if (/^[a-z0-9]$/.test(lowered)) {
+        return lowered;
+    }
+
+    return '';
+}
+
+function normalizeOverlayHotkey(rawHotkey) {
+    const raw = String(rawHotkey || '').trim();
+    if (!raw) return '';
+
+    const seen = new Set();
+    const ordered = [];
+
+    raw.split('+').forEach((chunk) => {
+        const token = normalizeOverlayHotkeyToken(chunk);
+        if (!token || seen.has(token)) return;
+        seen.add(token);
+        ordered.push(token);
+    });
+
+    const modifiers = HOTKEY_MODIFIER_ORDER.filter((token) => seen.has(token));
+    const mains = ordered.filter((token) => !HOTKEY_MODIFIER_ORDER.includes(token));
+    return [...modifiers, ...mains].join('+');
+}
+
+function inferOverlayHotkeyMode(hotkeyValue) {
+    return String(hotkeyValue || '').includes('+') ? HOTKEY_MODE_COMBO : HOTKEY_MODE_SINGLE;
+}
+
+function normalizeOverlayMouseSideButton(rawValue) {
+    const lowered = String(rawValue || '').trim().toLowerCase();
+    if (['x1', 'mouse4', 'side1', 'back'].includes(lowered)) return 'x1';
+    if (['x2', 'mouse5', 'side2', 'forward'].includes(lowered)) return 'x2';
+    return '';
+}
+
+function setOverlayHotkeyCaptureState(active) {
+    overlayHotkeyCaptureActive = active;
+    if (!dom.settingOverlayCaptureHotkeyBtn) return;
+
+    dom.settingOverlayCaptureHotkeyBtn.textContent = active ? '按键中...' : '点击捕捉';
+    dom.settingOverlayCaptureHotkeyBtn.classList.toggle('btn-danger', active);
+    dom.settingOverlayCaptureHotkeyBtn.classList.toggle('btn-outline', !active);
+    dom.settingOverlayCaptureHotkeyBtn.classList.toggle('is-capturing', active);
+
+    if (dom.settingOverlayHotkeyMode) {
+        dom.settingOverlayHotkeyMode.disabled = active;
+    }
+}
+
+function stopOverlayHotkeyCapture() {
+    if (overlayHotkeyCaptureHandler) {
+        window.removeEventListener('keydown', overlayHotkeyCaptureHandler, true);
+    }
+    overlayHotkeyCaptureHandler = null;
+    setOverlayHotkeyCaptureState(false);
+}
+
+function buildCapturedHotkeyFromEvent(event, mode) {
+    const modifiers = [];
+    if (event.ctrlKey) modifiers.push('ctrl');
+    if (event.shiftKey) modifiers.push('shift');
+    if (event.altKey) modifiers.push('alt');
+    if (event.metaKey) modifiers.push('win');
+
+    const mainToken = normalizeOverlayHotkeyToken(event.key);
+    if (!mainToken || HOTKEY_MODIFIER_ORDER.includes(mainToken)) {
+        return '';
+    }
+
+    if (mode === HOTKEY_MODE_SINGLE) {
+        return mainToken;
+    }
+
+    if (modifiers.length === 0) {
+        return '';
+    }
+
+    return normalizeOverlayHotkey([...modifiers, mainToken].join('+'));
+}
+
+function startOverlayHotkeyCapture() {
+    if (overlayHotkeyCaptureActive) return;
+
+    const mode = dom.settingOverlayHotkeyMode?.value === HOTKEY_MODE_COMBO
+        ? HOTKEY_MODE_COMBO
+        : HOTKEY_MODE_SINGLE;
+
+    overlayHotkeyCaptureHandler = (event) => {
+        if (!overlayHotkeyCaptureActive) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const captured = buildCapturedHotkeyFromEvent(event, mode);
+        if (!captured) return;
+
+        dom.settingOverlayHotkey.value = captured;
+        stopOverlayHotkeyCapture();
+        showToast(`热键已设置为 ${captured}`, 'success');
+    };
+
+    window.addEventListener('keydown', overlayHotkeyCaptureHandler, true);
+    setOverlayHotkeyCaptureState(true);
+    showToast(
+        mode === HOTKEY_MODE_COMBO
+            ? '请按下组合键（先按修饰键，再按主键）'
+            : '请按下一个主键',
+        'info'
+    );
+}
+
+function validateOverlayHotkeyByMode(hotkeyValue, mode) {
+    const normalized = normalizeOverlayHotkey(hotkeyValue);
+    if (!normalized) {
+        return { ok: false, message: '请先设置悬浮窗热键' };
+    }
+
+    const tokens = normalized.split('+').filter(Boolean);
+    const hasModifier = tokens.some((token) => HOTKEY_MODIFIER_ORDER.includes(token));
+    const hasMainKey = tokens.some((token) => !HOTKEY_MODIFIER_ORDER.includes(token));
+
+    if (mode === HOTKEY_MODE_SINGLE) {
+        if (tokens.length !== 1 || !hasMainKey) {
+            return { ok: false, message: '单键模式下请设置一个非修饰键（如 f8、t、1）' };
+        }
+    } else {
+        if (!hasModifier || !hasMainKey || tokens.length < 2) {
+            return { ok: false, message: '组合键模式下请使用“修饰键 + 主键”（如 ctrl+f8）' };
+        }
+    }
+
+    return { ok: true, hotkey: normalized };
+}
+
 function initSettingsPanel() {
     dom.saveSettingsBtn.addEventListener('click', saveAllSettings);
+
+    if (dom.settingOverlayCaptureHotkeyBtn) {
+        dom.settingOverlayCaptureHotkeyBtn.addEventListener('click', () => {
+            if (overlayHotkeyCaptureActive) {
+                stopOverlayHotkeyCapture();
+                showToast('已取消热键捕捉', 'info');
+                return;
+            }
+            startOverlayHotkeyCapture();
+        });
+    }
+
+    if (dom.settingOverlayHotkeyMode) {
+        dom.settingOverlayHotkeyMode.addEventListener('change', () => {
+            const mode = dom.settingOverlayHotkeyMode.value === HOTKEY_MODE_COMBO
+                ? HOTKEY_MODE_COMBO
+                : HOTKEY_MODE_SINGLE;
+
+            const normalized = normalizeOverlayHotkey(dom.settingOverlayHotkey.value || 'f8') || 'f8';
+            if (mode === HOTKEY_MODE_SINGLE && normalized.includes('+')) {
+                const mainKey = normalized
+                    .split('+')
+                    .find((token) => !HOTKEY_MODIFIER_ORDER.includes(token)) || 'f8';
+                dom.settingOverlayHotkey.value = mainKey;
+            } else {
+                dom.settingOverlayHotkey.value = normalized;
+            }
+        });
+    }
+
     dom.addProviderBtn.addEventListener('click', () => {
         document.getElementById('provider-modal-title').textContent = '添加服务商';
         dom.providerForm.reset();
@@ -1247,6 +1468,7 @@ async function fetchSettings() {
     const res = await apiFetch('/api/v1/settings');
     const data = await res.json(); // {server, sender, ai, quick_overlay}
     state.settings = data;
+    stopOverlayHotkeyCapture();
     
     // Apply to UI
     dom.settingMethod.value = data.sender.method || 'clipboard';
@@ -1267,8 +1489,10 @@ async function fetchSettings() {
     dom.settingOverlayEnabled.checked = quickOverlay.enabled ?? true;
     dom.settingOverlayShowWebuiStatus.checked = quickOverlay.show_webui_send_status ?? true;
     dom.settingOverlayCompactMode.checked = quickOverlay.compact_mode || false;
-    dom.settingOverlayHotkey.value = quickOverlay.trigger_hotkey || 'f8';
-    dom.settingOverlayMouseSideButton.value = quickOverlay.mouse_side_button || '';
+    const normalizedHotkey = normalizeOverlayHotkey(quickOverlay.trigger_hotkey || 'f8') || 'f8';
+    dom.settingOverlayHotkey.value = normalizedHotkey;
+    dom.settingOverlayHotkeyMode.value = inferOverlayHotkeyMode(normalizedHotkey);
+    dom.settingOverlayMouseSideButton.value = normalizeOverlayMouseSideButton(quickOverlay.mouse_side_button);
     dom.settingOverlayPollIntervalMs.value = quickOverlay.poll_interval_ms || 40;
 
     // Custom headers
@@ -1421,8 +1645,18 @@ async function saveAllSettings() {
         }
 
         // Quick Overlay Settings
-        const overlayHotkey = (dom.settingOverlayHotkey.value || '').trim().toLowerCase();
-        const overlayMouseSideButton = (dom.settingOverlayMouseSideButton.value || '').trim().toLowerCase();
+        stopOverlayHotkeyCapture();
+
+        const overlayMode = dom.settingOverlayHotkeyMode?.value === HOTKEY_MODE_COMBO
+            ? HOTKEY_MODE_COMBO
+            : HOTKEY_MODE_SINGLE;
+        const overlayHotkeyCheck = validateOverlayHotkeyByMode(dom.settingOverlayHotkey.value, overlayMode);
+        if (!overlayHotkeyCheck.ok) {
+            showToast(overlayHotkeyCheck.message, 'error');
+            return;
+        }
+
+        const overlayMouseSideButton = normalizeOverlayMouseSideButton(dom.settingOverlayMouseSideButton.value);
 
         await apiFetch('/api/v1/settings/quick-overlay', {
             method: 'PUT',
@@ -1431,7 +1665,7 @@ async function saveAllSettings() {
                 enabled: dom.settingOverlayEnabled.checked,
                 show_webui_send_status: dom.settingOverlayShowWebuiStatus.checked,
                 compact_mode: dom.settingOverlayCompactMode.checked,
-                trigger_hotkey: overlayHotkey || 'f8',
+                trigger_hotkey: overlayHotkeyCheck.hotkey,
                 mouse_side_button: overlayMouseSideButton,
                 poll_interval_ms: parseInt(dom.settingOverlayPollIntervalMs.value)
             })

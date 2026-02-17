@@ -373,12 +373,29 @@
                         </div>
                         <div class="form-row">
                             <div class="form-group">
-                                <label>触发热键</label>
-                                <input type="text" id="setting-overlay-hotkey" value="f8" placeholder="例如: f8 / ctrl+f8">
+                                <label>热键模式</label>
+                                <select id="setting-overlay-hotkey-mode">
+                                    <option value="single">单键</option>
+                                    <option value="combo">组合键</option>
+                                </select>
                             </div>
+                            <div class="form-group" style="flex:2">
+                                <label>触发热键</label>
+                                <div style="display:flex;gap:8px;align-items:center">
+                                    <input type="text" id="setting-overlay-hotkey" value="f8" readonly placeholder="点击右侧按钮开始捕捉" style="flex:1">
+                                    <button type="button" id="setting-overlay-capture-hotkey-btn" class="btn btn-sm btn-outline">点击捕捉</button>
+                                </div>
+                                <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">单键模式：按一个非修饰键。组合键模式：按住 Ctrl/Shift/Alt/Win 后再按主键。</p>
+                            </div>
+                        </div>
+                        <div class="form-row">
                             <div class="form-group">
                                 <label>鼠标侧键</label>
-                                <input type="text" id="setting-overlay-mouse-side-button" value="" placeholder="x1 / x2，留空禁用">
+                                <select id="setting-overlay-mouse-side-button">
+                                    <option value="">禁用</option>
+                                    <option value="x1">X1 (后退侧键)</option>
+                                    <option value="x2">X2 (前进侧键)</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>轮询间隔 (ms)</label>
