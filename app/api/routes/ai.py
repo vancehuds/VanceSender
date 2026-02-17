@@ -95,6 +95,9 @@ async def ai_generate(body: AIGenerateRequest):
             if item_type in ("me", "do") and isinstance(item_content, str):
                 validated_texts.append(TextLine(type=item_type, content=item_content))
 
+        if len(validated_texts) == 0:
+            raise RuntimeError("AI返回内容格式异常，未解析到有效文本。")
+
         return AIGenerateResponse(
             texts=validated_texts,
             provider_id=provider_id,

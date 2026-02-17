@@ -103,7 +103,7 @@ async def generate_texts(
     """
     cfg, provider = _resolve_provider(provider_id)
     client = _build_client(provider, cfg)
-    system = _REWRITE_SYSTEM_PROMPT
+    system = _get_system_prompt(cfg)
 
     user_parts: list[str] = [f"场景描述：{scenario}"]
     if count:
@@ -208,7 +208,7 @@ async def rewrite_texts(
     """Rewrite existing RP lines while preserving order and type."""
     cfg, provider = _resolve_provider(provider_id)
     client = _build_client(provider, cfg)
-    system = _get_system_prompt(cfg)
+    system = _REWRITE_SYSTEM_PROMPT
 
     source_lines: list[str] = []
     for item in texts:

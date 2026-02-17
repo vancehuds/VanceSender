@@ -678,6 +678,11 @@ function resetSendState() {
 function initAIPanel() {
     dom.aiGenerateBtn.addEventListener('click', generateAI);
     dom.aiImportBtn.addEventListener('click', () => {
+        if (!Array.isArray(state.aiPreview) || state.aiPreview.length === 0) {
+            showToast('暂无可导入内容，请先生成有效文本', 'error');
+            return;
+        }
+
         state.texts = [...state.texts, ...state.aiPreview];
         clearCurrentPresetSelection();
         renderTextList(); // update main list
@@ -705,6 +710,7 @@ async function generateAI() {
     dom.aiGenerateBtn.innerHTML = '<span class="loading-spinner"></span> 生成中...';
     dom.aiPreviewList.innerHTML = '';
     state.aiPreview = [];
+    dom.aiImportBtn.disabled = true;
 
     try {
         const res = await apiFetch('/api/v1/ai/generate', {
@@ -728,16 +734,26 @@ async function generateAI() {
             return;
         }
 
-        if (data.texts) {
-            state.aiPreview = data.texts;
+        const generatedTexts = Array.isArray(data.texts) ? data.texts : [];
+        const normalizedTexts = generatedTexts
+            .filter((item) => item && (item.type === 'me' || item.type === 'do') && typeof item.content === 'string')
+            .map((item) => ({ type: item.type, content: item.content.trim() }))
+            .filter((item) => item.content.length > 0);
+
+        if (normalizedTexts.length === 0) {
             renderAIPreview();
-            dom.aiImportBtn.disabled = false;
-        } else {
-            showToast('生成失败: 无数据', 'error');
+            showToast('生成失败: 未返回可用文本，请调整场景或服务商重试', 'error');
+            return;
         }
 
+        state.aiPreview = normalizedTexts;
+        renderAIPreview();
+        dom.aiImportBtn.disabled = false;
+
     } catch (e) {
-        showToast('AI生成错误: ' + e.message, 'error');
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('AI生成错误: ' + e.message, 'error');
+        }
     } finally {
         dom.aiGenerateBtn.disabled = false;
         dom.aiGenerateBtn.innerHTML = '<span class="icon">✨</span> 开始生成';
@@ -746,6 +762,15 @@ async function generateAI() {
 
 function renderAIPreview() {
     dom.aiPreviewList.innerHTML = '';
+
+    if (!Array.isArray(state.aiPreview) || state.aiPreview.length === 0) {
+        dom.aiPreviewList.innerHTML = `
+            <div class="empty-state small">
+                <p>暂无可预览内容，请重新生成</p>
+            </div>`;
+        return;
+    }
+
     state.aiPreview.forEach(item => {
         const card = document.createElement('div');
         card.className = 'text-card';
@@ -1025,6 +1050,22 @@ async function submitAIRewrite() {
         return;
     }
 
+    const normalizedSourceTexts = sourceTexts
+        .map((item) => {
+            if (!item || (item.type !== 'me' && item.type !== 'do') || typeof item.content !== 'string') {
+                return null;
+            }
+            const content = item.content.trim();
+            if (!content) return null;
+            return { type: item.type, content };
+        })
+        .filter((item) => item !== null);
+
+    if (normalizedSourceTexts.length !== sourceTexts.length) {
+        showToast('目标文本格式异常，请先修正后再重写', 'error');
+        return;
+    }
+
     dom.confirmAIRewrite.disabled = true;
     dom.confirmAIRewrite.textContent = '重写中...';
 
@@ -1033,7 +1074,7 @@ async function submitAIRewrite() {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                texts: sourceTexts,
+                texts: normalizedSourceTexts,
                 provider_id: providerId || null,
                 style: style || null,
                 requirements: requirements || null
@@ -1045,8 +1086,18 @@ async function submitAIRewrite() {
             return;
         }
 
-        const rewritten = Array.isArray(rewritePayload.texts) ? rewritePayload.texts : [];
-        if (rewritten.length !== sourceTexts.length) {
+        const rewritten = (Array.isArray(rewritePayload.texts) ? rewritePayload.texts : [])
+            .map((item) => {
+                if (!item || (item.type !== 'me' && item.type !== 'do') || typeof item.content !== 'string') {
+                    return null;
+                }
+                const content = item.content.trim();
+                if (!content) return null;
+                return { type: item.type, content };
+            })
+            .filter((item) => item !== null);
+
+        if (rewritten.length !== normalizedSourceTexts.length) {
             showToast('重写失败: 返回条数异常', 'error');
             return;
         }
