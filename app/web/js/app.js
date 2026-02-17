@@ -214,6 +214,11 @@ const dom = {
     settingOverlayPollIntervalMs: document.getElementById('setting-overlay-poll-interval-ms'),
     settingSystemPrompt: document.getElementById('setting-system-prompt'),
     saveSettingsBtn: document.getElementById('save-settings-btn'),
+    checkUpdateBtn: document.getElementById('check-update-btn'),
+    appCurrentVersion: document.getElementById('app-current-version'),
+    appLatestVersion: document.getElementById('app-latest-version'),
+    appUpdateStatus: document.getElementById('app-update-status'),
+    appUpdateReleaseLink: document.getElementById('app-update-release-link'),
     providersList: document.getElementById('providers-list'),
     addProviderBtn: document.getElementById('add-provider-btn'),
     
@@ -1417,6 +1422,10 @@ function validateOverlayHotkeyByMode(hotkeyValue, mode) {
 function initSettingsPanel() {
     dom.saveSettingsBtn.addEventListener('click', saveAllSettings);
 
+    if (dom.checkUpdateBtn) {
+        dom.checkUpdateBtn.addEventListener('click', checkGitHubUpdate);
+    }
+
     if (dom.settingOverlayCaptureHotkeyBtn) {
         dom.settingOverlayCaptureHotkeyBtn.addEventListener('click', () => {
             if (overlayHotkeyCaptureActive) {
@@ -1513,6 +1522,68 @@ function initSettingsPanel() {
             if (e.message !== 'AUTH_REQUIRED') showToast('操作失败', 'error');
         }
     });
+}
+
+function renderUpdateCheckResult(data) {
+    if (dom.appCurrentVersion) {
+        dom.appCurrentVersion.value = data.current_version || '-';
+    }
+
+    if (dom.appLatestVersion) {
+        dom.appLatestVersion.value = data.latest_version || '-';
+    }
+
+    if (dom.appUpdateStatus) {
+        dom.appUpdateStatus.textContent = data.message || '检查完成';
+    }
+
+    if (dom.appUpdateReleaseLink) {
+        if (data.release_url) {
+            dom.appUpdateReleaseLink.href = data.release_url;
+            dom.appUpdateReleaseLink.classList.remove('hidden');
+        } else {
+            dom.appUpdateReleaseLink.classList.add('hidden');
+            dom.appUpdateReleaseLink.removeAttribute('href');
+        }
+    }
+}
+
+async function checkGitHubUpdate() {
+    if (!dom.checkUpdateBtn) return;
+
+    const previousLabel = dom.checkUpdateBtn.textContent;
+    dom.checkUpdateBtn.disabled = true;
+    dom.checkUpdateBtn.textContent = '检查中...';
+
+    try {
+        const res = await apiFetch('/api/v1/settings/update-check');
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            showToast('检查更新失败: ' + formatApiErrorDetail(data.detail, res.status), 'error');
+            return;
+        }
+
+        renderUpdateCheckResult(data);
+
+        if (!data.success) {
+            showToast(data.message || '检查更新失败', 'error');
+            return;
+        }
+
+        if (data.update_available) {
+            showToast(`发现新版本: ${data.latest_version}`, 'success');
+        } else {
+            showToast('当前已是最新版本', 'info');
+        }
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('检查更新失败: ' + e.message, 'error');
+        }
+    } finally {
+        dom.checkUpdateBtn.disabled = false;
+        dom.checkUpdateBtn.textContent = previousLabel;
+    }
 }
 
 async function fetchSettings() {
@@ -1821,7 +1892,7 @@ function showToast(msg, type = 'info') {
     el.className = `toast ${type}`;
     el.innerHTML = `<span>${msg}</span>`;
     dom.toastContainer.appendChild(el);
-    
+
     setTimeout(() => {
         el.style.opacity = '0';
         el.style.transform = 'translateX(100%)';

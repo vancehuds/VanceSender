@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.api.routes import api_router
+from app.core.app_meta import APP_NAME, APP_VERSION
 from app.core.config import load_config, update_config
 from app.core.runtime_paths import get_bundle_root
 
@@ -71,9 +72,9 @@ def create_app() -> FastAPI:
         yield
 
     app = FastAPI(
-        title="VanceSender",
+        title=APP_NAME,
         description="FiveM /me /do 文本发送器 & AI生成工具",
-        version="1.0.0",
+        version=APP_VERSION,
         lifespan=lifespan,
     )
 
@@ -157,7 +158,7 @@ def main() -> None:
 
     print(f"""
 ╔══════════════════════════════════════════════╗
-║           VanceSender v1.0.0                 ║
+║           {APP_NAME} v{APP_VERSION}                 ║
 ║  FiveM /me /do 文本发送器 & AI生成工具       ║
 ╠══════════════════════════════════════════════╣
 ║  本地访问:  http://127.0.0.1:{port:<5}            ║

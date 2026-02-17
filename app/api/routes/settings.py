@@ -14,7 +14,9 @@ from app.api.schemas import (
     SenderSettings,
     ServerSettings,
     SettingsResponse,
+    UpdateCheckResponse,
 )
+from app.core.app_meta import APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import (
     add_provider,
     delete_provider,
@@ -24,6 +26,7 @@ from app.core.config import (
     update_config,
     update_provider,
 )
+from app.core.update_checker import check_github_update
 
 router = APIRouter()
 
@@ -60,6 +63,26 @@ async def get_settings():
         sender=cfg.get("sender", {}),
         ai=ai_section,
         quick_overlay=cfg.get("quick_overlay", {}),
+    )
+
+
+@router.get("/update-check", response_model=UpdateCheckResponse)
+async def check_update():
+    """检查 GitHub 是否有新版本。"""
+    result = await check_github_update(
+        current_version=APP_VERSION,
+        repository=GITHUB_REPOSITORY,
+    )
+    return UpdateCheckResponse(
+        success=result.success,
+        current_version=result.current_version,
+        latest_version=result.latest_version,
+        update_available=result.update_available,
+        release_url=result.release_url,
+        published_at=result.published_at,
+        message=result.message,
+        error_type=result.error_type,
+        status_code=result.status_code,
     )
 
 

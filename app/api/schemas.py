@@ -175,6 +175,18 @@ class SettingsResponse(BaseModel):
     quick_overlay: dict[str, Any]
 
 
+class UpdateCheckResponse(BaseModel):
+    success: bool
+    current_version: str
+    latest_version: str | None = None
+    update_available: bool
+    release_url: str | None = None
+    published_at: str | None = None
+    message: str
+    error_type: str | None = None
+    status_code: int | None = None
+
+
 # ── Generic ────────────────────────────────────────────────────────────────
 
 
