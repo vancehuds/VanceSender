@@ -9,6 +9,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import sys
 from pathlib import Path
 
@@ -22,6 +23,18 @@ from app.api.routes import api_router
 from app.core.config import load_config, update_config
 
 WEB_DIR = Path(__file__).resolve().parent / "app" / "web"
+
+
+def _configure_windows_event_loop_policy() -> None:
+    """Use selector loop on Windows to reduce Proactor disconnect errors."""
+    if sys.platform != "win32":
+        return
+
+    policy_cls = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
+    if policy_cls is None:
+        return
+
+    asyncio.set_event_loop_policy(policy_cls())
 
 
 def create_app() -> FastAPI:
@@ -58,6 +71,8 @@ app = create_app()
 
 
 def main() -> None:
+    _configure_windows_event_loop_policy()
+
     parser = argparse.ArgumentParser(description="VanceSender Server")
     parser.add_argument("--lan", action="store_true", help="启用局域网访问 (0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="服务端口")
