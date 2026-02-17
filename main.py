@@ -97,6 +97,11 @@ def main() -> None:
     print(f"╚══════════════════════════════════════════════╝")
     print()
 
+    if host == "0.0.0.0" and not token:
+        print("⚠ 风险提示: 当前已开启局域网访问且未设置 Token。")
+        print("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
+        print()
+
     uvicorn.run(
         "main:app",
         host=host,

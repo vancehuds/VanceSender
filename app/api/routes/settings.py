@@ -44,6 +44,15 @@ async def get_settings():
         p.pop("api_key", None)
     server_section = dict(cfg.get("server", {}))
     server_section["token_set"] = bool(server_section.get("token"))
+    server_section["risk_no_token_with_lan"] = (
+        bool(server_section.get("lan_access")) and not server_section["token_set"]
+    )
+    if server_section["risk_no_token_with_lan"]:
+        server_section["security_warning"] = (
+            "已开启局域网访问且未设置 Token，局域网内设备可直接访问 API。"
+        )
+    else:
+        server_section["security_warning"] = ""
     server_section.pop("token", None)
     return SettingsResponse(
         server=server_section,

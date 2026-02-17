@@ -150,7 +150,8 @@ const state = {
     currentPresetId: null,
     currentQuickPresetId: null,
     editingTextIndex: null,
-    aiRewriteTarget: null
+    aiRewriteTarget: null,
+    lanRiskToastShown: false
 };
 
 // --- DOM Elements ---
@@ -1275,7 +1276,35 @@ async function fetchSettings() {
         lanDiv.classList.add('hidden');
     }
 
+    updateLanSecurityRisk(data.server);
+
     await fetchProviders();
+}
+
+function updateLanSecurityRisk(serverSettings) {
+    const warningEl = document.getElementById('lan-risk-warning');
+    if (!warningEl) return;
+
+    const hasRisk = Boolean(
+        serverSettings?.risk_no_token_with_lan
+        || (serverSettings?.lan_access && !serverSettings?.token_set)
+    );
+
+    if (!hasRisk) {
+        warningEl.classList.add('hidden');
+        warningEl.textContent = '';
+        state.lanRiskToastShown = false;
+        return;
+    }
+
+    warningEl.textContent = serverSettings?.security_warning
+        || '已开启局域网访问且未设置 Token，局域网内设备可直接访问 API。';
+    warningEl.classList.remove('hidden');
+
+    if (!state.lanRiskToastShown) {
+        showToast('安全风险：已开启局域网访问但未设置 Token', 'error');
+        state.lanRiskToastShown = true;
+    }
 }
 
 async function fetchProviders() {
