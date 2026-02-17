@@ -76,7 +76,7 @@ def _default_config() -> dict[str, Any]:
             "enabled": True,
             "show_webui_send_status": True,
             "compact_mode": False,
-            "trigger_hotkey": "f8",
+            "trigger_hotkey": "f7",
             "mouse_side_button": "",
             "poll_interval_ms": 40,
         },

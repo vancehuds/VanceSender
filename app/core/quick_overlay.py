@@ -45,7 +45,7 @@ SWP_SHOWWINDOW = 0x0040
 
 SW_SHOWNOACTIVATE = 4
 
-DEFAULT_HOTKEY = "f8"
+DEFAULT_HOTKEY = "f7"
 
 _SPECIAL_KEYS: dict[str, int] = {
     "space": 0x20,

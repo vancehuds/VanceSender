@@ -158,7 +158,7 @@ build.bat
 ### 快捷悬浮窗
 
 - 默认启用（`quick_overlay.enabled: true`）
-- 默认触发键 `F8`
+- 默认触发键 `F7`
 - 可配置 `mouse_side_button`（如 `x1` / `x2`）
 
 ## 配置说明

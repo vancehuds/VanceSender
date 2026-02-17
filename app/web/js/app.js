@@ -1352,11 +1352,11 @@ function validateOverlayHotkeyByMode(hotkeyValue, mode) {
 
     if (mode === HOTKEY_MODE_SINGLE) {
         if (tokens.length !== 1 || !hasMainKey) {
-            return { ok: false, message: '单键模式下请设置一个非修饰键（如 f8、t、1）' };
+            return { ok: false, message: '单键模式下请设置一个非修饰键（如 f7、t、1）' };
         }
     } else {
         if (!hasModifier || !hasMainKey || tokens.length < 2) {
-            return { ok: false, message: '组合键模式下请使用“修饰键 + 主键”（如 ctrl+f8）' };
+            return { ok: false, message: '组合键模式下请使用“修饰键 + 主键”（如 ctrl+f7）' };
         }
     }
 
@@ -1383,11 +1383,11 @@ function initSettingsPanel() {
                 ? HOTKEY_MODE_COMBO
                 : HOTKEY_MODE_SINGLE;
 
-            const normalized = normalizeOverlayHotkey(dom.settingOverlayHotkey.value || 'f8') || 'f8';
+            const normalized = normalizeOverlayHotkey(dom.settingOverlayHotkey.value || 'f7') || 'f7';
             if (mode === HOTKEY_MODE_SINGLE && normalized.includes('+')) {
                 const mainKey = normalized
                     .split('+')
-                    .find((token) => !HOTKEY_MODIFIER_ORDER.includes(token)) || 'f8';
+                    .find((token) => !HOTKEY_MODIFIER_ORDER.includes(token)) || 'f7';
                 dom.settingOverlayHotkey.value = mainKey;
             } else {
                 dom.settingOverlayHotkey.value = normalized;
@@ -1489,7 +1489,7 @@ async function fetchSettings() {
     dom.settingOverlayEnabled.checked = quickOverlay.enabled ?? true;
     dom.settingOverlayShowWebuiStatus.checked = quickOverlay.show_webui_send_status ?? true;
     dom.settingOverlayCompactMode.checked = quickOverlay.compact_mode || false;
-    const normalizedHotkey = normalizeOverlayHotkey(quickOverlay.trigger_hotkey || 'f8') || 'f8';
+    const normalizedHotkey = normalizeOverlayHotkey(quickOverlay.trigger_hotkey || 'f7') || 'f7';
     dom.settingOverlayHotkey.value = normalizedHotkey;
     dom.settingOverlayHotkeyMode.value = inferOverlayHotkeyMode(normalizedHotkey);
     dom.settingOverlayMouseSideButton.value = normalizeOverlayMouseSideButton(quickOverlay.mouse_side_button);
