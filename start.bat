@@ -115,11 +115,17 @@ echo.
 !PYTHON_CMD! main.py %*
 set "EXIT_CODE=%ERRORLEVEL%"
 
+rem Ctrl+C / Ctrl+Break on Windows may surface as 0xC000013A (3221225786) or 130.
+if "%EXIT_CODE%"=="3221225786" set "EXIT_CODE=0"
+if "%EXIT_CODE%"=="130" set "EXIT_CODE=0"
+
 if not "%EXIT_CODE%"=="0" (
     echo.
     echo [!] VanceSender exited with code %EXIT_CODE%.
+    echo.
+    pause
+    exit /b %EXIT_CODE%
 )
 
 echo.
-pause
 exit /b %EXIT_CODE%

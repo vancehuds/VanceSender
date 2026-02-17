@@ -187,6 +187,14 @@ body {
     -webkit-text-fill-color: transparent;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 /* Glass Cards */
 .glass-card {
     background: var(--glass-bg);
@@ -411,6 +419,7 @@ input::placeholder {
 
 .text-content {
     flex: 1;
+    min-width: 0;
     font-size: 0.95rem;
     white-space: nowrap;
     overflow: hidden;
@@ -566,6 +575,7 @@ input::placeholder {
 
 .quick-send-content {
     flex: 1;
+    min-width: 0;
     font-size: 0.95rem;
     text-align: left;
     white-space: nowrap;
@@ -715,6 +725,14 @@ input::placeholder {
     margin-bottom: 16px;
 }
 
+.setting-info {
+    min-width: 0;
+}
+
+#setting-custom-headers {
+    font-size: 0.85rem;
+}
+
 .switch {
     position: relative;
     display: inline-block;
@@ -815,10 +833,16 @@ input:checked + .slider:before {
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+    body {
+        height: 100dvh;
+        min-height: 100dvh;
+    }
+
     .app-container {
         flex-direction: column;
         height: 100vh;
         height: 100dvh;
+        min-height: 0;
     }
 
     .sidebar {
@@ -842,11 +866,16 @@ input:checked + .slider:before {
     .nav-links {
         display: flex;
         justify-content: space-around;
+        align-items: stretch;
         width: 100%;
     }
 
     .nav-item {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 56px;
         flex-direction: column;
+        justify-content: center;
         margin: 0;
         padding: 8px;
         gap: 4px;
@@ -873,6 +902,72 @@ input:checked + .slider:before {
         padding: 20px;
         padding-bottom: 20px;
     }
+
+    .panel-header {
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .panel-header h1 {
+        font-size: 1.48rem;
+        line-height: 1.2;
+    }
+
+    #panel-send .panel-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    #panel-send .header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #panel-send .header-actions .btn {
+        width: 100%;
+        flex: 0 0 auto;
+        min-height: 44px;
+    }
+
+    .glass-card {
+        padding: 16px;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select {
+        font-size: 16px;
+    }
+
+    #setting-custom-headers {
+        font-size: 16px;
+    }
+
+    .text-card {
+        align-items: flex-start;
+    }
+
+    .text-content {
+        white-space: normal;
+        line-height: 1.35;
+    }
+
+    .card-actions {
+        margin-left: auto;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .card-actions .btn,
+    .btn-sm {
+        min-height: 40px;
+    }
     
     .bottom-bar {
         flex-direction: column;
@@ -887,6 +982,11 @@ input:checked + .slider:before {
     .delay-control {
         width: 100%;
         justify-content: space-between;
+    }
+
+    .delay-control input {
+        width: 96px;
+        min-height: 40px;
     }
 
     .list-controls {
@@ -926,6 +1026,23 @@ input:checked + .slider:before {
         width: 100%;
     }
 
+    .setting-item-toggle {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .radio-pills {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .radio-pill span {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+    }
+
     .quick-send-list {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -942,8 +1059,19 @@ input:checked + .slider:before {
     }
 
     .quick-send-action {
-        min-width: 36px;
+        min-width: 44px;
         text-align: right;
+    }
+
+    .toast-container {
+        top: 12px;
+        right: 12px;
+        left: 12px;
+    }
+
+    .toast {
+        width: 100%;
+        min-width: 0;
     }
 }
 
@@ -1229,6 +1357,65 @@ input:checked + .slider:before {
     .form-row {
         flex-direction: column;
         gap: 0;
+    }
+
+    #quick-preset-refresh-btn {
+        min-width: 40px;
+        width: 40px;
+        min-height: 40px;
+        padding: 8px;
+    }
+
+    .modal {
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 24px);
+        max-width: none;
+        max-height: calc(100dvh - 32px);
+        overflow-y: auto;
+    }
+
+    .modal-actions {
+        flex-wrap: wrap;
+        justify-content: stretch;
+    }
+
+    .modal-actions .btn {
+        flex: 1 1 calc(50% - 5px);
+        min-height: 44px;
+    }
+
+    .empty-state {
+        padding: 32px 16px;
+    }
+
+    .empty-state.small {
+        padding: 20px 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .panel {
+        padding: 14px;
+        padding-bottom: 14px;
+    }
+
+    .glass-card {
+        padding: 14px;
+        border-radius: 14px;
+    }
+
+    .btn {
+        min-height: 42px;
+    }
+
+    .btn-sm {
+        padding: 8px 10px;
+    }
+
+    .modal-actions .btn {
+        flex: 1 1 100%;
     }
 }
 
