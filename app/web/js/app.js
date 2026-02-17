@@ -201,8 +201,15 @@ const dom = {
     settingFocusTimeout: document.getElementById('setting-focus-timeout'),
     settingRetryCount: document.getElementById('setting-retry-count'),
     settingRetryInterval: document.getElementById('setting-retry-interval'),
+    settingDelayBetweenLines: document.getElementById('setting-delay-between-lines'),
     settingTypingCharDelay: document.getElementById('setting-typing-char-delay'),
     settingLanAccess: document.getElementById('setting-lan-access'),
+    settingOverlayEnabled: document.getElementById('setting-overlay-enabled'),
+    settingOverlayShowWebuiStatus: document.getElementById('setting-overlay-show-webui-status'),
+    settingOverlayCompactMode: document.getElementById('setting-overlay-compact-mode'),
+    settingOverlayHotkey: document.getElementById('setting-overlay-hotkey'),
+    settingOverlayMouseSideButton: document.getElementById('setting-overlay-mouse-side-button'),
+    settingOverlayPollIntervalMs: document.getElementById('setting-overlay-poll-interval-ms'),
     settingSystemPrompt: document.getElementById('setting-system-prompt'),
     saveSettingsBtn: document.getElementById('save-settings-btn'),
     providersList: document.getElementById('providers-list'),
@@ -529,7 +536,7 @@ async function startBatchSend() {
 
     // Convert state texts to raw strings
     const textsToSend = state.texts.map(t => `/${t.type} ${t.content}`);
-    const delay = parseInt(dom.sendDelay.value) || 1500;
+    const delay = parseInt(dom.sendDelay.value) || 1800;
 
     try {
         const response = await apiFetch('/api/v1/send/batch', {
@@ -1238,7 +1245,7 @@ function initSettingsPanel() {
 
 async function fetchSettings() {
     const res = await apiFetch('/api/v1/settings');
-    const data = await res.json(); // {server, sender, ai}
+    const data = await res.json(); // {server, sender, ai, quick_overlay}
     state.settings = data;
     
     // Apply to UI
@@ -1250,9 +1257,19 @@ async function fetchSettings() {
     dom.settingFocusTimeout.value = data.sender.focus_timeout || 8000;
     dom.settingRetryCount.value = data.sender.retry_count ?? 3;
     dom.settingRetryInterval.value = data.sender.retry_interval || 450;
+    dom.settingDelayBetweenLines.value = data.sender.delay_between_lines || 1800;
     dom.settingTypingCharDelay.value = data.sender.typing_char_delay || 18;
+    dom.sendDelay.value = data.sender.delay_between_lines || 1800;
     dom.settingLanAccess.checked = data.server.lan_access || false;
     dom.settingSystemPrompt.value = data.ai.system_prompt || '';
+
+    const quickOverlay = data.quick_overlay || {};
+    dom.settingOverlayEnabled.checked = quickOverlay.enabled ?? true;
+    dom.settingOverlayShowWebuiStatus.checked = quickOverlay.show_webui_send_status ?? true;
+    dom.settingOverlayCompactMode.checked = quickOverlay.compact_mode || false;
+    dom.settingOverlayHotkey.value = quickOverlay.trigger_hotkey || 'f8';
+    dom.settingOverlayMouseSideButton.value = quickOverlay.mouse_side_button || '';
+    dom.settingOverlayPollIntervalMs.value = quickOverlay.poll_interval_ms || 40;
 
     // Custom headers
     const customHeaders = data.ai.custom_headers || {};
@@ -1383,6 +1400,7 @@ async function saveAllSettings() {
                 focus_timeout: parseInt(dom.settingFocusTimeout.value),
                 retry_count: parseInt(dom.settingRetryCount.value),
                 retry_interval: parseInt(dom.settingRetryInterval.value),
+                delay_between_lines: parseInt(dom.settingDelayBetweenLines.value),
                 typing_char_delay: parseInt(dom.settingTypingCharDelay.value)
             })
         });
@@ -1401,6 +1419,23 @@ async function saveAllSettings() {
         if (newToken) {
             setToken(newToken);
         }
+
+        // Quick Overlay Settings
+        const overlayHotkey = (dom.settingOverlayHotkey.value || '').trim().toLowerCase();
+        const overlayMouseSideButton = (dom.settingOverlayMouseSideButton.value || '').trim().toLowerCase();
+
+        await apiFetch('/api/v1/settings/quick-overlay', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                enabled: dom.settingOverlayEnabled.checked,
+                show_webui_send_status: dom.settingOverlayShowWebuiStatus.checked,
+                compact_mode: dom.settingOverlayCompactMode.checked,
+                trigger_hotkey: overlayHotkey || 'f8',
+                mouse_side_button: overlayMouseSideButton,
+                poll_interval_ms: parseInt(dom.settingOverlayPollIntervalMs.value)
+            })
+        });
 
         // AI Settings (Prompt + Custom Headers)
         let customHeaders;

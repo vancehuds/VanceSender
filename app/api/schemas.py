@@ -159,10 +159,20 @@ class AISettings(BaseModel):
     custom_headers: dict[str, str] | None = None
 
 
+class QuickOverlaySettings(BaseModel):
+    enabled: bool | None = None
+    show_webui_send_status: bool | None = None
+    compact_mode: bool | None = None
+    trigger_hotkey: str | None = None
+    mouse_side_button: str | None = None
+    poll_interval_ms: int | None = Field(None, ge=20, le=200)
+
+
 class SettingsResponse(BaseModel):
     server: dict[str, Any]
     sender: dict[str, Any]
     ai: dict[str, Any]
+    quick_overlay: dict[str, Any]
 
 
 # ── Generic ────────────────────────────────────────────────────────────────

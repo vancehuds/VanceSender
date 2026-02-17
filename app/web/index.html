@@ -300,6 +300,10 @@
                                 <input type="number" id="setting-retry-interval" value="300">
                             </div>
                             <div class="form-group">
+                                <label>批量默认间隔 (ms)</label>
+                                <input type="number" id="setting-delay-between-lines" value="1500" min="200" max="30000" step="100">
+                            </div>
+                            <div class="form-group">
                                 <label>typing 字符间隔 (ms)</label>
                                 <input type="number" id="setting-typing-char-delay" value="18">
                             </div>
@@ -330,6 +334,56 @@
                                 <button type="button" id="clear-token-btn" class="btn btn-sm btn-ghost">清除</button>
                             </div>
                             <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">设置后所有 API 请求需携带此 Token</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Overlay Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>快捷悬浮窗</h2>
+                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">以下配置修改后需重启应用生效。</p>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启用悬浮窗</label>
+                                <p class="desc">关闭后将禁用全局热键与快捷发送弹窗</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-overlay-enabled">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>显示 WebUI 发送状态</label>
+                                <p class="desc">在右上角显示 WebUI 单条/批量发送进度</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-overlay-show-webui-status">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>紧凑模式</label>
+                                <p class="desc">使用更小尺寸的悬浮窗布局</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-overlay-compact-mode">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>触发热键</label>
+                                <input type="text" id="setting-overlay-hotkey" value="f8" placeholder="例如: f8 / ctrl+f8">
+                            </div>
+                            <div class="form-group">
+                                <label>鼠标侧键</label>
+                                <input type="text" id="setting-overlay-mouse-side-button" value="" placeholder="x1 / x2，留空禁用">
+                            </div>
+                            <div class="form-group">
+                                <label>轮询间隔 (ms)</label>
+                                <input type="number" id="setting-overlay-poll-interval-ms" value="40" min="20" max="200">
+                            </div>
                         </div>
                     </div>
 

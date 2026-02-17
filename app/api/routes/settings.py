@@ -10,6 +10,7 @@ from app.api.schemas import (
     ProviderCreate,
     ProviderResponse,
     ProviderUpdate,
+    QuickOverlaySettings,
     SenderSettings,
     ServerSettings,
     SettingsResponse,
@@ -58,6 +59,7 @@ async def get_settings():
         server=server_section,
         sender=cfg.get("sender", {}),
         ai=ai_section,
+        quick_overlay=cfg.get("quick_overlay", {}),
     )
 
 
@@ -113,6 +115,23 @@ async def update_ai_settings(body: AISettings):
         save_config(cfg)
 
     return MessageResponse(message="AI设置已更新")
+
+
+@router.put("/quick-overlay", response_model=MessageResponse)
+async def update_quick_overlay_settings(body: QuickOverlaySettings):
+    """更新快捷悬浮窗设置。"""
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not patch:
+        return MessageResponse(message="没有需要更新的设置", success=False)
+
+    if "trigger_hotkey" in patch:
+        patch["trigger_hotkey"] = str(patch["trigger_hotkey"]).strip().lower()
+
+    if "mouse_side_button" in patch:
+        patch["mouse_side_button"] = str(patch["mouse_side_button"]).strip().lower()
+
+    update_config({"quick_overlay": patch})
+    return MessageResponse(message="快捷悬浮窗设置已更新，重启后生效")
 
 
 # ── Provider CRUD ─────────────────────────────────────────────────────────
