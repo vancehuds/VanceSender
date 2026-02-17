@@ -190,6 +190,9 @@ class QuickOverlayModule:
         self._preset_combo: ttk.Combobox | None = None
         self._line_listbox: tk.Listbox | None = None
         self._status_var: tk.StringVar | None = None
+        self._status_tag_label: tk.Label | None = None
+        self._status_text_label: tk.Label | None = None
+        self._status_body_frame: tk.Frame | None = None
 
         self._presets: list[dict[str, Any]] = []
         self._preset_ids: list[str] = []
@@ -198,6 +201,17 @@ class QuickOverlayModule:
 
         self._status_hide_job: str | None = None
         self._last_foreground_hwnd = 0
+
+        self._popup_bg = "#0a1222"
+        self._surface_bg = "#111c33"
+        self._card_bg = "#16233f"
+        self._border_color = "#2a3c63"
+        self._text_main = "#e8efff"
+        self._text_muted = "#99abca"
+        self._accent_primary = "#4fd1ff"
+        self._accent_secondary = "#8b7bff"
+        self._success_color = "#36d487"
+        self._danger_color = "#ff8aa3"
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -217,6 +231,7 @@ class QuickOverlayModule:
         try:
             self._root = tk.Tk()
             self._root.withdraw()
+            self._configure_ttk_styles()
 
             self._build_popup_window()
             self._build_status_window()
@@ -228,37 +243,146 @@ class QuickOverlayModule:
         except Exception as exc:
             print(f"⚠ 快捷悬浮窗模块运行失败: {exc}")
 
+    def _configure_ttk_styles(self) -> None:
+        if self._root is None:
+            return
+
+        style = ttk.Style(self._root)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+
+        style.configure(
+            "OverlayCombo.TCombobox",
+            fieldbackground=self._card_bg,
+            background=self._surface_bg,
+            foreground=self._text_main,
+            arrowcolor=self._accent_primary,
+            bordercolor=self._border_color,
+            darkcolor=self._border_color,
+            lightcolor=self._border_color,
+        )
+        style.map(
+            "OverlayCombo.TCombobox",
+            fieldbackground=[("readonly", self._card_bg)],
+            foreground=[("readonly", self._text_main)],
+            selectbackground=[("readonly", self._accent_secondary)],
+            selectforeground=[("readonly", "#f8fbff")],
+            arrowcolor=[
+                ("active", self._accent_secondary),
+                ("!disabled", self._accent_primary),
+            ],
+        )
+
+        style.configure(
+            "Overlay.Vertical.TScrollbar",
+            troughcolor=self._surface_bg,
+            background=self._border_color,
+            bordercolor=self._surface_bg,
+            darkcolor=self._border_color,
+            lightcolor=self._border_color,
+            arrowcolor=self._text_main,
+        )
+
     def _build_popup_window(self) -> None:
         if self._root is None:
             return
 
         popup = tk.Toplevel(self._root)
         popup.title("VanceSender 快速发送")
-        popup.geometry("500x420")
+        popup.geometry("560x500")
         popup.resizable(False, False)
+        popup.configure(bg=self._popup_bg)
         popup.attributes("-topmost", True)
+        popup.attributes("-alpha", 0.985)
         popup.withdraw()
         popup.protocol("WM_DELETE_WINDOW", lambda: self._hide_popup(restore_focus=True))
         popup.bind("<Escape>", lambda _e: self._hide_popup(restore_focus=True))
+        popup.bind("<Return>", lambda _e: self._send_selected_line())
+        popup.bind("<Control-Return>", lambda _e: self._send_all_lines())
 
-        frame = ttk.Frame(popup, padding=12)
+        frame = tk.Frame(popup, bg=self._popup_bg, padx=16, pady=14)
         frame.pack(fill="both", expand=True)
-
-        head = ttk.Frame(frame)
-        head.pack(fill="x")
-
-        ttk.Label(head, text="预设").pack(side="left")
-        combo = ttk.Combobox(head, state="readonly", width=38)
-        combo.pack(side="left", padx=8, fill="x", expand=True)
-        combo.bind("<<ComboboxSelected>>", self._on_preset_change)
-        ttk.Button(head, text="刷新", command=self._refresh_presets).pack(side="left")
 
         trigger_hint = self._hotkey_label
         if self._mouse_side_vkey is not None and self._mouse_button_label:
             trigger_hint = f"{trigger_hint} / {self._mouse_button_label}"
-        ttk.Label(frame, text=f"触发键: {trigger_hint}").pack(anchor="w", pady=(8, 6))
 
-        list_frame = ttk.Frame(frame)
+        head = tk.Frame(frame, bg=self._popup_bg)
+        head.pack(fill="x", pady=(2, 10))
+        tk.Label(
+            head,
+            text="快捷发送",
+            bg=self._popup_bg,
+            fg=self._text_main,
+            font=("Segoe UI", 15, "bold"),
+            anchor="w",
+        ).pack(anchor="w")
+        tk.Label(
+            head,
+            text=f"触发键：{trigger_hint}",
+            bg=self._popup_bg,
+            fg=self._text_muted,
+            font=("Segoe UI", 10),
+            anchor="w",
+        ).pack(anchor="w", pady=(3, 0))
+
+        preset_card = tk.Frame(
+            frame,
+            bg=self._surface_bg,
+            highlightthickness=1,
+            highlightbackground=self._border_color,
+            bd=0,
+        )
+        preset_card.pack(fill="x", pady=(0, 10))
+
+        preset_inner = tk.Frame(preset_card, bg=self._surface_bg, padx=10, pady=10)
+        preset_inner.pack(fill="x")
+        tk.Label(
+            preset_inner,
+            text="预设",
+            bg=self._surface_bg,
+            fg=self._text_muted,
+            font=("Segoe UI", 10),
+        ).pack(side="left")
+
+        combo = ttk.Combobox(
+            preset_inner,
+            state="readonly",
+            width=40,
+            style="OverlayCombo.TCombobox",
+        )
+        combo.pack(side="left", padx=10, fill="x", expand=True)
+        combo.bind("<<ComboboxSelected>>", self._on_preset_change)
+
+        refresh_btn = tk.Button(
+            preset_inner,
+            text="刷新",
+            command=self._refresh_presets,
+            bg=self._card_bg,
+            fg=self._text_main,
+            activebackground="#21345a",
+            activeforeground=self._text_main,
+            relief="flat",
+            bd=0,
+            padx=12,
+            pady=7,
+            cursor="hand2",
+            font=("Segoe UI", 9, "bold"),
+        )
+        refresh_btn.pack(side="left")
+
+        list_card = tk.Frame(
+            frame,
+            bg=self._surface_bg,
+            highlightthickness=1,
+            highlightbackground=self._border_color,
+            bd=0,
+        )
+        list_card.pack(fill="both", expand=True)
+
+        list_frame = tk.Frame(list_card, bg=self._surface_bg, padx=10, pady=10)
         list_frame.pack(fill="both", expand=True)
 
         listbox = tk.Listbox(
@@ -266,21 +390,72 @@ class QuickOverlayModule:
             selectmode=tk.SINGLE,
             activestyle="none",
             exportselection=False,
+            bg=self._card_bg,
+            fg=self._text_main,
+            selectbackground=self._accent_secondary,
+            selectforeground="#f8fbff",
+            font=("Segoe UI", 10),
+            relief="flat",
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=self._border_color,
+            highlightcolor=self._accent_primary,
         )
         listbox.pack(side="left", fill="both", expand=True)
 
-        scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=listbox.yview)
+        scrollbar = ttk.Scrollbar(
+            list_frame,
+            orient="vertical",
+            command=listbox.yview,
+            style="Overlay.Vertical.TScrollbar",
+        )
         scrollbar.pack(side="right", fill="y")
         listbox.configure(yscrollcommand=scrollbar.set)
 
-        actions = ttk.Frame(frame)
-        actions.pack(fill="x", pady=(10, 0))
-        ttk.Button(actions, text="发送选中", command=self._send_selected_line).pack(
-            side="left", fill="x", expand=True
+        actions = tk.Frame(frame, bg=self._popup_bg)
+        actions.pack(fill="x", pady=(10, 2))
+
+        send_selected_btn = tk.Button(
+            actions,
+            text="发送选中",
+            command=self._send_selected_line,
+            bg=self._accent_primary,
+            fg="#081527",
+            activebackground="#7de0ff",
+            activeforeground="#071320",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 10, "bold"),
+            cursor="hand2",
+            padx=14,
+            pady=10,
         )
-        ttk.Button(actions, text="一键发送全部", command=self._send_all_lines).pack(
-            side="left", fill="x", expand=True, padx=(8, 0)
+        send_selected_btn.pack(side="left", fill="x", expand=True)
+
+        send_all_btn = tk.Button(
+            actions,
+            text="一键发送全部",
+            command=self._send_all_lines,
+            bg=self._accent_secondary,
+            fg="#f8fbff",
+            activebackground="#a79cff",
+            activeforeground="#ffffff",
+            relief="flat",
+            bd=0,
+            font=("Segoe UI", 10, "bold"),
+            cursor="hand2",
+            padx=14,
+            pady=10,
         )
+        send_all_btn.pack(side="left", fill="x", expand=True, padx=(8, 0))
+
+        tk.Label(
+            frame,
+            text="Enter 发送选中 · Ctrl+Enter 一键发送",
+            bg=self._popup_bg,
+            fg=self._text_muted,
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(4, 0))
 
         self._popup = popup
         self._preset_combo = combo
@@ -293,26 +468,52 @@ class QuickOverlayModule:
         status = tk.Toplevel(self._root)
         status.overrideredirect(True)
         status.attributes("-topmost", True)
+        status.configure(bg=self._popup_bg)
         status.withdraw()
 
-        body = tk.Frame(status, bg="#151b2b", bd=1, relief="solid")
+        body = tk.Frame(
+            status,
+            bg=self._surface_bg,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=self._border_color,
+        )
         body.pack(fill="both", expand=True)
+
+        header = tk.Frame(body, bg=self._surface_bg)
+        header.pack(fill="x", padx=10, pady=(8, 2))
+
+        status_tag_label = tk.Label(
+            header,
+            text="进行中",
+            bg="#1b2f4d",
+            fg=self._accent_primary,
+            font=("Segoe UI", 9, "bold"),
+            padx=8,
+            pady=2,
+        )
+        status_tag_label.pack(side="left")
 
         status_var = tk.StringVar(value="任务状态")
         label = tk.Label(
             body,
             textvariable=status_var,
-            bg="#151b2b",
-            fg="#e6ecff",
+            bg=self._surface_bg,
+            fg=self._text_main,
             padx=14,
-            pady=10,
+            pady=8,
             anchor="w",
             justify="left",
+            font=("Segoe UI", 10, "bold"),
+            wraplength=360,
         )
         label.pack(fill="both", expand=True)
 
         self._status_window = status
         self._status_var = status_var
+        self._status_tag_label = status_tag_label
+        self._status_text_label = label
+        self._status_body_frame = body
 
     def _poll_triggers(self) -> None:
         if self._root is None:
@@ -485,8 +686,12 @@ class QuickOverlayModule:
             self._line_listbox.insert(tk.END, "该预设暂无可发送文本")
             return
 
-        for line in lines:
-            self._line_listbox.insert(tk.END, line)
+        for idx, line in enumerate(lines, start=1):
+            self._line_listbox.insert(tk.END, f"{idx:02d}  {line}")
+
+        self._line_listbox.selection_clear(0, tk.END)
+        self._line_listbox.selection_set(0)
+        self._line_listbox.activate(0)
 
     def _sender_options(self) -> dict[str, Any]:
         cfg = load_config()
@@ -617,6 +822,19 @@ class QuickOverlayModule:
     def _enqueue_status(self, text: str, final: bool) -> None:
         self._status_queue.put((text, final))
 
+    def _status_visual_state(self, text: str, final: bool) -> tuple[str, str, str, str]:
+        lowered = text.lower()
+        is_error = any(key in text for key in ("失败", "异常", "取消")) or (
+            "error" in lowered
+        )
+        is_success = final and ("完成" in text or ("成功" in text and not is_error))
+
+        if is_error:
+            return ("失败", self._danger_color, "#4a1d2b", "#ffd6de")
+        if is_success:
+            return ("完成", self._success_color, "#163c2b", "#dcffe9")
+        return ("进行中", self._accent_primary, "#1b2f4d", self._text_main)
+
     def _show_status(self, text: str, final: bool) -> None:
         if (
             self._root is None
@@ -631,8 +849,22 @@ class QuickOverlayModule:
 
         self._status_var.set(text)
 
-        width = 360
-        height = 62
+        tag_text, tag_fg, tag_bg, message_fg = self._status_visual_state(text, final)
+        if self._status_tag_label is not None:
+            self._status_tag_label.configure(text=tag_text, fg=tag_fg, bg=tag_bg)
+        if self._status_text_label is not None:
+            self._status_text_label.configure(fg=message_fg)
+        if self._status_body_frame is not None:
+            self._status_body_frame.configure(highlightbackground=tag_fg)
+
+        chars = max(0, len(text))
+        width = min(520, max(340, 300 + chars * 6))
+        lines = max(1, (chars // 30) + 1)
+        height = min(120, 64 + (lines - 1) * 16)
+
+        if self._status_text_label is not None:
+            self._status_text_label.configure(wraplength=max(280, width - 34))
+
         screen_width = self._status_window.winfo_screenwidth()
         x = max(0, screen_width - width - 16)
         y = 16
