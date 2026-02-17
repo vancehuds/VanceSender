@@ -66,7 +66,11 @@ def main() -> None:
     cfg = load_config()
     server_cfg = cfg.get("server", {})
 
-    host = "0.0.0.0" if args.lan else server_cfg.get("host", "127.0.0.1")
+    lan_access = bool(server_cfg.get("lan_access"))
+    if args.lan:
+        lan_access = True
+
+    host = "0.0.0.0" if lan_access else server_cfg.get("host", "127.0.0.1")
     port = args.port or server_cfg.get("port", 8730)
 
     # Persist LAN flag if changed via CLI

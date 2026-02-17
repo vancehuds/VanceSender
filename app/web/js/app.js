@@ -148,7 +148,8 @@ const state = {
     aiPreview: [],
     presets: [],
     currentPresetId: null,
-    currentQuickPresetId: null
+    currentQuickPresetId: null,
+    editingTextIndex: null
 };
 
 // --- DOM Elements ---
@@ -178,6 +179,7 @@ const dom = {
     // Presets
     presetsGrid: document.getElementById('presets-grid'),
     savePresetBtn: document.getElementById('save-preset-btn'),
+    saveCurrentPresetBtn: document.getElementById('save-current-preset-btn'),
     refreshPresetsBtn: document.getElementById('refresh-presets-btn'),
     quickPresetSelect: document.getElementById('quick-preset-select'),
     quickPresetRefreshBtn: document.getElementById('quick-preset-refresh-btn'),
@@ -206,9 +208,13 @@ const dom = {
     // Modals
     modalBackdrop: document.getElementById('modal-backdrop'),
     modalSavePreset: document.getElementById('modal-save-preset'),
+    modalEditText: document.getElementById('modal-edit-text'),
     modalProvider: document.getElementById('modal-provider'),
     presetNameInput: document.getElementById('preset-name-input'),
     confirmSavePreset: document.getElementById('confirm-save-preset'),
+    editTextType: document.getElementById('edit-text-type'),
+    editTextContent: document.getElementById('edit-text-content'),
+    confirmEditText: document.getElementById('confirm-edit-text'),
     providerForm: document.getElementById('provider-form'),
     
     // Toast
@@ -285,7 +291,9 @@ function initSendPanel() {
     dom.sendAllBtn.addEventListener('click', startBatchSend);
     dom.cancelSendBtn.addEventListener('click', cancelBatchSend);
     dom.savePresetBtn.addEventListener('click', () => openModal('modal-save-preset'));
+    dom.saveCurrentPresetBtn.addEventListener('click', saveToCurrentPreset);
     dom.confirmSavePreset.addEventListener('click', saveCurrentAsPreset);
+    dom.confirmEditText.addEventListener('click', confirmEditTextUpdate);
 
     dom.quickPresetSelect.addEventListener('change', (e) => {
         const presetId = e.target.value;
@@ -299,6 +307,8 @@ function initSendPanel() {
             showToast('预设列表已刷新', 'success');
         }
     });
+
+    updatePresetSaveButtonState();
 }
 
 function initQuickSendPanel() {
@@ -324,6 +334,17 @@ function clearCurrentPresetSelection() {
     if (dom.quickPresetSelect) {
         dom.quickPresetSelect.value = '';
     }
+    updatePresetSaveButtonState();
+}
+
+function updatePresetSaveButtonState() {
+    if (!dom.saveCurrentPresetBtn) return;
+
+    const canSaveToCurrentPreset = Boolean(state.currentPresetId);
+    dom.saveCurrentPresetBtn.disabled = !canSaveToCurrentPreset;
+    dom.saveCurrentPresetBtn.title = canSaveToCurrentPreset
+        ? '将当前文本覆盖保存到已加载预设'
+        : '仅已加载预设后可保存到现有预设';
 }
 
 function parseAndImportText() {
@@ -383,6 +404,9 @@ function renderTextList() {
                 <button class="btn btn-sm btn-secondary" onclick="sendSingle(${index})">
                     <span class="icon">🚀</span>
                 </button>
+                <button class="btn btn-sm btn-ghost" onclick="editText(${index})" title="编辑">
+                    <span class="icon">✏️</span>
+                </button>
                 <button class="btn btn-sm btn-danger" onclick="deleteText(${index})">
                     <span class="icon">✕</span>
                 </button>
@@ -397,6 +421,43 @@ window.deleteText = (index) => {
     clearCurrentPresetSelection();
     renderTextList();
 };
+
+window.editText = (index) => {
+    const item = state.texts[index];
+    if (!item) return;
+
+    state.editingTextIndex = index;
+    dom.editTextType.value = item.type;
+    dom.editTextContent.value = item.content;
+    openModal('modal-edit-text');
+    dom.editTextContent.focus();
+};
+
+function confirmEditTextUpdate() {
+    const index = state.editingTextIndex;
+    if (index === null || index === undefined) {
+        closeModal();
+        return;
+    }
+
+    const item = state.texts[index];
+    if (!item) {
+        closeModal();
+        return;
+    }
+
+    const content = (dom.editTextContent.value || '').trim();
+    if (!content) {
+        showToast('文本内容不能为空', 'error');
+        return;
+    }
+
+    const type = dom.editTextType.value === 'do' ? 'do' : 'me';
+    state.texts[index] = { type, content };
+    renderTextList();
+    closeModal();
+    showToast('文本已更新', 'success');
+}
 
 async function sendTextNow(text, successMessage = '发送成功') {
     try {
@@ -726,6 +787,7 @@ function renderQuickPresetSwitcher() {
     dom.quickPresetSelect.innerHTML = '';
 
     if (state.presets.length === 0) {
+        clearCurrentPresetSelection();
         dom.quickPresetSelect.disabled = true;
         dom.quickPresetSelect.innerHTML = '<option value="">暂无预设</option>';
         return;
@@ -848,6 +910,7 @@ function loadPreset(preset, options = {}) {
 
     state.texts = [...preset.texts]; // Clone
     state.currentPresetId = preset.id;
+    updatePresetSaveButtonState();
     renderQuickPresetSwitcher();
     renderTextList();
     showToast(`已加载预设 "${preset.name}"`, 'success');
@@ -874,6 +937,7 @@ async function saveCurrentAsPreset() {
         if (res.ok) {
             if (payload.id) {
                 state.currentPresetId = payload.id;
+                updatePresetSaveButtonState();
             }
             showToast('保存成功', 'success');
             closeModal();
@@ -881,6 +945,41 @@ async function saveCurrentAsPreset() {
         }
     } catch (e) {
         showToast('保存失败', 'error');
+    }
+}
+
+async function saveToCurrentPreset() {
+    if (!state.currentPresetId) {
+        showToast('当前文本未关联已保存预设，无法覆盖保存', 'error');
+        return;
+    }
+
+    if (state.texts.length === 0) {
+        showToast('列表为空', 'error');
+        return;
+    }
+
+    try {
+        const res = await apiFetch(`/api/v1/presets/${state.currentPresetId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                texts: state.texts
+            })
+        });
+
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showToast('保存失败: ' + formatApiErrorDetail(payload.detail, res.status), 'error');
+            return;
+        }
+
+        showToast('已保存到当前预设', 'success');
+        await fetchPresets();
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('保存失败: ' + e.message, 'error');
+        }
     }
 }
 
@@ -1208,6 +1307,7 @@ function openModal(id) {
 function closeModal() {
     dom.modalBackdrop.classList.add('hidden');
     document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    state.editingTextIndex = null;
 }
 
 // Close modal triggers
