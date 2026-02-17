@@ -1428,10 +1428,6 @@ function validateOverlayHotkeyByMode(hotkeyValue, mode) {
 function initSettingsPanel() {
     dom.saveSettingsBtn.addEventListener('click', saveAllSettings);
 
-    if (dom.checkUpdateBtn) {
-        dom.checkUpdateBtn.addEventListener('click', checkGitHubUpdate);
-    }
-
     if (dom.settingOverlayCaptureHotkeyBtn) {
         dom.settingOverlayCaptureHotkeyBtn.addEventListener('click', () => {
             if (overlayHotkeyCaptureActive) {
@@ -1560,6 +1556,9 @@ async function checkGitHubUpdate() {
     const previousLabel = dom.checkUpdateBtn.textContent;
     dom.checkUpdateBtn.disabled = true;
     dom.checkUpdateBtn.textContent = '检查中...';
+    if (dom.appUpdateStatus) {
+        dom.appUpdateStatus.textContent = '正在检查更新...';
+    }
 
     try {
         const res = await apiFetch('/api/v1/settings/update-check');
@@ -1583,7 +1582,9 @@ async function checkGitHubUpdate() {
             showToast('当前已是最新版本', 'info');
         }
     } catch (e) {
-        if (e.message !== 'AUTH_REQUIRED') {
+        if (e.message === 'AUTH_REQUIRED') {
+            showToast('请先完成 Token 验证后再检查更新', 'error');
+        } else {
             showToast('检查更新失败: ' + e.message, 'error');
         }
     } finally {
@@ -1591,6 +1592,8 @@ async function checkGitHubUpdate() {
         dom.checkUpdateBtn.textContent = previousLabel;
     }
 }
+
+window.checkGitHubUpdate = checkGitHubUpdate;
 
 async function fetchSettings() {
     const res = await apiFetch('/api/v1/settings');
@@ -1634,6 +1637,10 @@ async function fetchSettings() {
     const tokenInput = document.getElementById('setting-token');
     tokenInput.value = '';
     tokenInput.placeholder = data.server.token_set ? '已设置 (输入新值可更新)' : '留空则不启用认证';
+
+    if (dom.appCurrentVersion) {
+        dom.appCurrentVersion.value = data.server.app_version || '-';
+    }
     
     // Update LAN info
     const lanDiv = document.getElementById('lan-urls');

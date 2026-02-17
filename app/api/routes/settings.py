@@ -47,6 +47,7 @@ async def get_settings():
     for p in ai_section["providers"]:
         p.pop("api_key", None)
     server_section = dict(cfg.get("server", {}))
+    server_section["app_version"] = APP_VERSION
     server_section["token_set"] = bool(server_section.get("token"))
     server_section["risk_no_token_with_lan"] = (
         bool(server_section.get("lan_access")) and not server_section["token_set"]
