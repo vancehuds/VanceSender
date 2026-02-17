@@ -89,31 +89,6 @@ python main.py --lan --port 9000
 - 脚本执行流程（Python 检测、`.venv` 创建、依赖安装、启动）
 - 常见问题排查（Python 未安装、依赖安装失败、端口冲突、防火墙）
 
-## Windows 打包发布（用户无需安装 Python）
-
-项目已提供 `build.bat` + `vancesender.spec`，可直接生成可分发版本（`onedir`）。
-
-### 打包步骤（开发机执行）
-
-```bat
-build.bat
-```
-
-脚本会自动：
-
-1. 检查 Python 版本（3.10+）
-2. 创建/复用 `.venv`
-3. 安装 `requirements.txt` 依赖
-4. 安装 `pyinstaller`
-5. 执行 `pyinstaller --clean --noconfirm vancesender.spec`
-
-### 打包产物
-
-- 目录：`dist/VanceSender/`
-- 主程序：`dist/VanceSender/VanceSender.exe`
-
-将整个 `dist/VanceSender/` 文件夹发给用户即可（可先压缩成 zip）。
-
 ### 用户侧使用
 
 用户机器不需要安装 Python，解压后直接运行：
