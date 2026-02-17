@@ -66,9 +66,42 @@ class AIGenerateRequest(BaseModel):
     provider_id: str | None = Field(None, description="使用的AI服务商ID，留空使用默认")
     count: int | None = Field(None, ge=1, le=30, description="期望生成的条数")
     text_type: Literal["me", "do", "mixed"] = Field("mixed", description="文本类型")
+    style: str | None = Field(
+        None,
+        min_length=1,
+        max_length=120,
+        description="自定义生成风格，如'冷峻电影感'",
+    )
 
 
 class AIGenerateResponse(BaseModel):
+    texts: list[TextLine]
+    provider_id: str
+
+
+class AIRewriteRequest(BaseModel):
+    texts: list[TextLine] = Field(
+        ...,
+        min_length=1,
+        max_length=80,
+        description="需要重写的文本列表",
+    )
+    provider_id: str | None = Field(None, description="使用的AI服务商ID，留空使用默认")
+    style: str | None = Field(
+        None,
+        min_length=1,
+        max_length=120,
+        description="重写风格，如'克制、压迫感'",
+    )
+    requirements: str | None = Field(
+        None,
+        min_length=1,
+        max_length=500,
+        description="额外要求，如'保留动作顺序并强化环境描写'",
+    )
+
+
+class AIRewriteResponse(BaseModel):
     texts: list[TextLine]
     provider_id: str
 

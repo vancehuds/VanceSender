@@ -149,7 +149,8 @@ const state = {
     presets: [],
     currentPresetId: null,
     currentQuickPresetId: null,
-    editingTextIndex: null
+    editingTextIndex: null,
+    aiRewriteTarget: null
 };
 
 // --- DOM Elements ---
@@ -170,6 +171,7 @@ const dom = {
     
     // AI
     aiScenario: document.getElementById('ai-scenario'),
+    aiStyle: document.getElementById('ai-style'),
     aiCount: document.getElementById('ai-count'),
     aiProvider: document.getElementById('ai-provider-select'),
     aiGenerateBtn: document.getElementById('ai-generate-btn'),
@@ -209,12 +211,19 @@ const dom = {
     modalBackdrop: document.getElementById('modal-backdrop'),
     modalSavePreset: document.getElementById('modal-save-preset'),
     modalEditText: document.getElementById('modal-edit-text'),
+    modalAIRewrite: document.getElementById('modal-ai-rewrite'),
     modalProvider: document.getElementById('modal-provider'),
     presetNameInput: document.getElementById('preset-name-input'),
     confirmSavePreset: document.getElementById('confirm-save-preset'),
     editTextType: document.getElementById('edit-text-type'),
     editTextContent: document.getElementById('edit-text-content'),
     confirmEditText: document.getElementById('confirm-edit-text'),
+    aiRewriteTitle: document.getElementById('ai-rewrite-modal-title'),
+    aiRewriteDesc: document.getElementById('ai-rewrite-modal-desc'),
+    aiRewriteProvider: document.getElementById('ai-rewrite-provider-select'),
+    aiRewriteStyle: document.getElementById('ai-rewrite-style'),
+    aiRewriteRequirements: document.getElementById('ai-rewrite-requirements'),
+    confirmAIRewrite: document.getElementById('confirm-ai-rewrite'),
     providerForm: document.getElementById('provider-form'),
     
     // Toast
@@ -227,6 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initSendPanel();
     initQuickSendPanel();
     initAIPanel();
+    initAIRewriteModal();
     initPresetsPanel();
     initSettingsPanel();
     initAuth();
@@ -404,6 +414,9 @@ function renderTextList() {
                 <button class="btn btn-sm btn-secondary" onclick="sendSingle(${index})">
                     <span class="icon">🚀</span>
                 </button>
+                <button class="btn btn-sm btn-ghost" onclick="openSingleRewrite(${index})" title="AI重写">
+                    <span class="icon">✨</span>
+                </button>
                 <button class="btn btn-sm btn-ghost" onclick="editText(${index})" title="编辑">
                     <span class="icon">✏️</span>
                 </button>
@@ -431,6 +444,19 @@ window.editText = (index) => {
     dom.editTextContent.value = item.content;
     openModal('modal-edit-text');
     dom.editTextContent.focus();
+};
+
+window.openSingleRewrite = (index) => {
+    const item = state.texts[index];
+    if (!item) {
+        showToast('文本不存在，请刷新后重试', 'error');
+        return;
+    }
+    state.aiRewriteTarget = { scope: 'single', index };
+    dom.aiRewriteTitle.textContent = 'AI重写单条文本';
+    dom.aiRewriteDesc.textContent = `目标：/${item.type} ${item.content}`;
+    dom.aiRewriteProvider.value = dom.aiProvider.value || '';
+    openModal('modal-ai-rewrite');
 };
 
 function confirmEditTextUpdate() {
@@ -651,10 +677,16 @@ function initAIPanel() {
     });
 }
 
+function initAIRewriteModal() {
+    if (!dom.confirmAIRewrite) return;
+    dom.confirmAIRewrite.addEventListener('click', submitAIRewrite);
+}
+
 async function generateAI() {
     const scenario = dom.aiScenario.value.trim();
     if (!scenario) return showToast('请输入场景描述', 'error');
 
+    const style = (dom.aiStyle?.value || '').trim();
     const providerId = dom.aiProvider.value;
     const type = document.querySelector('input[name="ai-type"]:checked').value;
     const count = parseInt(dom.aiCount.value) || 5;
@@ -672,7 +704,8 @@ async function generateAI() {
                 scenario,
                 provider_id: providerId,
                 count,
-                text_type: type
+                text_type: type,
+                style: style || null
             })
         });
 
@@ -758,6 +791,11 @@ function renderPresets(presets) {
                 <span>${p.texts.length} 条文本</span>
                 <span>${new Date(p.created_at).toLocaleDateString()}</span>
             </div>
+            <div class="preset-card-actions">
+                <button class="rewrite-preset btn btn-sm btn-ghost" data-id="${p.id}" type="button" title="AI重写整套预设">
+                    ✨ 重写
+                </button>
+            </div>
             <button class="delete-preset" data-id="${p.id}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
@@ -766,8 +804,14 @@ function renderPresets(presets) {
         // Add click listener for loading
         el.addEventListener('click', (e) => {
             // Prevent if delete button was clicked
-            if (e.target.closest('.delete-preset')) return;
+            if (e.target.closest('.delete-preset') || e.target.closest('.rewrite-preset')) return;
             loadPreset(p);
+        });
+
+        const rewriteBtn = el.querySelector('.rewrite-preset');
+        rewriteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.openPresetRewrite(p.id);
         });
 
         // Add delete listener
@@ -916,6 +960,126 @@ function loadPreset(preset, options = {}) {
     showToast(`已加载预设 "${preset.name}"`, 'success');
     if (jumpToSend) {
         document.querySelector('[data-target="panel-send"]').click();
+    }
+}
+
+window.openPresetRewrite = (presetId) => {
+    const preset = state.presets.find((item) => item.id === presetId);
+    if (!preset) {
+        showToast('预设不存在，请刷新后重试', 'error');
+        return;
+    }
+    if (!Array.isArray(preset.texts) || preset.texts.length === 0) {
+        showToast('该预设暂无可重写内容', 'error');
+        return;
+    }
+
+    state.aiRewriteTarget = { scope: 'preset', presetId };
+    dom.aiRewriteTitle.textContent = 'AI重写整套预设';
+    dom.aiRewriteDesc.textContent = `目标：${preset.name}（${preset.texts.length} 条）`;
+    dom.aiRewriteProvider.value = dom.aiProvider.value || '';
+    openModal('modal-ai-rewrite');
+};
+
+async function submitAIRewrite() {
+    const target = state.aiRewriteTarget;
+    if (!target) {
+        closeModal();
+        return;
+    }
+
+    const style = (dom.aiRewriteStyle?.value || '').trim();
+    const requirements = (dom.aiRewriteRequirements?.value || '').trim();
+    const providerId = dom.aiRewriteProvider?.value || dom.aiProvider.value || '';
+
+    let sourceTexts = [];
+    let presetId = null;
+
+    if (target.scope === 'single') {
+        const item = state.texts[target.index];
+        if (!item) {
+            showToast('目标文本不存在，请重试', 'error');
+            return;
+        }
+        sourceTexts = [item];
+    } else if (target.scope === 'preset') {
+        presetId = target.presetId;
+        const preset = state.presets.find((item) => item.id === presetId);
+        if (!preset || !Array.isArray(preset.texts) || preset.texts.length === 0) {
+            showToast('目标预设不存在或为空', 'error');
+            return;
+        }
+        sourceTexts = preset.texts;
+    } else {
+        showToast('未知重写目标', 'error');
+        return;
+    }
+
+    dom.confirmAIRewrite.disabled = true;
+    dom.confirmAIRewrite.textContent = '重写中...';
+
+    try {
+        const rewriteRes = await apiFetch('/api/v1/ai/rewrite', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                texts: sourceTexts,
+                provider_id: providerId || null,
+                style: style || null,
+                requirements: requirements || null
+            })
+        });
+        const rewritePayload = await rewriteRes.json().catch(() => ({}));
+        if (!rewriteRes.ok) {
+            showToast('重写失败: ' + formatApiErrorDetail(rewritePayload.detail, rewriteRes.status), 'error');
+            return;
+        }
+
+        const rewritten = Array.isArray(rewritePayload.texts) ? rewritePayload.texts : [];
+        if (rewritten.length !== sourceTexts.length) {
+            showToast('重写失败: 返回条数异常', 'error');
+            return;
+        }
+
+        if (target.scope === 'single') {
+            state.texts[target.index] = rewritten[0];
+            renderTextList();
+            closeModal();
+            showToast('单条文本已重写', 'success');
+            return;
+        }
+
+        if (!presetId) {
+            showToast('重写失败: 预设ID缺失', 'error');
+            return;
+        }
+
+        const saveRes = await apiFetch(`/api/v1/presets/${presetId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ texts: rewritten })
+        });
+        const savePayload = await saveRes.json().catch(() => ({}));
+        if (!saveRes.ok) {
+            showToast('重写已生成但保存失败: ' + formatApiErrorDetail(savePayload.detail, saveRes.status), 'error');
+            return;
+        }
+
+        if (state.currentPresetId === presetId) {
+            state.texts = [...rewritten];
+            renderTextList();
+        }
+
+        await fetchPresets();
+        closeModal();
+        showToast('预设已重写并保存', 'success');
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('重写失败: ' + e.message, 'error');
+        }
+    } finally {
+        dom.confirmAIRewrite.disabled = false;
+        dom.confirmAIRewrite.textContent = '开始重写';
     }
 }
 
@@ -1141,18 +1305,35 @@ async function fetchProviders() {
         dom.providersList.appendChild(row);
     });
 
-    // Update AI Panel dropdown
-    dom.aiProvider.innerHTML = '';
+    // Update AI provider dropdowns
     const preferredProviderId = state.settings.ai?.default_provider || '';
-    providers.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.name;
-        if (preferredProviderId && p.id === preferredProviderId) {
-            opt.selected = true;
+    const fillProviderSelect = (selectEl) => {
+        if (!selectEl) return;
+        selectEl.innerHTML = '';
+        if (providers.length === 0) {
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = '';
+            emptyOpt.textContent = '暂无服务商';
+            selectEl.appendChild(emptyOpt);
+            return;
         }
-        dom.aiProvider.appendChild(opt);
-    });
+        providers.forEach((p) => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (preferredProviderId && p.id === preferredProviderId) {
+                opt.selected = true;
+            }
+            selectEl.appendChild(opt);
+        });
+    };
+
+    fillProviderSelect(dom.aiProvider);
+    fillProviderSelect(dom.aiRewriteProvider);
+
+    if (dom.aiRewriteProvider && dom.aiProvider.value) {
+        dom.aiRewriteProvider.value = dom.aiProvider.value;
+    }
 }
 
 async function saveAllSettings() {
@@ -1308,6 +1489,7 @@ function closeModal() {
     dom.modalBackdrop.classList.add('hidden');
     document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
     state.editingTextIndex = null;
+    state.aiRewriteTarget = null;
 }
 
 // Close modal triggers

@@ -170,6 +170,11 @@
                             <label>场景描述</label>
                             <textarea id="ai-scenario" placeholder="描述你想要生成的角色扮演场景，例如：'一个愤怒的黑帮老大正在审问叛徒'..." rows="4"></textarea>
                         </div>
+
+                        <div class="form-group">
+                            <label>自定义风格（可选）</label>
+                            <input id="ai-style" type="text" placeholder="例如：冷峻、电影感、黑色幽默">
+                        </div>
                         
                         <div class="form-row">
                             <div class="form-group">
@@ -395,6 +400,30 @@
         <div class="modal-actions">
             <button class="btn btn-ghost" data-action="close-modal">取消</button>
             <button id="confirm-edit-text" class="btn btn-primary">保存修改</button>
+        </div>
+    </div>
+
+    <!-- AI Rewrite Modal -->
+    <div id="modal-ai-rewrite" class="modal glass-card hidden">
+        <h3 id="ai-rewrite-modal-title">AI重写</h3>
+        <p id="ai-rewrite-modal-desc" class="hint" style="margin-bottom: 12px;">根据你的风格与要求进行重写</p>
+        <div class="form-group">
+            <label for="ai-rewrite-provider-select">AI 服务商</label>
+            <select id="ai-rewrite-provider-select">
+                <option value="">加载中...</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="ai-rewrite-style">重写风格（可选）</label>
+            <input id="ai-rewrite-style" type="text" class="full-width" placeholder="例如：压迫感、节奏更快、口语化">
+        </div>
+        <div class="form-group">
+            <label for="ai-rewrite-requirements">具体要求（可选）</label>
+            <textarea id="ai-rewrite-requirements" rows="4" class="full-width" placeholder="例如：保留原意；每句更简洁；加强环境描写"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal">取消</button>
+            <button id="confirm-ai-rewrite" class="btn btn-primary">开始重写</button>
         </div>
     </div>
 

@@ -8,10 +8,17 @@ from fastapi.responses import StreamingResponse
 from app.api.schemas import (
     AIGenerateRequest,
     AIGenerateResponse,
+    AIRewriteRequest,
+    AIRewriteResponse,
     ProviderTestResponse,
     TextLine,
 )
-from app.core.ai_client import generate_texts, generate_texts_stream, test_provider
+from app.core.ai_client import (
+    generate_texts,
+    generate_texts_stream,
+    rewrite_texts,
+    test_provider,
+)
 from app.core.config import load_config
 
 router = APIRouter()
@@ -78,6 +85,7 @@ async def ai_generate(body: AIGenerateRequest):
             provider_id=body.provider_id,
             count=body.count,
             text_type=body.text_type,
+            style=body.style,
         )
 
         validated_texts: list[TextLine] = []
@@ -117,6 +125,7 @@ async def ai_generate_stream(body: AIGenerateRequest):
                 provider_id=body.provider_id,
                 count=body.count,
                 text_type=body.text_type,
+                style=body.style,
             ):
                 yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
@@ -124,6 +133,45 @@ async def ai_generate_stream(body: AIGenerateRequest):
         return StreamingResponse(event_gen(), media_type="text/event-stream")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/rewrite", response_model=AIRewriteResponse)
+async def ai_rewrite(body: AIRewriteRequest):
+    """使用AI重写单条或多条文本。"""
+    try:
+        cfg = load_config()
+        provider_id = body.provider_id or cfg.get("ai", {}).get("default_provider", "")
+        rewritten = await rewrite_texts(
+            texts=[item.model_dump() for item in body.texts],
+            provider_id=body.provider_id,
+            style=body.style,
+            requirements=body.requirements,
+        )
+
+        validated_texts: list[TextLine] = []
+        for item in rewritten:
+            item_type = item.get("type")
+            item_content = item.get("content")
+            if item_type in ("me", "do") and isinstance(item_content, str):
+                validated_texts.append(TextLine(type=item_type, content=item_content))
+
+        if len(validated_texts) != len(body.texts):
+            raise RuntimeError("AI重写结果与输入条数不一致。")
+
+        return AIRewriteResponse(texts=validated_texts, provider_id=provider_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=_build_error_detail(exc, provider_id=body.provider_id),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "AI服务请求失败",
+                **_build_error_detail(exc, provider_id=body.provider_id),
+            },
+        )
 
 
 @router.post("/test/{provider_id}", response_model=ProviderTestResponse)
@@ -141,20 +189,16 @@ async def test_ai_provider(provider_id: str):
                     else str(result.get("response", ""))
                 ),
             )
+
+        error_type_raw = result.get("error_type")
+        status_code_raw = result.get("status_code")
+        request_id_raw = result.get("request_id")
         return ProviderTestResponse(
             message=f"连接失败: {_format_test_error(result)}",
             success=False,
-            error_type=(
-                str(result.get("error_type")) if result.get("error_type") else None
-            ),
-            status_code=(
-                int(result.get("status_code"))
-                if isinstance(result.get("status_code"), int)
-                else None
-            ),
-            request_id=(
-                str(result.get("request_id")) if result.get("request_id") else None
-            ),
+            error_type=(str(error_type_raw) if error_type_raw else None),
+            status_code=(status_code_raw if isinstance(status_code_raw, int) else None),
+            request_id=(str(request_id_raw) if request_id_raw else None),
             body=result.get("body"),
         )
     except ValueError as exc:

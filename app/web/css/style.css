@@ -597,6 +597,20 @@ textarea:focus, input:focus, select:focus {
     justify-content: space-between;
 }
 
+.preset-card-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.rewrite-preset {
+    opacity: 0.85;
+}
+
+.preset-card:hover .rewrite-preset {
+    opacity: 1;
+}
+
 .delete-preset {
     position: absolute;
     top: 8px;
