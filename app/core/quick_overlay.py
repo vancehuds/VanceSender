@@ -754,14 +754,14 @@ class QuickOverlayModule:
         return {
             "method": sender_cfg.get("method", "clipboard"),
             "chat_open_key": sender_cfg.get("chat_open_key", "t"),
-            "delay_open": sender_cfg.get("delay_open_chat", 300),
-            "delay_paste": sender_cfg.get("delay_after_paste", 100),
-            "delay_send": sender_cfg.get("delay_after_send", 200),
-            "focus_timeout": sender_cfg.get("focus_timeout", 5000),
-            "retry_count": sender_cfg.get("retry_count", 2),
-            "retry_interval": sender_cfg.get("retry_interval", 300),
+            "delay_open": sender_cfg.get("delay_open_chat", 450),
+            "delay_paste": sender_cfg.get("delay_after_paste", 160),
+            "delay_send": sender_cfg.get("delay_after_send", 260),
+            "focus_timeout": sender_cfg.get("focus_timeout", 8000),
+            "retry_count": sender_cfg.get("retry_count", 3),
+            "retry_interval": sender_cfg.get("retry_interval", 450),
             "typing_char_delay": sender_cfg.get("typing_char_delay", 18),
-            "delay_between": sender_cfg.get("delay_between_lines", 1500),
+            "delay_between": sender_cfg.get("delay_between_lines", 1800),
         }
 
     def _send_selected_line(self) -> None:

@@ -7,13 +7,13 @@ server:
 sender:
   method: clipboard
   chat_open_key: t
-  delay_open_chat: 300
-  delay_after_paste: 100
-  delay_after_send: 200
-  delay_between_lines: 1500
-  focus_timeout: 5000
-  retry_count: 2
-  retry_interval: 300
+  delay_open_chat: 450
+  delay_after_paste: 160
+  delay_after_send: 260
+  delay_between_lines: 1800
+  focus_timeout: 8000
+  retry_count: 3
+  retry_interval: 450
   typing_char_delay: 18
 
 quick_overlay:

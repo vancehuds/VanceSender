@@ -1244,12 +1244,12 @@ async function fetchSettings() {
     // Apply to UI
     dom.settingMethod.value = data.sender.method || 'clipboard';
     dom.settingChatKey.value = data.sender.chat_open_key || 't';
-    dom.settingDelayOpen.value = data.sender.delay_open_chat || 300;
-    dom.settingDelayPaste.value = data.sender.delay_after_paste || 100;
-    dom.settingDelaySend.value = data.sender.delay_after_send || 200;
-    dom.settingFocusTimeout.value = data.sender.focus_timeout || 5000;
-    dom.settingRetryCount.value = data.sender.retry_count ?? 2;
-    dom.settingRetryInterval.value = data.sender.retry_interval || 300;
+    dom.settingDelayOpen.value = data.sender.delay_open_chat || 450;
+    dom.settingDelayPaste.value = data.sender.delay_after_paste || 160;
+    dom.settingDelaySend.value = data.sender.delay_after_send || 260;
+    dom.settingFocusTimeout.value = data.sender.focus_timeout || 8000;
+    dom.settingRetryCount.value = data.sender.retry_count ?? 3;
+    dom.settingRetryInterval.value = data.sender.retry_interval || 450;
     dom.settingTypingCharDelay.value = data.sender.typing_char_delay || 18;
     dom.settingLanAccess.checked = data.server.lan_access || false;
     dom.settingSystemPrompt.value = data.ai.system_prompt || '';
