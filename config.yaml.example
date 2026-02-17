@@ -16,6 +16,12 @@ sender:
   retry_interval: 300
   typing_char_delay: 18
 
+quick_overlay:
+  enabled: true
+  trigger_hotkey: f8
+  mouse_side_button: ''
+  poll_interval_ms: 40
+
 ai:
   providers:
     - id: openai

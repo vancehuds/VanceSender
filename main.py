@@ -66,6 +66,16 @@ def main() -> None:
     cfg = load_config()
     server_cfg = cfg.get("server", {})
 
+    quick_overlay_module = None
+    try:
+        from app.core.quick_overlay import create_quick_overlay_module
+
+        quick_overlay_module = create_quick_overlay_module(cfg)
+        if quick_overlay_module is not None:
+            quick_overlay_module.start()
+    except Exception as exc:
+        print(f"⚠ 快捷悬浮窗模块启动失败: {exc}")
+
     lan_access = bool(server_cfg.get("lan_access"))
     if args.lan:
         lan_access = True
@@ -102,13 +112,17 @@ def main() -> None:
         print("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
         print()
 
-    uvicorn.run(
-        "main:app",
-        host=host,
-        port=port,
-        reload=False,
-        log_level="info",
-    )
+    try:
+        uvicorn.run(
+            "main:app",
+            host=host,
+            port=port,
+            reload=False,
+            log_level="info",
+        )
+    finally:
+        if quick_overlay_module is not None:
+            quick_overlay_module.stop()
 
 
 if __name__ == "__main__":

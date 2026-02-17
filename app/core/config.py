@@ -71,6 +71,12 @@ def _default_config() -> dict[str, Any]:
             "retry_interval": 300,
             "typing_char_delay": 18,
         },
+        "quick_overlay": {
+            "enabled": True,
+            "trigger_hotkey": "f8",
+            "mouse_side_button": "",
+            "poll_interval_ms": 40,
+        },
         "ai": {
             "providers": [],
             "default_provider": "",
