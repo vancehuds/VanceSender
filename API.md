@@ -2,53 +2,60 @@
 
 Base URL: `http://127.0.0.1:8730/api/v1`
 
-除 SSE 接口（`/send/batch`、`/ai/generate/stream`）外，请求和响应均使用 JSON 格式。也可通过 `http://127.0.0.1:8730/docs` 查看交互式 Swagger 文档。
+运行后可通过以下地址查看在线文档：
+
+- Swagger UI: `http://127.0.0.1:8730/docs`
+- OpenAPI JSON: `http://127.0.0.1:8730/openapi.json`
+
+除 SSE 接口（`/send/batch`、`/ai/generate/stream`）外，请求与响应均为 JSON。
 
 ---
 
 ## 目录
 
 - [认证（可选）](#认证可选)
-- [发送文本](#发送文本)
+- [发送接口](#发送接口)
   - [发送单条文本](#发送单条文本)
   - [批量发送文本（SSE）](#批量发送文本sse)
   - [取消批量发送](#取消批量发送)
   - [获取发送状态](#获取发送状态)
-- [AI 生成](#ai-生成)
+- [AI 接口](#ai-接口)
   - [生成文本](#生成文本)
   - [流式生成文本（SSE）](#流式生成文本sse)
+  - [重写文本](#重写文本)
   - [测试服务商连接](#测试服务商连接)
-- [预设管理](#预设管理)
+- [预设接口](#预设接口)
   - [列出所有预设](#列出所有预设)
   - [创建预设](#创建预设)
   - [获取单个预设](#获取单个预设)
   - [更新预设](#更新预设)
   - [删除预设](#删除预设)
-- [设置](#设置)
+- [设置接口](#设置接口)
   - [获取全部设置](#获取全部设置)
   - [更新发送设置](#更新发送设置)
   - [更新服务器设置](#更新服务器设置)
   - [更新 AI 设置](#更新-ai-设置)
-- [AI 服务商管理](#ai-服务商管理)
-  - [列出所有服务商](#列出所有服务商)
+- [AI 服务商接口](#ai-服务商接口)
+  - [列出服务商](#列出服务商)
   - [添加服务商](#添加服务商)
   - [更新服务商](#更新服务商)
   - [删除服务商](#删除服务商)
-- [通用数据结构](#通用数据结构)
+- [通用数据结构与错误响应](#通用数据结构与错误响应)
 
 ---
 
 ## 认证（可选）
 
-当 `server.token` 为空时，API 不启用认证。
+所有 `/api/v1/*` 路由都挂载了统一鉴权依赖：
 
-当 `server.token` 已配置后，所有 `/api/v1/*` 请求都需要携带以下请求头：
+- 当 `server.token` 为空：不启用认证
+- 当 `server.token` 非空：必须携带 Bearer Token
 
 ```http
 Authorization: Bearer <your-token>
 ```
 
-未携带或 Token 不匹配时会返回：
+认证失败时：
 
 ```json
 {
@@ -56,7 +63,7 @@ Authorization: Bearer <your-token>
 }
 ```
 
-并包含响应头：
+并附带响应头：
 
 ```http
 WWW-Authenticate: Bearer
@@ -64,23 +71,23 @@ WWW-Authenticate: Bearer
 
 ---
 
-## 发送文本
+## 发送接口
 
 ### 发送单条文本
 
-向 FiveM 聊天框发送一条文本消息。
+向 FiveM 聊天框发送一条文本。
 
-```
+```http
 POST /api/v1/send
 ```
 
-**请求体：**
+请求体：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `text` | string | 是 | 完整的发送文本，如 `/me 打开车门` |
+| `text` | string | 是 | 发送文本，最少 1 个字符 |
 
-**请求示例：**
+请求示例：
 
 ```json
 {
@@ -88,7 +95,7 @@ POST /api/v1/send
 }
 ```
 
-**响应：**
+响应示例：
 
 ```json
 {
@@ -98,92 +105,85 @@ POST /api/v1/send
 }
 ```
 
-**错误情况：**
+当正在进行批量发送时，该接口不会抛 HTTP 错误，而是返回：
 
-- 当前正在批量发送时会返回 `success: false`，`error` 字段包含原因。
+```json
+{
+  "success": false,
+  "text": "/me 缓缓推开了房门",
+  "error": "正在批量发送中，请等待完成或取消"
+}
+```
 
 ---
 
 ### 批量发送文本（SSE）
 
-批量发送多条文本，返回 Server-Sent Events 事件流用于实时跟踪进度。
+按顺序发送多条文本，并通过 SSE 返回进度。
 
-```
+```http
 POST /api/v1/send/batch
 ```
 
-**请求体：**
+请求体：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `texts` | string[] | 是 | 文本列表，至少 1 条 |
-| `delay_between` | int | 否 | 每条消息间隔（ms），范围 200–30000，留空使用配置默认值 |
+| `texts` | string[] | 是 | 文本数组，至少 1 条 |
+| `delay_between` | int | 否 | 每条间隔(ms)，范围 `200-30000`，不传则用配置值 |
 
-**请求示例：**
+请求示例：
 
 ```json
 {
   "texts": [
     "/me 缓缓走向车辆",
-    "/do 男子的脚步声在安静的停车场中回响",
-    "/me 掏出车钥匙，按下解锁按钮",
-    "/do 车辆发出\"哔\"的一声，车灯闪烁了两下"
+    "/do 男子的脚步声在停车场中回响",
+    "/me 掏出车钥匙，按下解锁按钮"
   ],
   "delay_between": 2000
 }
 ```
 
-**响应：** `Content-Type: text/event-stream`
+响应头：`Content-Type: text/event-stream`
 
-SSE 事件流中的每条消息格式为 `data: <JSON>\n\n`，包含以下事件类型：
+事件格式：`data: <JSON>\n\n`
 
-**发送中事件：**
+常见事件：
 
-```
-data: {"status": "sending", "index": 0, "total": 4, "text": "/me 缓缓走向车辆"}
+```text
+data: {"status":"sending","index":0,"total":3,"text":"/me 缓缓走向车辆"}
 
-data: {"status": "sending", "index": 1, "total": 4, "text": "/do 男子的脚步声在安静的停车场中回响"}
-```
+data: {"status":"line_result","index":0,"total":3,"success":true,"error":null,"text":"/me 缓缓走向车辆"}
 
-**完成事件：**
+data: {"status":"line_result","index":1,"total":3,"success":false,"error":"未检测到 FiveM 在前台...","text":"/do 男子的脚步声在停车场中回响"}
 
-```
-data: {"status": "completed", "total": 4, "sent": 4, "success": 4, "failed": 0}
+data: {"status":"completed","total":3,"sent":3,"success":2,"failed":1}
 ```
 
-**单条结果事件：**
+取消时：
 
-```
-data: {"status": "line_result", "index": 1, "total": 4, "success": true, "error": null, "text": "/do ..."}
-
-data: {"status": "line_result", "index": 2, "total": 4, "success": false, "error": "未检测到 FiveM 在前台...", "text": "/me ..."}
+```text
+data: {"status":"cancelled","index":2,"total":3}
 ```
 
-**取消事件：**
+若已有批量任务在运行，接口会直接返回一条错误事件流：
 
-```
-data: {"status": "cancelled", "index": 2, "total": 4}
-```
-
-**冲突事件（已有任务运行中）：**
-
-```
-data: {"status": "error", "error": "已有批量发送任务进行中"}
+```text
+data: {"status":"error","error":"已有批量发送任务进行中"}
 ```
 
 ---
 
 ### 取消批量发送
 
-取消正在进行的批量发送任务。
+请求取消当前批量发送任务。
 
-```
+```http
 POST /api/v1/send/stop
 ```
 
-**请求体：** 无
-
-**响应：**
+响应示例（已发送取消信号）：
 
 ```json
 {
@@ -192,7 +192,7 @@ POST /api/v1/send/stop
 }
 ```
 
-若当前没有正在进行的任务：
+响应示例（当前没有批量任务）：
 
 ```json
 {
@@ -205,154 +205,200 @@ POST /api/v1/send/stop
 
 ### 获取发送状态
 
-查询当前发送器的状态。
+查询当前是否在发送以及最新进度。
 
-```
+```http
 GET /api/v1/send/status
 ```
 
-**响应：**
+响应示例：
 
 ```json
 {
   "sending": true,
   "progress": {
     "status": "sending",
-    "index": 2,
-    "total": 5,
-    "text": "/do 门被缓缓推开"
+    "index": 1,
+    "total": 3,
+    "text": "/do 男子的脚步声在停车场中回响"
   }
-}
-```
-
-空闲时：
-
-```json
-{
-  "sending": false,
-  "progress": {}
 }
 ```
 
 ---
 
-## AI 生成
+## AI 接口
 
 ### 生成文本
 
-使用 AI 服务商生成一套 `/me` `/do` 角色扮演文本。
+根据场景生成 `/me` `/do` 文本。
 
-```
+```http
 POST /api/v1/ai/generate
 ```
 
-**请求体：**
+请求体：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `scenario` | string | 是 | 场景描述 |
-| `provider_id` | string | 否 | 使用的服务商 ID，留空使用默认 |
-| `count` | int | 否 | 期望生成条数（1–30），留空由 AI 决定 |
-| `text_type` | string | 否 | 文本类型：`"mixed"`（默认）、`"me"`、`"do"` |
+| `provider_id` | string | 否 | 指定服务商 ID，不传则使用默认服务商 |
+| `count` | int | 否 | 期望条数，范围 `1-30` |
+| `text_type` | string | 否 | `mixed`(默认) / `me` / `do` |
+| `style` | string | 否 | 生成风格（1-120 字符） |
 
-**请求示例：**
+请求示例：
 
 ```json
 {
   "scenario": "一个侦探正在勘察一间被翻得乱七八糟的公寓",
   "count": 6,
-  "text_type": "mixed"
+  "text_type": "mixed",
+  "style": "冷峻电影感"
 }
 ```
 
-**响应：**
+响应示例：
 
 ```json
 {
   "texts": [
     { "type": "me", "content": "推开半掩的房门，环顾四周" },
-    { "type": "do", "content": "房间内一片狼藉，家具东倒西歪，地板上散落着碎玻璃" },
-    { "type": "me", "content": "戴上手套，蹲下身仔细查看地面上的痕迹" },
-    { "type": "do", "content": "地板上可以看到一串模糊的泥脚印，从窗户方向延伸过来" },
-    { "type": "me", "content": "掏出手机拍下脚印的照片" },
-    { "type": "do", "content": "手机快门声在安静的房间里格外清晰" }
+    { "type": "do", "content": "房间内一片狼藉，家具东倒西歪" }
   ],
   "provider_id": "deepseek"
 }
 ```
 
-**错误码：**
+常见错误码：
 
 | 状态码 | 说明 |
 |--------|------|
-| 400 | 服务商配置错误或请求参数异常（如未配置默认服务商、provider_id 无效） |
-| 502 | AI 上游服务请求失败 |
+| 400 | 参数错误、默认服务商未配置、provider_id 无效等 |
+| 502 | 上游 AI 服务请求失败 |
 
-> `detail` 可能是结构化对象，常见字段包括 `message`、`error_type`、`provider_id`、`status_code`、`request_id`、`body`。
+`detail` 可能是结构化对象，常见字段：`message`、`error_type`、`provider_id`、`status_code`、`request_id`、`body`。
 
 ---
 
 ### 流式生成文本（SSE）
 
-以 Server-Sent Events 流的形式实时返回 AI 生成内容。
+以 SSE 流式返回模型输出片段。
 
-```
+```http
 POST /api/v1/ai/generate/stream
 ```
 
-**请求体：** 与 [生成文本](#生成文本) 相同。
+请求体与 [生成文本](#生成文本) 相同。
 
-**响应：** `Content-Type: text/event-stream`
+响应头：`Content-Type: text/event-stream`
 
-```
+示例：
+
+```text
 data: /me 推开
 
-data: 半掩的房
+data: 半掩的房门
 
-data: 门，环顾四周
-
-data: 
-/do 房间内
-
-data: 一片狼藉
+data: /do 房间内一片狼藉
 
 data: [DONE]
 ```
 
-每条 `data:` 为 AI 模型输出的一个文本片段，前端拼接后再解析。流结束时发送 `[DONE]`。
+说明：
+
+- 每条 `data:` 是模型输出的一段文本
+- 前端负责拼接后再解析
+- 结束标记为 `[DONE]`
+
+---
+
+### 重写文本
+
+重写已有文本（单条或多条），保持输入条数和顺序。
+
+```http
+POST /api/v1/ai/rewrite
+```
+
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `texts` | TextLine[] | 是 | 需要重写的文本列表，范围 `1-80` |
+| `provider_id` | string | 否 | 指定服务商 ID，不传则使用默认 |
+| `style` | string | 否 | 重写风格（1-120 字符） |
+| `requirements` | string | 否 | 额外要求（1-500 字符） |
+
+请求示例：
+
+```json
+{
+  "texts": [
+    { "type": "me", "content": "缓缓走向车辆" },
+    { "type": "do", "content": "脚步声在停车场回响" }
+  ],
+  "style": "克制、压迫感",
+  "requirements": "保留动作顺序并强化环境描写"
+}
+```
+
+响应示例：
+
+```json
+{
+  "texts": [
+    { "type": "me", "content": "压低脚步，慢慢逼近那辆车" },
+    { "type": "do", "content": "空旷车场里，鞋底与地面的摩擦声被放大" }
+  ],
+  "provider_id": "deepseek"
+}
+```
+
+常见错误码：
+
+| 状态码 | 说明 |
+|--------|------|
+| 400 | 输入格式/参数不合法、provider 无效 |
+| 502 | AI 上游失败或返回格式不符合要求 |
 
 ---
 
 ### 测试服务商连接
 
-向指定 AI 服务商发送一个最小请求以验证连通性。
+向指定服务商发送最小请求，验证可用性。
 
-```
+```http
 POST /api/v1/ai/test/{provider_id}
 ```
 
-**路径参数：**
+路径参数：
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | `provider_id` | string | 服务商 ID |
 
-**响应（成功）：**
+成功示例：
 
 ```json
 {
   "message": "连接成功: Hi",
   "success": true,
-  "response": "Hi"
+  "response": "Hi",
+  "error_type": null,
+  "status_code": null,
+  "request_id": null,
+  "body": null
 }
 ```
 
-**响应（失败）：**
+失败示例：
 
 ```json
 {
-  "message": "连接失败: Connection refused",
+  "message": "连接失败: Connection refused | type=APIConnectionError",
   "success": false,
+  "response": null,
   "error_type": "APIConnectionError",
   "status_code": null,
   "request_id": null,
@@ -360,19 +406,19 @@ POST /api/v1/ai/test/{provider_id}
 }
 ```
 
-返回 `404` 表示服务商不存在。
+`404` 表示服务商不存在。
 
 ---
 
-## 预设管理
+## 预设接口
 
 ### 列出所有预设
 
-```
+```http
 GET /api/v1/presets
 ```
 
-**响应：**
+响应示例：
 
 ```json
 [
@@ -393,109 +439,76 @@ GET /api/v1/presets
 
 ### 创建预设
 
-```
+```http
 POST /api/v1/presets
 ```
 
-**请求体：**
+请求体：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `name` | string | 是 | 预设名称（1–100 字符） |
-| `texts` | TextLine[] | 否 | 文本列表 |
+| `name` | string | 是 | 名称，范围 `1-100` |
+| `texts` | TextLine[] | 否 | 文本列表，不传默认为空数组 |
 
-**请求示例：**
-
-```json
-{
-  "name": "搜查场景",
-  "texts": [
-    { "type": "me", "content": "掏出警徽亮明身份" },
-    { "type": "do", "content": "金色的警徽在阳光下闪了一下" }
-  ]
-}
-```
-
-**响应：** `201 Created`
-
-```json
-{
-  "id": "e5f6g7h8",
-  "name": "搜查场景",
-  "texts": [
-    { "type": "me", "content": "掏出警徽亮明身份" },
-    { "type": "do", "content": "金色的警徽在阳光下闪了一下" }
-  ],
-  "created_at": "2026-02-17T08:35:00+00:00",
-  "updated_at": "2026-02-17T08:35:00+00:00"
-}
-```
+响应：`201 Created`
 
 ---
 
 ### 获取单个预设
 
-```
+```http
 GET /api/v1/presets/{preset_id}
 ```
 
-**响应：** 同上，单个预设对象。返回 `404` 若不存在。
+响应为单个预设对象；不存在返回 `404`。
 
 ---
 
 ### 更新预设
 
-```
+```http
 PUT /api/v1/presets/{preset_id}
 ```
 
-**请求体：** 仅需包含要更新的字段。
+请求体（按需传递）：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `name` | string | 否 | 新名称 |
 | `texts` | TextLine[] | 否 | 新文本列表（整体替换） |
 
-**请求示例：**
-
-```json
-{
-  "name": "搜查场景 v2"
-}
-```
-
-**响应：** 更新后的完整预设对象。
+响应为更新后的完整预设对象。
 
 ---
 
 ### 删除预设
 
-```
+```http
 DELETE /api/v1/presets/{preset_id}
 ```
 
-**响应：**
+响应示例：
 
 ```json
 {
-  "message": "预设 'e5f6g7h8' 已删除",
+  "message": "预设 'a1b2c3d4' 已删除",
   "success": true
 }
 ```
 
-返回 `404` 若不存在。
+不存在返回 `404`。
 
 ---
 
-## 设置
+## 设置接口
 
 ### 获取全部设置
 
-```
+```http
 GET /api/v1/settings
 ```
 
-**响应：**
+响应示例：
 
 ```json
 {
@@ -503,7 +516,9 @@ GET /api/v1/settings
     "host": "127.0.0.1",
     "port": 8730,
     "lan_access": false,
-    "token_set": true
+    "token_set": true,
+    "risk_no_token_with_lan": false,
+    "security_warning": ""
   },
   "sender": {
     "method": "clipboard",
@@ -523,60 +538,49 @@ GET /api/v1/settings
         "id": "deepseek",
         "name": "DeepSeek",
         "api_base": "https://api.deepseek.com/v1",
-        "api_key_set": true,
-        "model": "deepseek-chat"
+        "model": "deepseek-chat",
+        "api_key_set": true
       }
     ],
     "default_provider": "deepseek",
     "system_prompt": "你是一个FiveM角色扮演文本生成助手...",
     "custom_headers": {
-      "User-Agent": "python-httpx/0.28.1",
-      "X-Stainless-Lang": "",
-      "X-Stainless-Package-Version": "",
-      "X-Stainless-OS": "",
-      "X-Stainless-Arch": "",
-      "X-Stainless-Runtime": "",
-      "X-Stainless-Runtime-Version": ""
+      "User-Agent": "python-httpx/0.28.1"
     }
   }
 }
 ```
 
-> 注意：`api_key` 与 `server.token` 不会在此接口返回。会分别用 `api_key_set` 与 `token_set` 表示是否已配置。
+注意：
+
+- `server.token` 不会明文返回，只通过 `token_set` 表示是否已配置
+- provider 的 `api_key` 不会明文返回，只通过 `api_key_set` 表示是否已配置
+- 当 `lan_access=true` 且 `token` 为空时，`risk_no_token_with_lan=true`
 
 ---
 
 ### 更新发送设置
 
-```
+```http
 PUT /api/v1/settings/sender
 ```
 
-**请求体：** 仅需包含要更新的字段。
+请求体（按需传递）：
 
-| 字段 | 类型 | 范围 | 说明 |
-|------|------|------|------|
-| `method` | string | `"clipboard"` / `"typing"` | 发送方式 |
-| `chat_open_key` | string | 单字符 | 打开聊天框按键（默认 `t`） |
-| `delay_open_chat` | int | 50–5000 | 按 T 后延迟（ms） |
-| `delay_after_paste` | int | 50–5000 | 粘贴后延迟（ms） |
-| `delay_after_send` | int | 50–5000 | 发送后延迟（ms） |
-| `delay_between_lines` | int | 200–30000 | 批量间隔（ms） |
-| `focus_timeout` | int | 0–30000 | 等待 FiveM 前台窗口超时（ms） |
-| `retry_count` | int | 0–5 | 单条发送失败后的重试次数 |
-| `retry_interval` | int | 50–5000 | 每次重试前等待（ms） |
-| `typing_char_delay` | int | 0–200 | typing 模式下每字符延迟（ms） |
+| 字段 | 类型 | 范围 |
+|------|------|------|
+| `method` | string | `clipboard` / `typing` |
+| `chat_open_key` | string | 单字符 |
+| `delay_open_chat` | int | `50-5000` |
+| `delay_after_paste` | int | `50-5000` |
+| `delay_after_send` | int | `50-5000` |
+| `delay_between_lines` | int | `200-30000` |
+| `focus_timeout` | int | `0-30000` |
+| `retry_count` | int | `0-5` |
+| `retry_interval` | int | `50-5000` |
+| `typing_char_delay` | int | `0-200` |
 
-**请求示例：**
-
-```json
-{
-  "delay_open_chat": 500,
-  "delay_between_lines": 2000
-}
-```
-
-**响应：**
+响应示例：
 
 ```json
 {
@@ -585,24 +589,36 @@ PUT /api/v1/settings/sender
 }
 ```
 
+若请求体为空（无可更新字段）：
+
+```json
+{
+  "message": "没有需要更新的设置",
+  "success": false
+}
+```
+
 ---
 
 ### 更新服务器设置
 
-```
+```http
 PUT /api/v1/settings/server
 ```
 
-**请求体：**
+请求体（按需传递）：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `lan_access` | bool | 是否开启局域网访问 |
-| `token` | string | API 访问令牌；设为空字符串可关闭鉴权 |
+| `token` | string | API 令牌（传空字符串可关闭鉴权） |
 
-> 修改 `lan_access` 后需要重启服务生效。
+说明：
 
-**响应：**
+- 修改 `lan_access` 时，后端会自动同步 `host`（`0.0.0.0` 或 `127.0.0.1`）
+- 部分设置需重启服务生效
+
+响应示例：
 
 ```json
 {
@@ -615,30 +631,24 @@ PUT /api/v1/settings/server
 
 ### 更新 AI 设置
 
-```
+```http
 PUT /api/v1/settings/ai
 ```
 
-**请求体：**
+请求体（按需传递）：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `default_provider` | string | 默认服务商 ID |
-| `system_prompt` | string | AI 系统提示词 |
-| `custom_headers` | object | 自定义请求头；该字段更新时会整体替换而非深度合并 |
+| `system_prompt` | string | 系统提示词 |
+| `custom_headers` | object | 自定义请求头（整体替换） |
 
-**请求示例：**
+说明：
 
-```json
-{
-  "default_provider": "openai",
-  "system_prompt": "你是一个专业的FiveM角色扮演文本生成助手..."
-}
-```
+- `default_provider` 不存在会返回 `400`
+- `custom_headers` 更新是整体替换，不做深度合并
 
-若 `default_provider` 不存在，会返回 `400`。
-
-**响应：**
+响应示例：
 
 ```json
 {
@@ -649,15 +659,15 @@ PUT /api/v1/settings/ai
 
 ---
 
-## AI 服务商管理
+## AI 服务商接口
 
-### 列出所有服务商
+### 列出服务商
 
-```
+```http
 GET /api/v1/settings/providers
 ```
 
-**响应：**
+响应示例：
 
 ```json
 [
@@ -667,13 +677,6 @@ GET /api/v1/settings/providers
     "api_base": "https://api.deepseek.com/v1",
     "api_key_set": true,
     "model": "deepseek-chat"
-  },
-  {
-    "id": "ollama",
-    "name": "Ollama Local",
-    "api_base": "http://localhost:11434/v1",
-    "api_key_set": false,
-    "model": "llama3"
   }
 ]
 ```
@@ -682,74 +685,45 @@ GET /api/v1/settings/providers
 
 ### 添加服务商
 
-```
+```http
 POST /api/v1/settings/providers
 ```
 
-**请求体：**
+请求体：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 否 | 自定义 ID，留空自动生成 |
+| `id` | string | 否 | 自定义 ID，不传自动生成 8 位字符串 |
 | `name` | string | 是 | 显示名称 |
 | `api_base` | string | 是 | API Base URL |
 | `api_key` | string | 否 | API Key |
 | `model` | string | 否 | 模型名称，默认 `gpt-4o` |
 
-**请求示例：**
+响应：`201 Created`
 
-```json
-{
-  "id": "deepseek",
-  "name": "DeepSeek",
-  "api_base": "https://api.deepseek.com/v1",
-  "api_key": "sk-xxxxxxxxxxxxxxxxxxxxxxxx",
-  "model": "deepseek-chat"
-}
-```
-
-**响应：** `201 Created`
-
-```json
-{
-  "id": "deepseek",
-  "name": "DeepSeek",
-  "api_base": "https://api.deepseek.com/v1",
-  "api_key_set": true,
-  "model": "deepseek-chat"
-}
-```
-
-> 若当前没有默认服务商，新添加的服务商会自动设为默认。
+说明：如果当前还没有默认服务商，新建后会自动设为默认。
 
 ---
 
 ### 更新服务商
 
-```
+```http
 PUT /api/v1/settings/providers/{provider_id}
 ```
 
-**请求体：** 仅需包含要更新的字段。
+请求体（按需传递）：`name`、`api_base`、`api_key`、`model`。
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `name` | string | 显示名称 |
-| `api_base` | string | API Base URL |
-| `api_key` | string | API Key |
-| `model` | string | 模型名称 |
-
-**响应：** 更新后的服务商对象。返回 `404` 若不存在。
+成功返回更新后的服务商对象，不存在返回 `404`。
 
 ---
 
 ### 删除服务商
 
-```
+```http
 DELETE /api/v1/settings/providers/{provider_id}
 ```
 
-**响应：**
+响应示例：
 
 ```json
 {
@@ -758,24 +732,27 @@ DELETE /api/v1/settings/providers/{provider_id}
 }
 ```
 
-返回 `404` 若不存在。若删除的是默认服务商，会自动切换到剩余的第一个服务商。
+不存在返回 `404`。
+
+如果删除的是当前默认服务商，后端会自动切换为剩余列表中的第一个服务商（若有）。
 
 ---
 
-## 通用数据结构
+## 通用数据结构与错误响应
 
 ### TextLine
 
 ```json
 {
-  "type": "me",       // "me" 或 "do"
-  "content": "推开了房门"  // 文本内容（不含 /me 或 /do 前缀）
+  "type": "me",
+  "content": "推开了房门"
 }
 ```
 
-### MessageResponse
+- `type`：`me` 或 `do`
+- `content`：文本内容（不含 `/me` 或 `/do` 前缀）
 
-大多数写操作的通用响应格式：
+### MessageResponse
 
 ```json
 {
@@ -786,15 +763,15 @@ DELETE /api/v1/settings/providers/{provider_id}
 
 ### 错误响应
 
-API 使用标准 HTTP 状态码，错误响应格式为：
+常见错误格式：
 
 ```json
 {
-  "detail": "错误描述信息"
+  "detail": "错误描述"
 }
 ```
 
-或（部分接口）为结构化对象：
+或结构化对象：
 
 ```json
 {
@@ -806,10 +783,12 @@ API 使用标准 HTTP 状态码，错误响应格式为：
 }
 ```
 
+常见状态码：
+
 | 状态码 | 含义 |
 |--------|------|
-| 400 | 请求参数错误 |
+| 400 | 请求参数错误 / 业务校验失败 |
 | 401 | 未授权（Token 缺失或无效） |
 | 404 | 资源不存在 |
-| 422 | 请求体验证失败（Pydantic 校验） |
-| 502 | AI 服务商请求失败 |
+| 422 | Pydantic 请求体验证失败 |
+| 502 | 上游 AI 服务失败 |

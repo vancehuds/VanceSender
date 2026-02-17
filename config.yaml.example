@@ -18,6 +18,7 @@ sender:
 
 quick_overlay:
   enabled: true
+  show_webui_send_status: true
   compact_mode: false
   trigger_hotkey: f8
   mouse_side_button: ''

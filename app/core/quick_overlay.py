@@ -18,6 +18,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from app.core.config import PRESETS_DIR, load_config
+from app.core.overlay_status import register_overlay_status_handler
 from app.core.sender import sender
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -876,6 +877,10 @@ class QuickOverlayModule:
     def _enqueue_status(self, text: str, final: bool) -> None:
         self._status_queue.put((text, final))
 
+    def notify_status(self, text: str, final: bool) -> None:
+        """Public status entry for non-overlay callers (e.g. WebUI routes)."""
+        self._enqueue_status(text, final)
+
     def _status_visual_state(self, text: str, final: bool) -> tuple[str, str, str, str]:
         lowered = text.lower()
         is_error = any(key in text for key in ("失败", "异常", "取消")) or (
@@ -974,5 +979,13 @@ def create_quick_overlay_module(cfg: dict[str, Any]) -> QuickOverlayModule | Non
     section = cfg.get("quick_overlay", {})
     enabled = bool(section.get("enabled", True))
     if not enabled:
+        register_overlay_status_handler(None)
         return None
-    return QuickOverlayModule(section)
+
+    module = QuickOverlayModule(section)
+    show_webui_send_status = bool(section.get("show_webui_send_status", True))
+    if show_webui_send_status:
+        register_overlay_status_handler(module.notify_status)
+    else:
+        register_overlay_status_handler(None)
+    return module

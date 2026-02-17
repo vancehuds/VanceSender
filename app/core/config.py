@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -73,6 +72,7 @@ def _default_config() -> dict[str, Any]:
         },
         "quick_overlay": {
             "enabled": True,
+            "show_webui_send_status": True,
             "compact_mode": False,
             "trigger_hotkey": "f8",
             "mouse_side_button": "",
