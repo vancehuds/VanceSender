@@ -175,6 +175,7 @@ class QuickOverlayModule:
 
         poll_ms = int(overlay_cfg.get("poll_interval_ms", 40) or 40)
         self._poll_interval_ms = max(20, min(200, poll_ms))
+        self._compact_mode = bool(overlay_cfg.get("compact_mode", False))
 
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -212,6 +213,31 @@ class QuickOverlayModule:
         self._accent_secondary = "#8b7bff"
         self._success_color = "#36d487"
         self._danger_color = "#ff8aa3"
+
+        self._popup_width = 460 if self._compact_mode else 560
+        self._popup_height = 420 if self._compact_mode else 500
+        self._frame_padx = 12 if self._compact_mode else 16
+        self._frame_pady = 10 if self._compact_mode else 14
+        self._title_font_size = 13 if self._compact_mode else 15
+        self._subtitle_font_size = 9 if self._compact_mode else 10
+        self._combo_width = 33 if self._compact_mode else 40
+        self._list_font_size = 9 if self._compact_mode else 10
+        self._button_font_size = 9 if self._compact_mode else 10
+        self._button_padx = 10 if self._compact_mode else 14
+        self._button_pady = 8 if self._compact_mode else 10
+        self._hint_font_size = 8 if self._compact_mode else 9
+
+        self._status_tag_font_size = 8 if self._compact_mode else 9
+        self._status_text_font_size = 9 if self._compact_mode else 10
+        self._status_wrap_default = 320 if self._compact_mode else 360
+        self._status_min_width = 300 if self._compact_mode else 340
+        self._status_base_width = 270 if self._compact_mode else 300
+        self._status_max_width = 460 if self._compact_mode else 520
+        self._status_char_factor = 5 if self._compact_mode else 6
+        self._status_base_height = 58 if self._compact_mode else 64
+        self._status_line_step = 14 if self._compact_mode else 16
+        self._status_max_height = 104 if self._compact_mode else 120
+        self._status_wrap_margin = 28 if self._compact_mode else 34
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
@@ -291,7 +317,7 @@ class QuickOverlayModule:
 
         popup = tk.Toplevel(self._root)
         popup.title("VanceSender 快速发送")
-        popup.geometry("560x500")
+        popup.geometry(f"{self._popup_width}x{self._popup_height}")
         popup.resizable(False, False)
         popup.configure(bg=self._popup_bg)
         popup.attributes("-topmost", True)
@@ -302,7 +328,12 @@ class QuickOverlayModule:
         popup.bind("<Return>", lambda _e: self._send_selected_line())
         popup.bind("<Control-Return>", lambda _e: self._send_all_lines())
 
-        frame = tk.Frame(popup, bg=self._popup_bg, padx=16, pady=14)
+        frame = tk.Frame(
+            popup,
+            bg=self._popup_bg,
+            padx=self._frame_padx,
+            pady=self._frame_pady,
+        )
         frame.pack(fill="both", expand=True)
 
         trigger_hint = self._hotkey_label
@@ -310,13 +341,13 @@ class QuickOverlayModule:
             trigger_hint = f"{trigger_hint} / {self._mouse_button_label}"
 
         head = tk.Frame(frame, bg=self._popup_bg)
-        head.pack(fill="x", pady=(2, 10))
+        head.pack(fill="x", pady=(2, 8 if self._compact_mode else 10))
         tk.Label(
             head,
             text="快捷发送",
             bg=self._popup_bg,
             fg=self._text_main,
-            font=("Segoe UI", 15, "bold"),
+            font=("Segoe UI", self._title_font_size, "bold"),
             anchor="w",
         ).pack(anchor="w")
         tk.Label(
@@ -324,9 +355,9 @@ class QuickOverlayModule:
             text=f"触发键：{trigger_hint}",
             bg=self._popup_bg,
             fg=self._text_muted,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", self._subtitle_font_size),
             anchor="w",
-        ).pack(anchor="w", pady=(3, 0))
+        ).pack(anchor="w", pady=(2 if self._compact_mode else 3, 0))
 
         preset_card = tk.Frame(
             frame,
@@ -335,25 +366,35 @@ class QuickOverlayModule:
             highlightbackground=self._border_color,
             bd=0,
         )
-        preset_card.pack(fill="x", pady=(0, 10))
+        preset_card.pack(fill="x", pady=(0, 8 if self._compact_mode else 10))
 
-        preset_inner = tk.Frame(preset_card, bg=self._surface_bg, padx=10, pady=10)
+        preset_inner = tk.Frame(
+            preset_card,
+            bg=self._surface_bg,
+            padx=8 if self._compact_mode else 10,
+            pady=8 if self._compact_mode else 10,
+        )
         preset_inner.pack(fill="x")
         tk.Label(
             preset_inner,
             text="预设",
             bg=self._surface_bg,
             fg=self._text_muted,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", self._subtitle_font_size),
         ).pack(side="left")
 
         combo = ttk.Combobox(
             preset_inner,
             state="readonly",
-            width=40,
+            width=self._combo_width,
             style="OverlayCombo.TCombobox",
         )
-        combo.pack(side="left", padx=10, fill="x", expand=True)
+        combo.pack(
+            side="left",
+            padx=8 if self._compact_mode else 10,
+            fill="x",
+            expand=True,
+        )
         combo.bind("<<ComboboxSelected>>", self._on_preset_change)
 
         refresh_btn = tk.Button(
@@ -366,8 +407,8 @@ class QuickOverlayModule:
             activeforeground=self._text_main,
             relief="flat",
             bd=0,
-            padx=12,
-            pady=7,
+            padx=10 if self._compact_mode else 12,
+            pady=6 if self._compact_mode else 7,
             cursor="hand2",
             font=("Segoe UI", 9, "bold"),
         )
@@ -382,7 +423,12 @@ class QuickOverlayModule:
         )
         list_card.pack(fill="both", expand=True)
 
-        list_frame = tk.Frame(list_card, bg=self._surface_bg, padx=10, pady=10)
+        list_frame = tk.Frame(
+            list_card,
+            bg=self._surface_bg,
+            padx=8 if self._compact_mode else 10,
+            pady=8 if self._compact_mode else 10,
+        )
         list_frame.pack(fill="both", expand=True)
 
         listbox = tk.Listbox(
@@ -394,7 +440,7 @@ class QuickOverlayModule:
             fg=self._text_main,
             selectbackground=self._accent_secondary,
             selectforeground="#f8fbff",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", self._list_font_size),
             relief="flat",
             bd=0,
             highlightthickness=1,
@@ -413,7 +459,7 @@ class QuickOverlayModule:
         listbox.configure(yscrollcommand=scrollbar.set)
 
         actions = tk.Frame(frame, bg=self._popup_bg)
-        actions.pack(fill="x", pady=(10, 2))
+        actions.pack(fill="x", pady=(8 if self._compact_mode else 10, 2))
 
         send_selected_btn = tk.Button(
             actions,
@@ -425,10 +471,10 @@ class QuickOverlayModule:
             activeforeground="#071320",
             relief="flat",
             bd=0,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", self._button_font_size, "bold"),
             cursor="hand2",
-            padx=14,
-            pady=10,
+            padx=self._button_padx,
+            pady=self._button_pady,
         )
         send_selected_btn.pack(side="left", fill="x", expand=True)
 
@@ -442,20 +488,24 @@ class QuickOverlayModule:
             activeforeground="#ffffff",
             relief="flat",
             bd=0,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", self._button_font_size, "bold"),
             cursor="hand2",
-            padx=14,
-            pady=10,
+            padx=self._button_padx,
+            pady=self._button_pady,
         )
         send_all_btn.pack(side="left", fill="x", expand=True, padx=(8, 0))
 
         tk.Label(
             frame,
-            text="Enter 发送选中 · Ctrl+Enter 一键发送",
+            text=(
+                "Enter 发送选中 · Ctrl+Enter 全部"
+                if self._compact_mode
+                else "Enter 发送选中 · Ctrl+Enter 一键发送"
+            ),
             bg=self._popup_bg,
             fg=self._text_muted,
-            font=("Segoe UI", 9),
-        ).pack(anchor="w", pady=(4, 0))
+            font=("Segoe UI", self._hint_font_size),
+        ).pack(anchor="w", pady=(3 if self._compact_mode else 4, 0))
 
         self._popup = popup
         self._preset_combo = combo
@@ -481,16 +531,20 @@ class QuickOverlayModule:
         body.pack(fill="both", expand=True)
 
         header = tk.Frame(body, bg=self._surface_bg)
-        header.pack(fill="x", padx=10, pady=(8, 2))
+        header.pack(
+            fill="x",
+            padx=8 if self._compact_mode else 10,
+            pady=(6 if self._compact_mode else 8, 2),
+        )
 
         status_tag_label = tk.Label(
             header,
             text="进行中",
             bg="#1b2f4d",
             fg=self._accent_primary,
-            font=("Segoe UI", 9, "bold"),
-            padx=8,
-            pady=2,
+            font=("Segoe UI", self._status_tag_font_size, "bold"),
+            padx=7 if self._compact_mode else 8,
+            pady=1 if self._compact_mode else 2,
         )
         status_tag_label.pack(side="left")
 
@@ -500,12 +554,12 @@ class QuickOverlayModule:
             textvariable=status_var,
             bg=self._surface_bg,
             fg=self._text_main,
-            padx=14,
-            pady=8,
+            padx=10 if self._compact_mode else 14,
+            pady=6 if self._compact_mode else 8,
             anchor="w",
             justify="left",
-            font=("Segoe UI", 10, "bold"),
-            wraplength=360,
+            font=("Segoe UI", self._status_text_font_size, "bold"),
+            wraplength=self._status_wrap_default,
         )
         label.pack(fill="both", expand=True)
 
@@ -858,12 +912,25 @@ class QuickOverlayModule:
             self._status_body_frame.configure(highlightbackground=tag_fg)
 
         chars = max(0, len(text))
-        width = min(520, max(340, 300 + chars * 6))
+        width = min(
+            self._status_max_width,
+            max(
+                self._status_min_width,
+                self._status_base_width + chars * self._status_char_factor,
+            ),
+        )
         lines = max(1, (chars // 30) + 1)
-        height = min(120, 64 + (lines - 1) * 16)
+        height = min(
+            self._status_max_height,
+            self._status_base_height + (lines - 1) * self._status_line_step,
+        )
 
         if self._status_text_label is not None:
-            self._status_text_label.configure(wraplength=max(280, width - 34))
+            self._status_text_label.configure(
+                wraplength=max(
+                    self._status_min_width - 20, width - self._status_wrap_margin
+                )
+            )
 
         screen_width = self._status_window.winfo_screenwidth()
         x = max(0, screen_width - width - 16)

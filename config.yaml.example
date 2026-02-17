@@ -18,6 +18,7 @@ sender:
 
 quick_overlay:
   enabled: true
+  compact_mode: false
   trigger_hotkey: f8
   mouse_side_button: ''
   poll_interval_ms: 40

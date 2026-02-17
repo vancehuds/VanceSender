@@ -73,6 +73,7 @@ def _default_config() -> dict[str, Any]:
         },
         "quick_overlay": {
             "enabled": True,
+            "compact_mode": False,
             "trigger_hotkey": "f8",
             "mouse_side_button": "",
             "poll_interval_ms": 40,
