@@ -170,7 +170,7 @@ const dom = {
     progressBar: document.getElementById('progress-bar-fill'),
     progressText: document.getElementById('progress-text'),
     progressArea: document.getElementById('send-progress-area'),
-    
+
     // AI
     aiScenario: document.getElementById('ai-scenario'),
     aiStyle: document.getElementById('ai-style'),
@@ -179,7 +179,7 @@ const dom = {
     aiGenerateBtn: document.getElementById('ai-generate-btn'),
     aiPreviewList: document.getElementById('ai-preview-list'),
     aiImportBtn: document.getElementById('ai-import-btn'),
-    
+
     // Presets
     presetsGrid: document.getElementById('presets-grid'),
     savePresetBtn: document.getElementById('save-preset-btn'),
@@ -192,7 +192,7 @@ const dom = {
     quickSendPresetSelect: document.getElementById('quick-send-preset-select'),
     quickSendRefreshBtn: document.getElementById('quick-send-refresh-btn'),
     quickSendList: document.getElementById('quick-send-list'),
-    
+
     // Settings
     settingMethod: document.getElementById('setting-method'),
     settingChatKey: document.getElementById('setting-chat-key'),
@@ -222,7 +222,7 @@ const dom = {
     appUpdateReleaseLink: document.getElementById('app-update-release-link'),
     providersList: document.getElementById('providers-list'),
     addProviderBtn: document.getElementById('add-provider-btn'),
-    
+
     // Modals
     modalBackdrop: document.getElementById('modal-backdrop'),
     modalSavePreset: document.getElementById('modal-save-preset'),
@@ -241,7 +241,7 @@ const dom = {
     aiRewriteRequirements: document.getElementById('ai-rewrite-requirements'),
     confirmAIRewrite: document.getElementById('confirm-ai-rewrite'),
     providerForm: document.getElementById('provider-form'),
-    
+
     // Toast
     toastContainer: document.getElementById('toast-container')
 };
@@ -295,7 +295,7 @@ function initNavigation() {
             // Update UI
             dom.navItems.forEach(n => n.classList.remove('active'));
             item.classList.add('active');
-            
+
             dom.panels.forEach(p => p.classList.remove('active'));
             const target = document.getElementById(item.dataset.target);
             target.classList.add('active');
@@ -312,7 +312,7 @@ function initSendPanel() {
         dom.textInput.value = '';
         renderTextList();
     });
-    
+
     dom.textInput.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.key === 'Enter') {
             parseAndImportText();
@@ -395,7 +395,7 @@ function parseAndImportText() {
             type = 'me';
             content = line.substring(4).trim();
         }
-        
+
         return { type, content };
     });
 
@@ -407,7 +407,7 @@ function parseAndImportText() {
 
 function renderTextList() {
     dom.textList.innerHTML = '';
-    
+
     // Update count display if element exists
     if (dom.totalCount) {
         dom.totalCount.textContent = state.texts.length;
@@ -427,7 +427,7 @@ function renderTextList() {
         card.className = 'text-card';
         // Add unique ID for scrolling
         card.id = `text-card-${index}`;
-        
+
         card.innerHTML = `
             <div class="badge badge-${item.type}">/${item.type}</div>
             <div class="text-content" title="${item.content}">${item.content}</div>
@@ -510,7 +510,7 @@ async function sendTextNow(text, successMessage = '发送成功') {
     try {
         const res = await apiFetch('/api/v1/send', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
         const data = await res.json().catch(() => ({}));
@@ -630,7 +630,7 @@ function updateProgress(event) {
         const pct = ((event.index + 1) / event.total) * 100;
         dom.progressBar.style.width = `${pct}%`;
         dom.progressText.textContent = `正在发送 ${event.index + 1}/${event.total}...`;
-        
+
         // Highlight current in list
         const cards = dom.textList.children;
         if (cards[event.index]) {
@@ -680,7 +680,7 @@ function resetSendState() {
     dom.progressArea.classList.add('hidden');
     dom.sendDelay.disabled = false;
     dom.progressBar.style.width = '0%';
-    
+
     // Reset list styles
     Array.from(dom.textList.children).forEach(c => c.style.borderColor = '');
 }
@@ -726,7 +726,7 @@ async function generateAI() {
     try {
         const res = await apiFetch('/api/v1/ai/generate', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 scenario,
                 provider_id: providerId,
@@ -846,7 +846,7 @@ function renderPresets(presets) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
         `;
-        
+
         // Add click listener for loading
         el.addEventListener('click', (e) => {
             // Prevent if delete button was clicked
@@ -1083,7 +1083,7 @@ async function submitAIRewrite() {
     try {
         const rewriteRes = await apiFetch('/api/v1/ai/rewrite', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 texts: normalizedSourceTexts,
                 provider_id: providerId || null,
@@ -1128,7 +1128,7 @@ async function submitAIRewrite() {
 
         const saveRes = await apiFetch(`/api/v1/presets/${presetId}`, {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ texts: rewritten })
         });
         const savePayload = await saveRes.json().catch(() => ({}));
@@ -1163,7 +1163,7 @@ async function saveCurrentAsPreset() {
     try {
         const res = await apiFetch('/api/v1/presets', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 name,
                 texts: state.texts
@@ -1464,13 +1464,13 @@ function initSettingsPanel() {
         clearProviderTestResult();
         openModal('modal-provider');
     });
-    
+
     // Provider form handlers
     dom.providerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         await saveProvider();
     });
-    
+
     document.getElementById('test-provider-btn').addEventListener('click', async () => {
         const id = document.getElementById('prov-id').value;
         if (!id) {
@@ -1513,7 +1513,7 @@ function initSettingsPanel() {
         try {
             await apiFetch('/api/v1/settings/server', {
                 method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token: '' })
             });
             clearToken();
@@ -1550,6 +1550,8 @@ function renderUpdateCheckResult(data) {
     }
 }
 
+const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最新版，关闭当前程序(Ctrl+C)后删除旧文件夹后解压新文件夹(或者可尝试直接覆盖)并重新启动程序。';
+
 async function checkGitHubUpdate() {
     if (!dom.checkUpdateBtn) return;
 
@@ -1577,7 +1579,10 @@ async function checkGitHubUpdate() {
         }
 
         if (data.update_available) {
-            showToast(`发现新版本: ${data.latest_version}`, 'success');
+            if (dom.appUpdateStatus) {
+                dom.appUpdateStatus.textContent = `${data.message || '发现新版本'}。${UPDATE_GUIDE_TEXT}`;
+            }
+            showToast(`发现新版本: ${data.latest_version}。${UPDATE_GUIDE_TEXT}`, 'success');
         } else {
             showToast('当前已是最新版本', 'info');
         }
@@ -1600,7 +1605,7 @@ async function fetchSettings() {
     const data = await res.json(); // {server, sender, ai, quick_overlay}
     state.settings = data;
     stopOverlayHotkeyCapture();
-    
+
     // Apply to UI
     dom.settingMethod.value = data.sender.method || 'clipboard';
     dom.settingChatKey.value = data.sender.chat_open_key || 't';
@@ -1641,7 +1646,7 @@ async function fetchSettings() {
     if (dom.appCurrentVersion) {
         dom.appCurrentVersion.value = data.server.app_version || '-';
     }
-    
+
     // Update LAN info
     const lanDiv = document.getElementById('lan-urls');
     if (data.server.lan_access) {
@@ -1687,7 +1692,7 @@ async function fetchProviders() {
     const res = await apiFetch('/api/v1/settings/providers');
     const providers = await res.json();
     state.settings.providers = providers;
-    
+
     // Render list in Settings
     dom.providersList.innerHTML = '';
     providers.forEach(p => {
@@ -1749,7 +1754,7 @@ async function saveAllSettings() {
 
         await apiFetch('/api/v1/settings/sender', {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 method: dom.settingMethod.value,
                 chat_open_key: chatKey,
@@ -1770,7 +1775,7 @@ async function saveAllSettings() {
         if (newToken) serverPayload.token = newToken;
         await apiFetch('/api/v1/settings/server', {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(serverPayload)
         });
 
@@ -1795,7 +1800,7 @@ async function saveAllSettings() {
 
         await apiFetch('/api/v1/settings/quick-overlay', {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 enabled: dom.settingOverlayEnabled.checked,
                 show_webui_send_status: dom.settingOverlayShowWebuiStatus.checked,
@@ -1818,7 +1823,7 @@ async function saveAllSettings() {
 
         await apiFetch('/api/v1/settings/ai', {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 default_provider: dom.aiProvider.value || '',
                 system_prompt: dom.settingSystemPrompt.value,
@@ -1849,11 +1854,11 @@ async function saveProvider() {
         let res;
         if (id) {
             res = await apiFetch(`/api/v1/settings/providers/${id}`, {
-                method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+                method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
             });
         } else {
             res = await apiFetch('/api/v1/settings/providers', {
-                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
             });
         }
 
@@ -1876,7 +1881,7 @@ async function saveProvider() {
 window.editProvider = (id) => {
     const p = state.settings.providers.find(x => x.id === id);
     if (!p) return;
-    
+
     document.getElementById('provider-modal-title').textContent = '编辑服务商';
     document.getElementById('prov-id').value = p.id;
     document.getElementById('prov-name').value = p.name;
@@ -1884,7 +1889,7 @@ window.editProvider = (id) => {
     document.getElementById('prov-key').value = ''; // Don't show key for security usually, or show if needed
     document.getElementById('prov-model').value = p.model;
     clearProviderTestResult();
-    
+
     openModal('modal-provider');
 };
 
