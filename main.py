@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import sys
 from pathlib import Path
 
 import uvicorn
@@ -27,14 +26,12 @@ WEB_DIR = Path(__file__).resolve().parent / "app" / "web"
 
 def _configure_windows_event_loop_policy() -> None:
     """Use selector loop on Windows to reduce Proactor disconnect errors."""
-    if sys.platform != "win32":
-        return
-
     policy_cls = getattr(asyncio, "WindowsSelectorEventLoopPolicy", None)
-    if policy_cls is None:
+    set_policy = getattr(asyncio, "set_event_loop_policy", None)
+    if policy_cls is None or set_policy is None:
         return
 
-    asyncio.set_event_loop_policy(policy_cls())
+    set_policy(policy_cls())
 
 
 def create_app() -> FastAPI:
