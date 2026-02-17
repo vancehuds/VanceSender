@@ -39,6 +39,7 @@ jobs:
       - name: Smoke test executable
         shell: powershell
         run: |
+          chcp 65001 > $null
           .\dist\VanceSender\VanceSender.exe --help
 
       - name: Create zip package

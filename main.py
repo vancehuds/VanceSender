@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import multiprocessing
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -102,7 +103,29 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
+def _configure_console_encoding() -> None:
+    """Avoid UnicodeEncodeError on non-UTF8 Windows shells."""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
+
+        reconfigure = getattr(stream, "reconfigure", None)
+        if not callable(reconfigure):
+            continue
+
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            try:
+                reconfigure(errors="replace")
+            except (ValueError, OSError):
+                continue
+
+
 def main() -> None:
+    _configure_console_encoding()
+
     parser = argparse.ArgumentParser(description="VanceSender Server")
     parser.add_argument("--lan", action="store_true", help="启用局域网访问 (0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="服务端口")
