@@ -8,7 +8,7 @@ FiveM `/me` `/do` 角色扮演文本发送器，支持 AI 生成与 AI 重写。
 - **AI 生成**：按场景生成 `/me` `/do` 文本，支持 OpenAI、DeepSeek、Ollama 等 OpenAI 兼容接口
 - **AI 重写**：可重写单条文本或整套预设，保留 `/me` `/do` 类型与顺序
 - **预设管理**：保存、加载、删除预设文本
-- **快捷悬浮窗**：默认启用，支持热键（默认 `F8`）或鼠标侧键快速选预设并发送
+- **快捷悬浮窗**：默认启用，支持热键（默认 `F7`）或鼠标侧键快速选预设并发送
 - **WebUI + REST API**：浏览器可视化操作 + 完整 API（含 Swagger）
 - **可选鉴权**：支持 `Bearer Token` 保护 `/api/v1/*`
 
@@ -143,7 +143,7 @@ sender:
 quick_overlay:
   enabled: true
   compact_mode: false
-  trigger_hotkey: f8
+  trigger_hotkey: f7
   mouse_side_button: ''
   poll_interval_ms: 40
 
