@@ -1,0 +1,14 @@
+{
+  "venvPath": "D:/gitbranch/VanceSender",
+  "venv": ".venv",
+  "include": ["app", "main.py"],
+  "executionEnvironments": [
+    {
+      "root": "D:/gitbranch/VanceSender",
+      "extraPaths": ["D:/gitbranch/VanceSender"]
+    }
+  ],
+  "typeCheckingMode": "basic",
+  "pythonPlatform": "Windows",
+  "pythonVersion": "3.14"
+}

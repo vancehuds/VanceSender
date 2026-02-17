@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VanceSender - RP文本发送器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="brand">
+                <div class="logo-icon">V</div>
+                <span class="logo-text">VanceSender</span>
+            </div>
+            
+            <ul class="nav-links">
+                <li class="nav-item active" data-target="panel-send">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                    </span>
+                    <span class="label">发送</span>
+                </li>
+                <li class="nav-item" data-target="panel-quick-send">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"></path></svg>
+                    </span>
+                    <span class="label">快捷发送</span>
+                </li>
+                <li class="nav-item" data-target="panel-ai">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 12L2.1 12a10.1 10.1 0 0 0 1.9 4"></path><path d="M12 12l4.5 7.8"></path></svg>
+                    </span>
+                    <span class="label">AI生成</span>
+                </li>
+                <li class="nav-item" data-target="panel-presets">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                    </span>
+                    <span class="label">预设</span>
+                </li>
+                <li class="nav-item" data-target="panel-settings">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </span>
+                    <span class="label">设置</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content">
+            
+            <!-- Panel 1: Send (Default) -->
+            <section id="panel-send" class="panel active">
+                <header class="panel-header">
+                    <h1>发送文本</h1>
+                    <div class="header-actions">
+                        <button id="clear-text-btn" class="btn btn-ghost">
+                            <span class="icon">🗑️</span> 清空
+                        </button>
+                    </div>
+                </header>
+
+                <div class="send-container">
+                    <div class="input-card glass-card">
+                        <div class="textarea-wrapper">
+                            <textarea id="main-input" placeholder="在此输入文本...
+每行一句
+/me 开头为动作
+/do 开头为描述
+默认识别为 /me"></textarea>
+                        </div>
+                        <div class="input-actions">
+                            <button id="import-btn" class="btn btn-primary">
+                                <span class="icon">⬇️</span> 导入文本
+                            </button>
+                            <span class="hint">Ctrl+Enter 快速导入</span>
+                        </div>
+                    </div>
+
+                    <div class="list-controls">
+                        <span class="list-count">共 <span id="total-count">0</span> 条文本</span>
+                        <div class="bulk-actions">
+                            <div class="quick-preset-switch">
+                                <label for="quick-preset-select">快速切换预设</label>
+                                <div class="quick-preset-controls">
+                                    <select id="quick-preset-select" aria-label="快速切换预设">
+                                        <option value="">暂无预设</option>
+                                    </select>
+                                    <button id="quick-preset-refresh-btn" class="btn btn-sm btn-ghost" title="刷新预设列表" type="button">↻</button>
+                                </div>
+                            </div>
+                            <button id="save-preset-btn" class="btn btn-sm btn-outline">存为预设</button>
+                        </div>
+                    </div>
+
+                    <div id="text-list" class="text-list">
+                        <!-- Items will be injected here via JS -->
+                        <div class="empty-state">
+                            <div class="empty-icon">📝</div>
+                            <p>暂无文本，请在上方输入或使用AI生成</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-bar glass-card">
+                    <div class="sending-controls">
+                        <div class="delay-control">
+                            <label>间隔(ms)</label>
+                            <input type="number" id="send-delay" value="1500" min="100" step="100">
+                        </div>
+                        <div class="progress-area hidden" id="send-progress-area">
+                            <div class="progress-info">
+                                <span id="progress-text">正在发送 1/5...</span>
+                                <button id="cancel-send-btn" class="btn btn-sm btn-danger">取消</button>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <button id="send-all-btn" class="btn btn-primary btn-lg glow-effect">
+                            全部发送
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 2: Quick Send -->
+            <section id="panel-quick-send" class="panel">
+                <header class="panel-header">
+                    <h1>快捷发送</h1>
+                </header>
+
+                <div class="quick-send-container">
+                    <div class="glass-card quick-send-toolbar">
+                        <div class="quick-send-preset-select">
+                            <label for="quick-send-preset-select">选择预设</label>
+                            <div class="quick-send-preset-controls">
+                                <select id="quick-send-preset-select" aria-label="快捷发送预设">
+                                    <option value="">暂无预设</option>
+                                </select>
+                                <button id="quick-send-refresh-btn" class="btn btn-sm btn-ghost" title="刷新预设列表" type="button">↻</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="quick-send-list" class="quick-send-list">
+                        <div class="empty-state small">
+                            <p>暂无可发送内容</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 3: AI Generate -->
+            <section id="panel-ai" class="panel">
+                <header class="panel-header">
+                    <h1>AI 生成</h1>
+                </header>
+
+                <div class="ai-container">
+                    <div class="glass-card ai-form">
+                        <div class="form-group">
+                            <label>场景描述</label>
+                            <textarea id="ai-scenario" placeholder="描述你想要生成的角色扮演场景，例如：'一个愤怒的黑帮老大正在审问叛徒'..." rows="4"></textarea>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>文本类型</label>
+                                <div class="radio-pills">
+                                    <label class="radio-pill">
+                                        <input type="radio" name="ai-type" value="mixed" checked>
+                                        <span>混合</span>
+                                    </label>
+                                    <label class="radio-pill">
+                                        <input type="radio" name="ai-type" value="me">
+                                        <span>仅 /me</span>
+                                    </label>
+                                    <label class="radio-pill">
+                                        <input type="radio" name="ai-type" value="do">
+                                        <span>仅 /do</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>生成数量</label>
+                                <input type="number" id="ai-count" placeholder="自动" min="1" max="20">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>AI 服务商</label>
+                            <select id="ai-provider-select">
+                                <option value="">加载中...</option>
+                            </select>
+                        </div>
+
+                        <button id="ai-generate-btn" class="btn btn-primary btn-block glow-effect">
+                            <span class="icon">✨</span> 开始生成
+                        </button>
+                    </div>
+
+                    <div class="ai-results-area">
+                        <div class="results-header">
+                            <h3>生成预览</h3>
+                            <div class="results-actions">
+                                <button id="ai-import-btn" class="btn btn-secondary" disabled>导入到发送列表</button>
+                            </div>
+                        </div>
+                        <div id="ai-preview-list" class="text-list">
+                            <div class="empty-state small">
+                                <p>等待生成...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 4: Presets -->
+            <section id="panel-presets" class="panel">
+                <header class="panel-header">
+                    <h1>预设管理</h1>
+                    <button id="refresh-presets-btn" class="btn btn-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    </button>
+                </header>
+
+                <div class="presets-container">
+                    <div id="presets-grid" class="presets-grid">
+                        <!-- Presets injected here -->
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 5: Settings -->
+            <section id="panel-settings" class="panel">
+                <header class="panel-header">
+                    <h1>设置</h1>
+                    <button id="save-settings-btn" class="btn btn-primary">保存全部设置</button>
+                </header>
+
+                <div class="settings-container">
+                    <!-- Sender Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>发送设置</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>发送方式</label>
+                                <select id="setting-method">
+                                    <option value="clipboard">剪贴板 (推荐)</option>
+                                    <option value="typing">模拟打字 (较慢)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>聊天键</label>
+                                <input type="text" id="setting-chat-key" value="t" maxlength="1">
+                            </div>
+                            <div class="form-group">
+                                <label>打开聊天框延迟 (ms)</label>
+                                <input type="number" id="setting-delay-open" value="100">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>粘贴后延迟 (ms)</label>
+                                <input type="number" id="setting-delay-paste" value="50">
+                            </div>
+                            <div class="form-group">
+                                <label>发送后延迟 (ms)</label>
+                                <input type="number" id="setting-delay-send" value="50">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>前台检测超时 (ms)</label>
+                                <input type="number" id="setting-focus-timeout" value="5000">
+                            </div>
+                            <div class="form-group">
+                                <label>失败重试次数</label>
+                                <input type="number" id="setting-retry-count" value="2">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>重试间隔 (ms)</label>
+                                <input type="number" id="setting-retry-interval" value="300">
+                            </div>
+                            <div class="form-group">
+                                <label>typing 字符间隔 (ms)</label>
+                                <input type="number" id="setting-typing-char-delay" value="18">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>网络设置</h2>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>局域网访问</label>
+                                <p class="desc">允许同一网络下的手机/平板控制</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-lan-access">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div id="lan-urls" class="lan-info hidden">
+                            <p>访问地址: <span class="code">http://192.168.x.x:8730</span></p>
+                        </div>
+                        <div class="form-group" style="margin-top:16px">
+                            <label>访问令牌 (Token)</label>
+                            <div style="display:flex;gap:8px">
+                                <input type="password" id="setting-token" placeholder="留空则不启用认证" style="flex:1">
+                                <button type="button" id="clear-token-btn" class="btn btn-sm btn-ghost">清除</button>
+                            </div>
+                            <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">设置后所有 API 请求需携带此 Token</p>
+                        </div>
+                    </div>
+
+                    <!-- AI Providers -->
+                    <div class="glass-card settings-section">
+                        <h2>AI 服务商管理</h2>
+                        <div id="providers-list" class="providers-list">
+                            <!-- Providers injected here -->
+                        </div>
+                        <button id="add-provider-btn" class="btn btn-outline btn-block btn-dashed">
+                            + 添加服务商
+                        </button>
+                    </div>
+
+                    <!-- System Prompt -->
+                    <div class="glass-card settings-section">
+                        <h2>系统提示词</h2>
+                        <div class="form-group">
+                            <textarea id="setting-system-prompt" rows="6" placeholder="系统提示词..."></textarea>
+                            <div class="input-actions right">
+                                <button id="reset-prompt-btn" class="btn btn-sm btn-ghost">恢复默认</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Headers -->
+                    <div class="glass-card settings-section">
+                        <h2>AI 请求头</h2>
+                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">自定义发送给 AI 服务商的 HTTP 请求头 (JSON 格式)。值为空字符串表示移除该默认请求头。</p>
+                        <div class="form-group">
+                            <textarea id="setting-custom-headers" rows="10" placeholder='{"User-Agent": "python-httpx/0.28.1"}' style="font-family:monospace;font-size:0.85rem;tab-size:2"></textarea>
+                            <div class="input-actions right">
+                                <button id="reset-headers-btn" class="btn btn-sm btn-ghost">恢复默认</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+    
+    <!-- Save Preset Modal -->
+    <div id="modal-save-preset" class="modal glass-card hidden">
+        <h3>保存预设</h3>
+        <input type="text" id="preset-name-input" placeholder="输入预设名称" class="full-width">
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal">取消</button>
+            <button id="confirm-save-preset" class="btn btn-primary">保存</button>
+        </div>
+    </div>
+
+    <!-- Provider Edit Modal -->
+    <div id="modal-provider" class="modal glass-card hidden">
+        <h3 id="provider-modal-title">添加服务商</h3>
+        <form id="provider-form">
+            <input type="hidden" id="prov-id">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="prov-name" required placeholder="例如: DeepSeek">
+            </div>
+            <div class="form-group">
+                <label>API Base URL</label>
+                <input type="text" id="prov-base" required placeholder="https://api.example.com/v1">
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="prov-key" placeholder="sk-...">
+            </div>
+            <div class="form-group">
+                <label>Model Name</label>
+                <input type="text" id="prov-model" required placeholder="deepseek-chat">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-action="close-modal">取消</button>
+                <button type="button" id="test-provider-btn" class="btn btn-secondary">测试连接</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+            <div id="test-provider-result" class="hidden" style="margin-top:12px;padding:10px;border:1px solid var(--glass-border);border-radius:10px;background:rgba(0,0,0,.15)">
+                <div id="test-provider-summary" style="font-weight:600;margin-bottom:8px"></div>
+                <pre id="test-provider-detail" style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:.85rem;color:var(--text-secondary)"></pre>
+            </div>
+        </form>
+    </div>
+
+    <!-- Auth Gate -->
+    <div id="auth-gate" class="auth-gate hidden">
+        <div class="auth-card glass-card">
+            <div class="auth-logo">V</div>
+            <h2>VanceSender</h2>
+            <p class="auth-subtitle">请输入访问令牌</p>
+            <input type="password" id="auth-token-input" placeholder="输入 Token...">
+            <button id="auth-submit" class="btn btn-primary btn-block glow-effect">验证</button>
+            <p id="auth-error" class="auth-error hidden">令牌无效，请重新输入</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+server:
+  host: 127.0.0.1
+  port: 8730
+  lan_access: false
+  token: ''
+
+sender:
+  method: clipboard
+  chat_open_key: t
+  delay_open_chat: 300
+  delay_after_paste: 100
+  delay_after_send: 200
+  delay_between_lines: 1500
+  focus_timeout: 5000
+  retry_count: 2
+  retry_interval: 300
+  typing_char_delay: 18
+
+ai:
+  providers:
+    - id: openai
+      name: OpenAI
+      api_base: https://api.openai.com/v1
+      api_key: sk-your-openai-key
+      model: gpt-4o-mini
+    - id: deepseek
+      name: DeepSeek
+      api_base: https://api.deepseek.com/v1
+      api_key: sk-your-deepseek-key
+      model: deepseek-chat
+  default_provider: openai
+  system_prompt: |
+    你是一个FiveM角色扮演文本生成助手。用户会描述一个场景，你需要生成一系列/me和/do命令。
+
+    /me 用于描述角色自己的动作（第一人称视角，不带主语，如：/me 缓缓推开了房门）
+    /do 用于描述环境、结果、声音等客观事实（如：/do 门轴发出吱呀的响声，冷风从门缝灌入）
+
+    规则：
+    1. 每条文本不超过80个字符（不含/me或/do前缀）
+    2. /me和/do交替或混合使用，形成自然的叙事节奏
+    3. 描述要生动、具体、有画面感
+    4. 保持简洁有力，避免冗长
+    5. 确保动作和描述逻辑连贯
+
+    输出格式：每行一条命令，以/me或/do开头，不要添加序号或其他标记。
+  custom_headers:
+    User-Agent: python-httpx/0.28.1
+    X-Stainless-Lang: ''
+    X-Stainless-Package-Version: ''
+    X-Stainless-OS: ''
+    X-Stainless-Arch: ''
+    X-Stainless-Runtime: ''
+    X-Stainless-Runtime-Version: ''
