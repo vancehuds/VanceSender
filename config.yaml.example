@@ -19,8 +19,8 @@ sender:
 quick_overlay:
   enabled: true
   show_webui_send_status: true
-  compact_mode: false
-  trigger_hotkey: f8
+  compact_mode: true
+  trigger_hotkey: f7
   mouse_side_button: ''
   poll_interval_ms: 40
 
