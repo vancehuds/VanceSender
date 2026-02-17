@@ -12,13 +12,29 @@ FiveM `/me` `/do` 角色扮演文本发送器，支持 AI 生成与 AI 重写。
 - **WebUI + REST API**：浏览器可视化操作 + 完整 API（含 Swagger）
 - **可选鉴权**：支持 `Bearer Token` 保护 `/api/v1/*`
 
+## 快速开始
+
+1. 前往 [Github Release界面](https://github.com/vancehuds/VanceSender/releases) 下载最新版
+2. 解压
+3. 打开 VanceSender.exe
+
+### 注意：
+
+打包运行时会将可写配置和数据放在：
+- `%LOCALAPPDATA%\VanceSender\config.yaml`
+- `%LOCALAPPDATA%\VanceSender\data\presets\*.json`
+
+config文件会在您第一次在WebUI保存设置后生成，下方和仓库内也有完整示例可供参考。  
+preset文件夹内可存放指定格式的预设，未来我们也会建设预设库，供大家分享使用，现在各位可以自行分享文件使用。
+
+
 ## 环境要求
 
 - Windows 10 / 11
 - Python 3.10+
 - FiveM 客户端（发送目标）
 
-## 快速开始
+## 开始
 
 ### 1) 安装依赖
 
