@@ -31,6 +31,7 @@ DEFAULT_TYPING_CHAR_DELAY_MS = 18
 FOREGROUND_POLL_INTERVAL_MS = 100
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
+ULONG_PTR = wintypes.WPARAM
 
 
 # ── ctypes structs ─────────────────────────────────────────────────────────
@@ -42,16 +43,43 @@ class KEYBDINPUT(ctypes.Structure):
         ("wScan", wintypes.WORD),
         ("dwFlags", wintypes.DWORD),
         ("time", wintypes.DWORD),
-        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
+        ("dwExtraInfo", ULONG_PTR),
+    ]
+
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", wintypes.LONG),
+        ("dy", wintypes.LONG),
+        ("mouseData", wintypes.DWORD),
+        ("dwFlags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("dwExtraInfo", ULONG_PTR),
+    ]
+
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", wintypes.DWORD),
+        ("wParamL", wintypes.WORD),
+        ("wParamH", wintypes.WORD),
     ]
 
 
 class _INPUT_UNION(ctypes.Union):
-    _fields_ = [("ki", KEYBDINPUT), ("_pad", ctypes.c_byte * 24)]
+    _fields_ = [
+        ("mi", MOUSEINPUT),
+        ("ki", KEYBDINPUT),
+        ("hi", HARDWAREINPUT),
+    ]
 
 
 class INPUT(ctypes.Structure):
     _fields_ = [("type", wintypes.DWORD), ("union", _INPUT_UNION)]
+
+
+user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int)
+user32.SendInput.restype = wintypes.UINT
 
 
 # ── Low-level key helpers ─────────────────────────────────────────────────
