@@ -151,12 +151,15 @@ const state = {
     aiPreview: [],
     presets: [],
     currentPresetId: null,
+    presetSnapshot: null,
+    presetDirty: false,
     currentQuickPresetId: null,
     editingTextIndex: null,
     draggingTextIndex: null,
     dragOverTextIndex: null,
     dragInsertMode: null,
     aiRewriteTarget: null,
+    pendingRewrite: null, // { target, original, rewritten, presetId? }
     lanRiskToastShown: false,
     startupUpdateChecked: false,
     updateCheckInProgress: false
@@ -192,6 +195,7 @@ const dom = {
     presetsGrid: document.getElementById('presets-grid'),
     savePresetBtn: document.getElementById('save-preset-btn'),
     saveCurrentPresetBtn: document.getElementById('save-current-preset-btn'),
+    presetUnsavedHint: document.getElementById('preset-unsaved-hint'),
     refreshPresetsBtn: document.getElementById('refresh-presets-btn'),
     quickPresetSelect: document.getElementById('quick-preset-select'),
     quickPresetRefreshBtn: document.getElementById('quick-preset-refresh-btn'),
@@ -253,6 +257,10 @@ const dom = {
     aiRewriteStyle: document.getElementById('ai-rewrite-style'),
     aiRewriteRequirements: document.getElementById('ai-rewrite-requirements'),
     confirmAIRewrite: document.getElementById('confirm-ai-rewrite'),
+    modalAIComparison: document.getElementById('modal-ai-comparison'),
+    comparisonList: document.getElementById('comparison-list'),
+    cancelRewriteBtn: document.getElementById('cancel-rewrite-btn'),
+    applyRewriteBtn: document.getElementById('apply-rewrite-btn'),
     providerForm: document.getElementById('provider-form'),
 
     // Toast
@@ -261,6 +269,7 @@ const dom = {
 
 const SETTINGS_PRIMARY_SAVE_IDLE_TEXT = dom.saveSettingsBtn?.textContent || '保存全部设置';
 const SETTINGS_FLOAT_SAVE_IDLE_TEXT = dom.settingsUnsavedSaveBtn?.textContent || '保存设置';
+const APPLY_REWRITE_IDLE_TEXT = dom.applyRewriteBtn?.textContent || '应用更改';
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -269,6 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initQuickSendPanel();
     initAIPanel();
     initAIRewriteModal();
+    initAIComparisonModal();
     initPresetsPanel();
     initSettingsPanel();
     initAuth();
@@ -308,6 +318,13 @@ async function loadInitialData() {
 function initNavigation() {
     dom.navItems.forEach(item => {
         item.addEventListener('click', () => {
+            const currentTarget = document.querySelector('.nav-item.active')?.dataset?.target || '';
+            const nextTarget = item.dataset?.target || '';
+            if (currentTarget === 'panel-send' && nextTarget !== 'panel-send' && hasPresetUnsavedChanges()) {
+                const shouldLeave = confirm('当前预设有未保存修改，离开后不会自动保存。是否继续离开？');
+                if (!shouldLeave) return;
+            }
+
             // Update UI
             dom.navItems.forEach(n => n.classList.remove('active'));
             item.classList.add('active');
@@ -324,6 +341,11 @@ function initSendPanel() {
     dom.importBtn.addEventListener('click', parseAndImportText);
     dom.addTextItemBtn.addEventListener('click', openAddTextItemModal);
     dom.clearBtn.addEventListener('click', () => {
+        if (hasPresetUnsavedChanges()) {
+            const shouldClear = confirm('当前预设有未保存修改，清空后将丢失这些修改。是否继续清空？');
+            if (!shouldClear) return;
+        }
+
         state.texts = [];
         clearCurrentPresetSelection();
         dom.textInput.value = '';
@@ -346,7 +368,11 @@ function initSendPanel() {
     dom.quickPresetSelect.addEventListener('change', (e) => {
         const presetId = e.target.value;
         if (!presetId) return;
-        loadPresetById(presetId, { jumpToSend: false });
+
+        const loaded = loadPresetById(presetId, { jumpToSend: false });
+        if (!loaded && dom.quickPresetSelect) {
+            dom.quickPresetSelect.value = state.currentPresetId || '';
+        }
     });
 
     dom.quickPresetRefreshBtn.addEventListener('click', async () => {
@@ -357,6 +383,7 @@ function initSendPanel() {
     });
 
     updatePresetSaveButtonState();
+    bindPresetUnsavedWarning();
 }
 
 function initQuickSendPanel() {
@@ -379,6 +406,9 @@ function initQuickSendPanel() {
 
 function clearCurrentPresetSelection() {
     state.currentPresetId = null;
+    state.presetSnapshot = null;
+    setPresetDirtyState(false);
+
     if (dom.quickPresetSelect) {
         dom.quickPresetSelect.value = '';
     }
@@ -390,9 +420,82 @@ function updatePresetSaveButtonState() {
 
     const canSaveToCurrentPreset = Boolean(state.currentPresetId);
     dom.saveCurrentPresetBtn.disabled = !canSaveToCurrentPreset;
-    dom.saveCurrentPresetBtn.title = canSaveToCurrentPreset
-        ? '将当前文本覆盖保存到已加载预设'
-        : '仅已加载预设后可保存到现有预设';
+    if (!canSaveToCurrentPreset) {
+        dom.saveCurrentPresetBtn.title = '仅已加载预设后可保存到现有预设';
+        setPresetDirtyState(false);
+        return;
+    }
+
+    dom.saveCurrentPresetBtn.title = state.presetDirty
+        ? '当前预设有未保存修改，点击覆盖保存'
+        : '将当前文本覆盖保存到已加载预设';
+    setPresetDirtyState(state.presetDirty);
+}
+
+function buildTextSnapshot(texts) {
+    return JSON.stringify(
+        (Array.isArray(texts) ? texts : [])
+            .map((item) => {
+                if (!item || (item.type !== 'me' && item.type !== 'do') || typeof item.content !== 'string') {
+                    return null;
+                }
+                return {
+                    type: item.type,
+                    content: item.content.trim()
+                };
+            })
+            .filter((item) => item !== null)
+    );
+}
+
+function hasPresetUnsavedChanges() {
+    return Boolean(state.currentPresetId && state.presetDirty);
+}
+
+function setPresetDirtyState(isDirty) {
+    const activeDirty = Boolean(state.currentPresetId && isDirty);
+    state.presetDirty = activeDirty;
+
+    if (dom.presetUnsavedHint) {
+        dom.presetUnsavedHint.classList.toggle('hidden', !activeDirty);
+    }
+
+    if (dom.saveCurrentPresetBtn) {
+        dom.saveCurrentPresetBtn.classList.toggle('btn-primary', activeDirty);
+        dom.saveCurrentPresetBtn.classList.toggle('btn-outline', !activeDirty);
+    }
+}
+
+function refreshPresetDirtyState() {
+    if (!state.currentPresetId || !state.presetSnapshot) {
+        setPresetDirtyState(false);
+        return;
+    }
+
+    const currentSnapshot = buildTextSnapshot(state.texts);
+    setPresetDirtyState(currentSnapshot !== state.presetSnapshot);
+    updatePresetSaveButtonState();
+}
+
+function capturePresetSnapshotFromCurrent() {
+    if (!state.currentPresetId) {
+        state.presetSnapshot = null;
+        setPresetDirtyState(false);
+        updatePresetSaveButtonState();
+        return;
+    }
+
+    state.presetSnapshot = buildTextSnapshot(state.texts);
+    setPresetDirtyState(false);
+    updatePresetSaveButtonState();
+}
+
+function bindPresetUnsavedWarning() {
+    window.addEventListener('beforeunload', (event) => {
+        if (!hasPresetUnsavedChanges()) return;
+        event.preventDefault();
+        event.returnValue = '';
+    });
 }
 
 function parseAndImportText() {
@@ -438,6 +541,7 @@ function renderTextList() {
                 <div class="empty-icon">📝</div>
                 <p>暂无文本，请在上方输入或使用AI生成</p>
             </div>`;
+        refreshPresetDirtyState();
         return;
     }
 
@@ -497,6 +601,8 @@ function renderTextList() {
 
         dom.textList.appendChild(card);
     });
+
+    refreshPresetDirtyState();
 }
 
 window.deleteText = (index) => {
@@ -925,6 +1031,122 @@ function initAIRewriteModal() {
     dom.confirmAIRewrite.addEventListener('click', submitAIRewrite);
 }
 
+function initAIComparisonModal() {
+    if (!dom.modalAIComparison) return;
+    if (dom.applyRewriteBtn) dom.applyRewriteBtn.addEventListener('click', applyRewrite);
+    if (dom.cancelRewriteBtn) dom.cancelRewriteBtn.addEventListener('click', cancelRewrite);
+}
+
+function resetApplyRewriteButtonState() {
+    if (!dom.applyRewriteBtn) return;
+    dom.applyRewriteBtn.disabled = false;
+    dom.applyRewriteBtn.textContent = APPLY_REWRITE_IDLE_TEXT;
+}
+
+function renderComparison(data) {
+    if (!dom.comparisonList) return;
+    dom.comparisonList.innerHTML = '';
+
+    if (!data || !data.original || !data.rewritten) return;
+
+    const count = Math.min(data.original.length, data.rewritten.length);
+    for (let i = 0; i < count; i++) {
+        const orig = data.original[i];
+        const rew = data.rewritten[i];
+
+        const div = document.createElement('div');
+        div.className = 'comparison-item';
+        div.innerHTML = `
+            <div class="comparison-row">
+                <span class="comparison-label">原文</span>
+                <span class="badge badge-${orig.type}">/${orig.type}</span>
+                <span class="comparison-content original">${orig.content}</span>
+            </div>
+            <div class="comparison-arrow">↓</div>
+            <div class="comparison-row">
+                <span class="comparison-label">重写后</span>
+                <span class="badge badge-${rew.type}">/${rew.type}</span>
+                <span class="comparison-content new">${rew.content}</span>
+            </div>
+        `;
+        dom.comparisonList.appendChild(div);
+    }
+}
+
+function cancelRewrite() {
+    state.pendingRewrite = null;
+    closeModal();
+    showToast('已保留原文', 'info');
+}
+
+async function applyRewrite() {
+    const pending = state.pendingRewrite;
+    if (!pending || !pending.rewritten) {
+        closeModal();
+        return;
+    }
+
+    const { target, rewritten } = pending;
+
+    if (dom.applyRewriteBtn) {
+        dom.applyRewriteBtn.disabled = true;
+        dom.applyRewriteBtn.textContent = '应用中...';
+    }
+
+    try {
+        if (target.scope === 'single') {
+            const current = state.texts[target.index];
+            if (!current) {
+                showToast('应用失败：目标文本已不存在，请重试', 'error');
+                return;
+            }
+
+            state.texts[target.index] = rewritten[0];
+            renderTextList();
+            showToast('单条文本已重写', 'success');
+        } else if (target.scope === 'preset') {
+            const presetId = target.presetId;
+            if (!presetId) {
+                showToast('应用失败：预设ID缺失', 'error');
+                return;
+            }
+
+            // Update via API
+            const saveRes = await apiFetch(`/api/v1/presets/${presetId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ texts: rewritten })
+            });
+            
+            if (!saveRes.ok) {
+                const savePayload = await saveRes.json().catch(() => ({}));
+                throw new Error(formatApiErrorDetail(savePayload.detail, saveRes.status));
+            }
+
+            // If current preset is active, update local state
+            if (state.currentPresetId === presetId) {
+                state.texts = [...rewritten];
+                capturePresetSnapshotFromCurrent();
+                renderTextList();
+            }
+
+            await fetchPresets();
+            showToast('预设已重写并保存', 'success');
+        }
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('应用更改失败: ' + e.message, 'error');
+        }
+        // Don't close modal on error, let user retry or cancel
+        return;
+    } finally {
+        resetApplyRewriteButtonState();
+    }
+
+    state.pendingRewrite = null;
+    closeModal();
+}
+
 async function generateAI() {
     const scenario = dom.aiScenario.value.trim();
     if (!scenario) return showToast('请输入场景描述', 'error');
@@ -1207,16 +1429,26 @@ function loadPresetById(presetId, options = {}) {
     if (!preset) {
         showToast('预设不存在，请刷新后重试', 'error');
         clearCurrentPresetSelection();
-        return;
+        return false;
     }
-    loadPreset(preset, options);
+    return loadPreset(preset, options);
 }
 
 function loadPreset(preset, options = {}) {
-    const { jumpToSend = true } = options;
+    const { jumpToSend = true, skipUnsavedConfirm = false } = options;
+
+    if (
+        !skipUnsavedConfirm
+        && hasPresetUnsavedChanges()
+        && preset.id !== state.currentPresetId
+    ) {
+        const shouldSwitch = confirm('当前预设有未保存修改，切换后将丢失这些修改。是否继续切换？');
+        if (!shouldSwitch) return false;
+    }
 
     state.texts = [...preset.texts]; // Clone
     state.currentPresetId = preset.id;
+    capturePresetSnapshotFromCurrent();
     updatePresetSaveButtonState();
     renderQuickPresetSwitcher();
     renderTextList();
@@ -1224,6 +1456,8 @@ function loadPreset(preset, options = {}) {
     if (jumpToSend) {
         document.querySelector('[data-target="panel-send"]').click();
     }
+
+    return true;
 }
 
 window.openPresetRewrite = (presetId) => {
@@ -1330,38 +1564,23 @@ async function submitAIRewrite() {
             return;
         }
 
-        if (target.scope === 'single') {
-            state.texts[target.index] = rewritten[0];
-            renderTextList();
-            closeModal();
-            showToast('单条文本已重写', 'success');
-            return;
-        }
-
-        if (!presetId) {
+        if (target.scope === 'preset' && !presetId) {
             showToast('重写失败: 预设ID缺失', 'error');
             return;
         }
 
-        const saveRes = await apiFetch(`/api/v1/presets/${presetId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ texts: rewritten })
-        });
-        const savePayload = await saveRes.json().catch(() => ({}));
-        if (!saveRes.ok) {
-            showToast('重写已生成但保存失败: ' + formatApiErrorDetail(savePayload.detail, saveRes.status), 'error');
-            return;
-        }
-
-        if (state.currentPresetId === presetId) {
-            state.texts = [...rewritten];
-            renderTextList();
-        }
-
-        await fetchPresets();
         closeModal();
-        showToast('预设已重写并保存', 'success');
+
+        state.pendingRewrite = {
+            target: target.scope === 'single'
+                ? { scope: 'single', index: target.index }
+                : { scope: 'preset', presetId },
+            original: normalizedSourceTexts.map((item) => ({ ...item })),
+            rewritten
+        };
+        renderComparison(state.pendingRewrite);
+        openModal('modal-ai-comparison');
+        showToast('重写已生成，请确认后再应用', 'info');
     } catch (e) {
         if (e.message !== 'AUTH_REQUIRED') {
             showToast('重写失败: ' + e.message, 'error');
@@ -1392,6 +1611,7 @@ async function saveCurrentAsPreset() {
                 state.currentPresetId = payload.id;
                 updatePresetSaveButtonState();
             }
+            capturePresetSnapshotFromCurrent();
             showToast('保存成功', 'success');
             closeModal();
             await fetchPresets(); // Refresh list
@@ -1432,6 +1652,7 @@ async function saveToCurrentPreset() {
             return;
         }
 
+        capturePresetSnapshotFromCurrent();
         showToast('已保存到当前预设', 'success');
         await fetchPresets();
     } catch (e) {
@@ -2291,10 +2512,20 @@ function openModal(id) {
 }
 
 function closeModal() {
+    const comparisonVisible = Boolean(dom.modalAIComparison && !dom.modalAIComparison.classList.contains('hidden'));
+    if (comparisonVisible && dom.applyRewriteBtn?.disabled) {
+        return;
+    }
+
     dom.modalBackdrop.classList.add('hidden');
     document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
     state.editingTextIndex = null;
     state.aiRewriteTarget = null;
+
+    if (comparisonVisible) {
+        state.pendingRewrite = null;
+        resetApplyRewriteButtonState();
+    }
 }
 
 // Close modal triggers

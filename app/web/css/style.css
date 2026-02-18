@@ -1540,6 +1540,12 @@ input:checked + .slider:before {
     gap: 8px;
 }
 
+.preset-unsaved-hint {
+    flex-basis: 100%;
+    text-align: right;
+    color: #ffd79e;
+}
+
 .quick-preset-switch {
     display: flex;
     align-items: center;
@@ -1795,8 +1801,63 @@ input:checked + .slider:before {
     letter-spacing: 2px;
 }
 
-.auth-error {
-    color: var(--accent-danger);
-    margin-top: 12px;
-    font-size: 0.85rem;
+
+/* Comparison Modal */
+.comparison-list {
+    max-height: 60vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-right: 4px; /* for scrollbar */
+}
+
+.comparison-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+}
+
+.comparison-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.comparison-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 40px;
+    padding-top: 4px;
+}
+
+.comparison-content {
+    flex: 1;
+    color: var(--text-main);
+    word-break: break-all;
+}
+
+.comparison-content.original {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.comparison-content.new {
+    color: var(--accent-cyan);
+}
+
+.comparison-arrow {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    line-height: 1;
+    margin: 4px 0;
 }
