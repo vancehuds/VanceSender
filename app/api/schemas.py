@@ -187,6 +187,20 @@ class UpdateCheckResponse(BaseModel):
     status_code: int | None = None
 
 
+class PublicConfigResponse(BaseModel):
+    success: bool
+    visible: bool
+    source_url: str | None = None
+    title: str | None = None
+    content: str | None = None
+    message: str
+    fetched_at: str | None = None
+    link_url: str | None = None
+    link_text: str | None = None
+    error_type: str | None = None
+    status_code: int | None = None
+
+
 # ── Generic ────────────────────────────────────────────────────────────────
 
 

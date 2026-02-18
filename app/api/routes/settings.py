@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from app.api.schemas import (
     AISettings,
     MessageResponse,
+    PublicConfigResponse,
     ProviderCreate,
     ProviderResponse,
     ProviderUpdate,
@@ -27,6 +28,7 @@ from app.core.config import (
     update_provider,
 )
 from app.core.network import get_lan_ipv4_addresses
+from app.core.public_config import fetch_github_public_config
 from app.core.update_checker import check_github_update
 
 router = APIRouter()
@@ -135,6 +137,25 @@ async def check_update():
         release_url=result.release_url,
         published_at=result.published_at,
         message=result.message,
+        error_type=result.error_type,
+        status_code=result.status_code,
+    )
+
+
+@router.get("/public-config", response_model=PublicConfigResponse)
+async def get_public_config():
+    """获取 GitHub 远程公共配置（远程关闭或失败时默认不显示）。"""
+    result = await fetch_github_public_config(load_config())
+    return PublicConfigResponse(
+        success=result.success,
+        visible=result.visible,
+        source_url=result.source_url,
+        title=result.title,
+        content=result.content,
+        message=result.message,
+        fetched_at=result.fetched_at,
+        link_url=result.link_url,
+        link_text=result.link_text,
         error_type=result.error_type,
         status_code=result.status_code,
     )

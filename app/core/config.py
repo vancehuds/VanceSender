@@ -60,6 +60,11 @@ def _default_config() -> dict[str, Any]:
             "lan_access": False,
             "token": "",
         },
+        "launch": {
+            "open_webui_on_start": True,
+            "open_intro_on_first_start": True,
+            "intro_seen": False,
+        },
         "sender": {
             "method": "clipboard",
             "chat_open_key": "t",
@@ -79,6 +84,11 @@ def _default_config() -> dict[str, Any]:
             "trigger_hotkey": "f7",
             "mouse_side_button": "",
             "poll_interval_ms": 40,
+        },
+        "public_config": {
+            "source_url": "",
+            "timeout_seconds": 5,
+            "cache_ttl_seconds": 120,
         },
         "ai": {
             "providers": [],

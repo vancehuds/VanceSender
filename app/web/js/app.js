@@ -240,6 +240,10 @@ const dom = {
     appLatestVersion: document.getElementById('app-latest-version'),
     appUpdateStatus: document.getElementById('app-update-status'),
     appUpdateReleaseLink: document.getElementById('app-update-release-link'),
+    publicConfigCard: document.getElementById('public-config-card'),
+    publicConfigTitle: document.getElementById('public-config-title'),
+    publicConfigContent: document.getElementById('public-config-content'),
+    publicConfigLink: document.getElementById('public-config-link'),
     providersList: document.getElementById('providers-list'),
     addProviderBtn: document.getElementById('add-provider-btn'),
 
@@ -305,7 +309,8 @@ async function loadInitialData() {
     try {
         await Promise.all([
             fetchSettings(),
-            fetchPresets()
+            fetchPresets(),
+            fetchPublicConfig({ silent: true })
         ]);
         showToast('系统已就绪', 'success');
 
@@ -2103,6 +2108,76 @@ function renderUpdateCheckResult(data) {
     }
 }
 
+function renderPublicConfig(data) {
+    if (!dom.publicConfigCard) return;
+
+    const contentText = String(data?.content || '').trim();
+    const visible = Boolean(data?.visible && contentText);
+    dom.publicConfigCard.classList.toggle('hidden', !visible);
+
+    if (!visible) {
+        if (dom.publicConfigTitle) {
+            dom.publicConfigTitle.textContent = '远程公告';
+        }
+        if (dom.publicConfigContent) {
+            dom.publicConfigContent.textContent = '';
+        }
+        if (dom.publicConfigLink) {
+            dom.publicConfigLink.classList.add('hidden');
+            dom.publicConfigLink.removeAttribute('href');
+            dom.publicConfigLink.textContent = '查看详情';
+        }
+        return;
+    }
+
+    const titleText = String(data?.title || '').trim() || '远程公告';
+    if (dom.publicConfigTitle) {
+        dom.publicConfigTitle.textContent = titleText;
+    }
+    if (dom.publicConfigContent) {
+        dom.publicConfigContent.textContent = contentText;
+    }
+
+    if (dom.publicConfigLink) {
+        const linkUrl = String(data?.link_url || '').trim();
+        const linkText = String(data?.link_text || '').trim() || '查看详情';
+        if (linkUrl) {
+            dom.publicConfigLink.href = linkUrl;
+            dom.publicConfigLink.textContent = linkText;
+            dom.publicConfigLink.classList.remove('hidden');
+        } else {
+            dom.publicConfigLink.classList.add('hidden');
+            dom.publicConfigLink.removeAttribute('href');
+            dom.publicConfigLink.textContent = '查看详情';
+        }
+    }
+}
+
+async function fetchPublicConfig(options = {}) {
+    const silent = Boolean(options.silent);
+    if (!dom.publicConfigCard) return;
+
+    try {
+        const res = await apiFetch('/api/v1/settings/public-config');
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            renderPublicConfig({ visible: false });
+            if (!silent) {
+                showToast(data?.message || '获取远程公告失败', 'error');
+            }
+            return;
+        }
+
+        renderPublicConfig(data);
+    } catch (e) {
+        renderPublicConfig({ visible: false });
+        if (e.message !== 'AUTH_REQUIRED' && !silent) {
+            showToast('获取远程公告失败', 'error');
+        }
+    }
+}
+
 const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最新版，关闭当前程序(Ctrl+C)后删除旧文件夹后解压新文件夹(或者可尝试直接覆盖)并重新启动程序。';
 
 async function checkGitHubUpdate(options = {}) {
@@ -2457,6 +2532,7 @@ async function saveAllSettings() {
 
         showToast('设置已保存', 'success');
         await fetchSettings(); // Reload to reflect changes (e.g. LAN IP)
+        await fetchPublicConfig({ silent: true });
     } catch (e) {
         showToast('保存设置失败', 'error');
     } finally {

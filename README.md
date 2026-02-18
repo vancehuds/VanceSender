@@ -11,6 +11,7 @@ FiveM `/me` `/do` 角色扮演文本发送器，支持 AI 生成与 AI 重写。
 - **快捷悬浮窗**：默认启用，支持热键（默认 `F7`）或鼠标侧键快速选预设并发送
 - **WebUI + REST API**：浏览器可视化操作 + 完整 API（含 Swagger）
 - **可选鉴权**：支持 `Bearer Token` 保护 `/api/v1/*`
+- **远程公共公告**：可从 GitHub 配置文件远程拉取内容，并在 CLI 与 WebUI 同步展示
 
 ## 快速开始
 
@@ -163,6 +164,11 @@ server:
   lan_access: false
   token: ''
 
+launch:
+  open_webui_on_start: true   # 启动时自动打开 WebUI
+  open_intro_on_first_start: true  # 首次启动时自动打开介绍页
+  intro_seen: false           # 内部状态：介绍页是否已展示过
+
 sender:
   method: clipboard          # clipboard 或 typing
   chat_open_key: t
@@ -182,6 +188,11 @@ quick_overlay:
   mouse_side_button: ''
   poll_interval_ms: 40
 
+public_config:
+  source_url: ''
+  timeout_seconds: 5
+  cache_ttl_seconds: 120
+
 ai:
   providers: []
   default_provider: ''
@@ -195,6 +206,33 @@ ai:
     X-Stainless-Runtime: ''
     X-Stainless-Runtime-Version: ''
 ```
+
+### 启动页与自动打开行为
+
+- `launch.open_webui_on_start`：控制每次启动是否自动打开 WebUI（默认 `true`）
+- `launch.open_intro_on_first_start`：控制首次启动是否自动打开介绍页（默认 `true`）
+- `launch.intro_seen`：程序首次成功触发介绍页后会自动写为 `true`，通常无需手动修改
+
+### 远程公共公告配置
+
+默认读取仓库根目录 `public-config.yaml`（走 GitHub Raw 地址）。
+
+示例：
+
+```yaml
+enabled: false
+title: 远程公告
+content: |
+  这里是远程公告内容。
+  将 enabled 改为 true 后会在 CLI 和 WebUI 中显示。
+link_url: https://github.com/vancehuds/VanceSender
+link_text: 查看详情
+```
+
+规则：
+
+- `enabled: true` 且成功拉取时显示
+- 拉取失败/超时/格式错误时默认不显示
 
 ## API 文档
 

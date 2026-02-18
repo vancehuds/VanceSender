@@ -1,0 +1,7 @@
+enabled: false
+title: 远程公告
+content: |
+  这里是从 GitHub 远程读取的公共配置内容。
+  将 enabled 改为 true 后，启动命令行和 WebUI 会自动显示该内容。
+link_url: https://github.com/vancehuds/VanceSender
+link_text: 查看项目主页

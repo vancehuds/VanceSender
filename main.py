@@ -12,6 +12,9 @@ import argparse
 import asyncio
 import multiprocessing
 import sys
+import threading
+import time
+import webbrowser
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -25,6 +28,7 @@ from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import load_config, update_config
 from app.core.network import get_lan_ipv4_addresses
+from app.core.public_config import fetch_github_public_config_sync
 from app.core.runtime_paths import get_bundle_root
 
 WEB_DIR = get_bundle_root() / "app" / "web"
@@ -125,6 +129,58 @@ def _configure_console_encoding() -> None:
                 continue
 
 
+def _build_local_web_base_url(host: str, port: int) -> str:
+    """Return browser-friendly local base URL for startup links."""
+    browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+    return f"http://{browser_host}:{port}"
+
+
+def _collect_startup_browser_urls(
+    cfg: dict[str, object],
+    base_url: str,
+) -> tuple[list[str], bool]:
+    """Collect startup URLs and whether first-run intro flag should be persisted."""
+    launch_section = cfg.get("launch")
+    launch_cfg = launch_section if isinstance(launch_section, dict) else {}
+
+    open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", True))
+    open_intro_on_first_start = bool(launch_cfg.get("open_intro_on_first_start", True))
+    intro_seen = bool(launch_cfg.get("intro_seen", False))
+
+    urls: list[str] = []
+    should_mark_intro_seen = False
+
+    if open_intro_on_first_start and not intro_seen:
+        urls.append(f"{base_url}/static/intro.html")
+        should_mark_intro_seen = True
+
+    if open_webui_on_start:
+        urls.append(base_url)
+
+    return urls, should_mark_intro_seen
+
+
+def _open_urls_in_browser(urls: list[str], delay_seconds: float = 0.9) -> None:
+    """Open startup pages in default browser after a short delay."""
+    if not urls:
+        return
+
+    def _worker() -> None:
+        if delay_seconds > 0:
+            time.sleep(delay_seconds)
+        for url in urls:
+            try:
+                webbrowser.open_new_tab(url)
+            except Exception:
+                continue
+
+    threading.Thread(
+        target=_worker,
+        daemon=True,
+        name="startup-browser-opener",
+    ).start()
+
+
 def main() -> None:
     _configure_console_encoding()
 
@@ -135,6 +191,7 @@ def main() -> None:
 
     cfg = load_config()
     server_cfg = cfg.get("server", {})
+    public_config_result = fetch_github_public_config_sync(cfg)
 
     quick_overlay_module = None
     try:
@@ -160,6 +217,11 @@ def main() -> None:
     lan_ipv4_list = get_lan_ipv4_addresses() if runtime_lan_access else []
     lan_url_list = [f"http://{lan_ipv4}:{port}" for lan_ipv4 in lan_ipv4_list]
     lan_docs_url_list = [f"{lan_url}/docs" for lan_url in lan_url_list]
+    local_web_base_url = _build_local_web_base_url(host, port)
+    startup_browser_urls, should_mark_intro_seen = _collect_startup_browser_urls(
+        cfg,
+        local_web_base_url,
+    )
 
     app.state.runtime_host = host
     app.state.runtime_port = port
@@ -171,6 +233,9 @@ def main() -> None:
     # Persist LAN flag if changed via CLI
     if args.lan and not server_cfg.get("lan_access"):
         update_config({"server": {"lan_access": True, "host": "0.0.0.0"}})
+
+    if should_mark_intro_seen:
+        update_config({"launch": {"intro_seen": True}})
 
     print(f"""
 ╔══════════════════════════════════════════════╗
@@ -199,10 +264,28 @@ def main() -> None:
     print(f"╚══════════════════════════════════════════════╝")
     print()
 
+    if public_config_result.visible and public_config_result.content:
+        if public_config_result.title:
+            print(f"📢 {public_config_result.title}")
+        else:
+            print("📢 远程公告")
+
+        for line in public_config_result.content.splitlines():
+            print(f"  {line}")
+
+        if public_config_result.link_url:
+            link_text = public_config_result.link_text or "查看详情"
+            print(f"  {link_text}: {public_config_result.link_url}")
+
+        print()
+
     if runtime_lan_access and not token:
         print("⚠ 风险提示: 当前已开启局域网访问且未设置 Token。")
         print("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
         print()
+
+    if startup_browser_urls:
+        _open_urls_in_browser(startup_browser_urls)
 
     try:
         uvicorn.run(
