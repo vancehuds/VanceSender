@@ -992,9 +992,9 @@ input:checked + .slider:before {
     }
 
     #panel-send {
-        height: auto;
+        height: 100%;
         min-height: 0;
-        overflow-y: auto;
+        overflow: hidden;
         overscroll-behavior-y: contain;
     }
 
@@ -1034,14 +1034,12 @@ input:checked + .slider:before {
     #panel-send .send-container {
         flex: 1 1 auto;
         min-height: 0;
-        overflow: visible;
+        overflow: hidden;
     }
 
     /* Compact bottom bar */
     #panel-send .bottom-bar {
-        position: sticky;
-        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-        z-index: 60;
+        position: static;
         padding: 12px;
         margin-top: 10px;
     }
@@ -1123,14 +1121,16 @@ input:checked + .slider:before {
     .send-container {
         height: auto;
         min-height: 0;
-        overflow: visible;
+        overflow: hidden;
     }
     
     #panel-send .text-list {
         flex: 1 1 auto;
-        min-height: 180px;
-        overflow: visible;
-        padding-bottom: 12px;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        overscroll-behavior-y: contain;
     }
 
     /* Fix AI results header wrapping */
@@ -1777,7 +1777,7 @@ input:checked + .slider:before {
 @media (max-width: 480px) {
     .panel {
         padding: 14px;
-        padding-bottom: 14px;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     }
 
     .glass-card {
