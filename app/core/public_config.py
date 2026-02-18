@@ -19,6 +19,8 @@ from app.core.config import load_config
 
 
 _DEFAULT_REMOTE_FILE_PATH = "public-config.yaml"
+_DEFAULT_CUSTOM_SOURCE_URL = "https://sender.vhuds.com/public-config.yaml"
+_USE_CUSTOM_DEFAULT_SOURCE_URL = True
 _DEFAULT_TIMEOUT_SECONDS = 5.0
 _DEFAULT_CACHE_TTL_SECONDS = 120.0
 _MAX_RESPONSE_BYTES = 64 * 1024
@@ -54,6 +56,9 @@ _RESULT_CACHE: dict[str, _CacheEntry] = {}
 
 
 def _default_source_url() -> str:
+    if _USE_CUSTOM_DEFAULT_SOURCE_URL:
+        return _DEFAULT_CUSTOM_SOURCE_URL
+
     return (
         f"https://raw.githubusercontent.com/"
         f"{GITHUB_REPOSITORY}/main/{_DEFAULT_REMOTE_FILE_PATH}"
