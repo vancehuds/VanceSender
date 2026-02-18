@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.api.routes import api_router
-from app.core.app_meta import APP_NAME, APP_VERSION
+from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import load_config, update_config
 from app.core.runtime_paths import get_bundle_root
 
@@ -151,6 +151,7 @@ def main() -> None:
 
     host = "0.0.0.0" if lan_access else server_cfg.get("host", "127.0.0.1")
     port = args.port or server_cfg.get("port", 8730)
+    github_repository_url = f"https://github.com/{GITHUB_REPOSITORY}"
 
     # Persist LAN flag if changed via CLI
     if args.lan and not server_cfg.get("lan_access"):
@@ -173,6 +174,7 @@ def main() -> None:
         print(f"║  认证:     Token {masked}")
     else:
         print(f"║  认证:     未启用")
+    print(f"║  GitHub:   {github_repository_url}")
     print(f"╚══════════════════════════════════════════════╝")
     print()
 
