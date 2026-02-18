@@ -14,7 +14,7 @@ FiveM `/me` `/do` 角色扮演文本发送器，支持 AI 生成与 AI 重写。
 
 ## 快速开始
 
-1. 前往 [Github Release界面](https://github.com/vancehuds/VanceSender/releases) 下载最新版
+1. 前往 [Github Release界面](https://github.com/vancehuds/VanceSender/releases/latest) 下载最新版
 2. 解压
 3. 打开 VanceSender.exe
 
