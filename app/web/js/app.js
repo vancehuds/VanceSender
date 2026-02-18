@@ -160,6 +160,7 @@ const state = {
     dragInsertMode: null,
     aiRewriteTarget: null,
     pendingRewrite: null, // { target, original, rewritten, presetId? }
+    lastModalTrigger: null,
     lanRiskToastShown: false,
     startupUpdateChecked: false,
     updateCheckInProgress: false
@@ -956,6 +957,27 @@ async function startBatchSend() {
     }
 }
 
+function isMobileViewport() {
+    return window.matchMedia('(max-width: 768px)').matches;
+}
+
+function ensureSendCardVisible(card, options = {}) {
+    if (!(card instanceof HTMLElement)) return;
+
+    const force = Boolean(options.force);
+    const rect = card.getBoundingClientRect();
+    const topBoundary = 56;
+    const bottomBoundary = window.innerHeight - 96;
+    const outsideViewport = rect.top < topBoundary || rect.bottom > bottomBoundary;
+
+    if (!outsideViewport && !force) return;
+
+    card.scrollIntoView({
+        behavior: isMobileViewport() ? 'auto' : 'smooth',
+        block: isMobileViewport() ? 'nearest' : 'center'
+    });
+}
+
 function updateProgress(event) {
     // event: {status: "sending"|"completed"|"cancelled", index, total, text}
     if (event.status === 'sending') {
@@ -967,7 +989,7 @@ function updateProgress(event) {
         const cards = dom.textList.children;
         if (cards[event.index]) {
             cards[event.index].style.borderColor = 'var(--accent-cyan)';
-            cards[event.index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            ensureSendCardVisible(cards[event.index], { force: !isMobileViewport() });
         }
         return false;
     } else if (event.status === 'line_result') {
@@ -2394,14 +2416,10 @@ async function fetchProviders() {
     providers.forEach(p => {
         const row = document.createElement('div');
         row.className = 'provider-row glass-card';
-        row.style.marginBottom = '10px';
-        row.style.display = 'flex';
-        row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'center';
         row.innerHTML = `
             <div>
                 <strong>${p.name}</strong>
-                <div style="font-size:0.8rem;color:var(--text-muted)">${p.model}</div>
+                <div class="provider-model">${p.model}</div>
             </div>
             <div>
                 <button class="btn btn-sm btn-ghost" onclick="editProvider('${p.id}')">✏️</button>
@@ -2620,9 +2638,31 @@ function showToast(msg, type = 'info') {
     }, 3000);
 }
 
+function getFirstModalFocusableElement(modal) {
+    if (!(modal instanceof HTMLElement)) return null;
+
+    return modal.querySelector(
+        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    );
+}
+
 function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+
+    state.lastModalTrigger = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
     dom.modalBackdrop.classList.remove('hidden');
-    document.getElementById(id).classList.remove('hidden');
+    modal.classList.remove('hidden');
+
+    const focusTarget = getFirstModalFocusableElement(modal);
+    if (focusTarget instanceof HTMLElement) {
+        window.requestAnimationFrame(() => {
+            focusTarget.focus({ preventScroll: true });
+        });
+    }
 }
 
 function closeModal() {
@@ -2640,8 +2680,20 @@ function closeModal() {
         state.pendingRewrite = null;
         resetApplyRewriteButtonState();
     }
+
+    const trigger = state.lastModalTrigger;
+    state.lastModalTrigger = null;
+    if (trigger instanceof HTMLElement && document.contains(trigger)) {
+        trigger.focus({ preventScroll: true });
+    }
 }
 
 // Close modal triggers
 document.querySelectorAll('[data-action="close-modal"]').forEach(b => b.addEventListener('click', closeModal));
 dom.modalBackdrop.addEventListener('click', closeModal);
+document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (dom.modalBackdrop.classList.contains('hidden')) return;
+    event.preventDefault();
+    closeModal();
+});

@@ -882,12 +882,16 @@ input:checked + .slider:before {
 
 .toast.error {
     border-left-color: var(--accent-danger);
-    border-color: rgba(251, 113, 133, 0.35);
+    border-top-color: rgba(251, 113, 133, 0.35);
+    border-right-color: rgba(251, 113, 133, 0.35);
+    border-bottom-color: rgba(251, 113, 133, 0.35);
 }
 
 .toast.success {
     border-left-color: var(--accent-success);
-    border-color: rgba(34, 197, 94, 0.35);
+    border-top-color: rgba(34, 197, 94, 0.35);
+    border-right-color: rgba(34, 197, 94, 0.35);
+    border-bottom-color: rgba(34, 197, 94, 0.35);
 }
 
 .toast.info {
@@ -916,10 +920,10 @@ input:checked + .slider:before {
     .sidebar {
         width: 100%;
         height: auto;
-        min-height: 60px;
+        min-height: 64px;
         flex-direction: row;
         padding: 0;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
         justify-content: space-between;
         align-items: center;
         order: 2; /* Move to bottom */
@@ -941,17 +945,22 @@ input:checked + .slider:before {
     .nav-item {
         flex: 1 1 0;
         min-width: 0;
-        min-height: 56px;
+        min-height: 58px;
         flex-direction: column;
         justify-content: center;
         margin: 0;
-        padding: 8px;
-        gap: 4px;
+        padding: 8px 6px;
+        gap: 5px;
         border-radius: 0;
         border: none;
         border-left: none;
         border-top: 3px solid transparent;
-        font-size: 0.7rem;
+        font-size: 0.72rem;
+    }
+
+    .nav-item .icon svg {
+        width: 20px;
+        height: 20px;
     }
     
     .nav-item.active {
@@ -967,8 +976,8 @@ input:checked + .slider:before {
     }
 
     .panel {
-        padding: 20px;
-        padding-bottom: 20px;
+        padding: 16px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     }
 
     .panel-header {
@@ -978,12 +987,15 @@ input:checked + .slider:before {
     }
 
     .panel-header h1 {
-        font-size: 1.48rem;
+        font-size: 1.42rem;
         line-height: 1.2;
     }
 
     #panel-send {
-        height: 100%;
+        height: auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
     }
 
     #panel-send .panel-header {
@@ -1014,79 +1026,118 @@ input:checked + .slider:before {
     #panel-send .header-actions .btn {
         width: auto;
         flex: 0 0 auto;
-        min-height: 36px;
+        min-height: 44px;
         padding: 6px 12px;
         font-size: 0.85rem;
     }
 
+    #panel-send .send-container {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
     /* Compact bottom bar */
-    .bottom-bar {
-        padding: 10px 12px;
-        margin-top: 8px;
+    #panel-send .bottom-bar {
+        position: sticky;
+        bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        z-index: 60;
+        padding: 12px;
+        margin-top: 10px;
     }
 
     .sending-controls {
         flex-direction: row;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
         width: 100%;
     }
 
     .delay-control {
-        width: auto;
+        flex: 0 0 auto;
         gap: 4px;
-        font-size: 0.8rem;
+        font-size: 0.82rem;
     }
 
     .delay-control input {
-        width: 50px;
+        width: 64px;
         padding: 4px;
-        min-height: 32px;
+        min-height: 40px;
         font-size: 0.85rem;
         text-align: center;
     }
 
     #send-all-btn {
-        flex: 1;
+        flex: 1 1 160px;
         padding: 8px;
-        min-height: 38px;
-        font-size: 0.9rem;
+        min-height: 44px;
+        font-size: 0.95rem;
+    }
+
+    .progress-area {
+        flex: 1 1 100%;
+        order: 3;
     }
 
     /* Input card compact */
-    .send-container .input-card {
+    #panel-send .input-card {
         padding: 12px;
     }
 
     #main-input {
-        height: 60px; /* Even smaller default */
-        font-size: 13px;
-        padding: 8px;
+        height: 92px;
+        font-size: 14px;
+        padding: 10px;
     }
     
-    .input-actions {
+    #panel-send .input-actions {
         margin-top: 8px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    #panel-send .input-action-buttons {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
     }
     
-    #import-btn {
+    #panel-send #import-btn,
+    #panel-send #clear-text-btn {
         width: 100%;
-        min-height: 36px;
+        min-height: 44px;
         font-size: 0.9rem;
         padding: 6px;
     }
 
+    #panel-send .input-actions .hint {
+        display: block;
+        text-align: left;
+    }
+
     /* Fix .text-list visibility in send panel */
     .send-container {
-        height: 100%;
-        overflow: hidden;
+        height: auto;
+        min-height: 0;
+        overflow: visible;
     }
     
     #panel-send .text-list {
-        padding-bottom: 80px; /* Space for bottom bar if overlay */
+        flex: 1 1 auto;
+        min-height: 180px;
+        overflow: visible;
+        padding-bottom: 12px;
     }
 
     /* Fix AI results header wrapping */
+    .ai-container {
+        grid-template-columns: 1fr;
+    }
+
     .results-header {
         flex-wrap: wrap;
         gap: 10px;
@@ -1100,8 +1151,19 @@ input:checked + .slider:before {
         width: 100%;
     }
 
+    #panel-ai #ai-preview-list {
+        min-height: 180px;
+        max-height: 45dvh;
+        overflow-y: auto;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
     .glass-card {
-        padding: 16px;
+        padding: 14px;
     }
 
     textarea,
@@ -1112,6 +1174,13 @@ input:checked + .slider:before {
         font-size: 16px;
     }
 
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select {
+        min-height: 44px;
+    }
+
     #setting-custom-headers {
         font-size: 16px;
     }
@@ -1120,9 +1189,14 @@ input:checked + .slider:before {
         align-items: flex-start;
     }
 
+    .drag-handle {
+        display: none;
+    }
+
     .text-content {
         white-space: normal;
-        line-height: 1.35;
+        line-height: 1.4;
+        word-break: break-word;
     }
 
     .card-actions {
@@ -1133,7 +1207,7 @@ input:checked + .slider:before {
 
     .card-actions .btn,
     .btn-sm {
-        min-height: 40px;
+        min-height: 44px;
     }
     
     /* Removed conflicting bottom-bar/sending-controls overrides */
@@ -1149,20 +1223,18 @@ input:checked + .slider:before {
     .list-controls {
         flex-direction: column;
         align-items: stretch;
-        gap: 8px;
-        margin: 12px 0 8px;
-        position: relative;
+        gap: 10px;
+        margin: 14px 0 10px;
     }
 
     .list-count {
-        position: absolute;
-        top: -28px;
-        right: 0;
-        font-size: 0.75rem;
+        position: static;
+        align-self: flex-end;
+        font-size: 0.78rem;
         color: var(--text-secondary);
         background: rgba(15, 23, 42, 0.8);
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: 3px 8px;
+        border-radius: 999px;
         pointer-events: none;
     }
 
@@ -1170,35 +1242,46 @@ input:checked + .slider:before {
         width: 100%;
         flex-direction: row;
         flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
+        align-items: stretch;
+        justify-content: flex-start;
         gap: 8px;
     }
 
     .quick-preset-switch {
         width: 100%;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
     }
     
     .quick-preset-switch label {
-        display: none; /* Hide label to save space */
+        display: block;
     }
 
     .quick-preset-controls {
         width: 100%;
-        flex: 1;
     }
 
+    .quick-preset-controls select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    #add-text-item-btn,
     #save-current-preset-btn,
     #save-preset-btn {
-        flex: 1; /* Share width */
+        flex: 1 1 calc(50% - 4px);
         width: auto;
+        min-height: 44px;
+    }
+
+    .preset-unsaved-hint {
+        text-align: left;
     }
 
     .btn-lg {
         width: 100%;
+        min-height: 44px;
     }
 
     .setting-item-toggle {
@@ -1213,7 +1296,7 @@ input:checked + .slider:before {
     }
 
     .radio-pill span {
-        min-height: 40px;
+        min-height: 44px;
         display: inline-flex;
         align-items: center;
     }
@@ -1230,7 +1313,8 @@ input:checked + .slider:before {
 
     .quick-send-content {
         white-space: normal;
-        line-height: 1.35;
+        line-height: 1.4;
+        word-break: break-word;
     }
 
     .quick-send-action {
@@ -1239,7 +1323,7 @@ input:checked + .slider:before {
     }
 
     .toast-container {
-        top: 12px;
+        top: calc(12px + env(safe-area-inset-top, 0px));
         right: 12px;
         left: 12px;
     }
@@ -1247,6 +1331,63 @@ input:checked + .slider:before {
     .toast {
         width: 100%;
         min-width: 0;
+    }
+
+    .settings-unsaved-bar {
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #settings-unsaved-save-btn {
+        width: 100%;
+    }
+
+    .modal {
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 24px);
+        max-width: none;
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+        overflow-y: auto;
+    }
+
+    .modal-actions {
+        flex-wrap: wrap;
+        justify-content: stretch;
+    }
+
+    .modal-actions .btn {
+        flex: 1 1 calc(50% - 5px);
+        min-height: 44px;
+    }
+
+    .empty-state {
+        padding: 32px 16px;
+    }
+
+    .empty-state.small {
+        padding: 20px 14px;
+    }
+
+    .provider-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .provider-row > div:last-child {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    #panel-settings .btn-ghost[href*="github.com"] {
+        width: 100%;
+        justify-content: flex-start;
+        word-break: break-word;
+        overflow-wrap: anywhere;
     }
 }
 
@@ -1503,6 +1644,9 @@ input:checked + .slider:before {
     border-radius: 6px;
     color: var(--accent-cyan);
     font-size: 0.9rem;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .lan-info {
@@ -1606,130 +1750,28 @@ input:checked + .slider:before {
 .provider-row {
     padding: 12px 16px;
     border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
 }
 
-/* AI panel mobile */
-@media (max-width: 768px) {
-    .ai-container {
-        grid-template-columns: 1fr;
-    }
+.provider-row > div {
+    min-width: 0;
+}
 
-    #panel-send {
-        height: auto;
-        min-height: 0;
-        overflow-y: auto;
-    }
+.provider-row strong {
+    display: block;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
 
-    #panel-send .send-container {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow: visible;
-    }
-
-    #panel-send .text-list {
-        flex: 1 1 auto;
-        min-height: 220px;
-        overflow-y: auto;
-        padding-bottom: 10px;
-    }
-
-    #panel-send .input-actions {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    #panel-send .input-action-buttons {
-        width: 100%;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    #panel-send #import-btn {
-        width: 100%;
-        min-height: 40px;
-    }
-
-    #panel-send #clear-text-btn {
-        width: 100%;
-        min-height: 40px;
-    }
-
-    #panel-send .input-actions .hint {
-        display: block;
-        text-align: left;
-    }
-
-    .form-row {
-        flex-direction: column;
-        gap: 0;
-    }
-
-    #panel-ai .results-header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    #panel-ai .results-actions {
-        width: 100%;
-    }
-
-    #panel-ai #ai-import-btn {
-        width: 100%;
-    }
-
-    #panel-ai #ai-preview-list {
-        min-height: 180px;
-        max-height: 45dvh;
-        overflow-y: auto;
-    }
-
-    #quick-preset-refresh-btn {
-        min-width: 40px;
-        width: 40px;
-        min-height: 40px;
-        padding: 8px;
-    }
-
-    .settings-unsaved-bar {
-        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    #settings-unsaved-save-btn {
-        width: 100%;
-    }
-
-    .modal {
-        top: 16px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: calc(100% - 24px);
-        max-width: none;
-        max-height: calc(100dvh - 32px);
-        overflow-y: auto;
-    }
-
-    .modal-actions {
-        flex-wrap: wrap;
-        justify-content: stretch;
-    }
-
-    .modal-actions .btn {
-        flex: 1 1 calc(50% - 5px);
-        min-height: 44px;
-    }
-
-    .empty-state {
-        padding: 32px 16px;
-    }
-
-    .empty-state.small {
-        padding: 20px 14px;
-    }
+.provider-model {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 @media (max-width: 480px) {
@@ -1744,7 +1786,7 @@ input:checked + .slider:before {
     }
 
     .btn {
-        min-height: 42px;
+        min-height: 44px;
     }
 
     .btn-sm {
@@ -1877,4 +1919,14 @@ input:checked + .slider:before {
     font-size: 1.2rem;
     line-height: 1;
     margin: 4px 0;
+}
+
+@media (max-width: 768px) {
+    #quick-preset-refresh-btn,
+    #quick-send-refresh-btn {
+        min-width: 44px;
+        width: 44px;
+        min-height: 44px;
+        padding: 8px;
+    }
 }
