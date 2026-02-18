@@ -150,6 +150,9 @@ const state = {
     currentPresetId: null,
     currentQuickPresetId: null,
     editingTextIndex: null,
+    draggingTextIndex: null,
+    dragOverTextIndex: null,
+    dragInsertMode: null,
     aiRewriteTarget: null,
     lanRiskToastShown: false,
     startupUpdateChecked: false
@@ -163,6 +166,7 @@ const dom = {
     textList: document.getElementById('text-list'),
     totalCount: document.getElementById('total-count'),
     importBtn: document.getElementById('import-btn'),
+    addTextItemBtn: document.getElementById('add-text-item-btn'),
     clearBtn: document.getElementById('clear-text-btn'),
     sendAllBtn: document.getElementById('send-all-btn'),
     cancelSendBtn: document.getElementById('cancel-send-btn'),
@@ -231,6 +235,7 @@ const dom = {
     modalProvider: document.getElementById('modal-provider'),
     presetNameInput: document.getElementById('preset-name-input'),
     confirmSavePreset: document.getElementById('confirm-save-preset'),
+    editTextModalTitle: document.getElementById('edit-text-modal-title'),
     editTextType: document.getElementById('edit-text-type'),
     editTextContent: document.getElementById('edit-text-content'),
     confirmEditText: document.getElementById('confirm-edit-text'),
@@ -306,6 +311,7 @@ function initNavigation() {
 // --- Send Panel Logic ---
 function initSendPanel() {
     dom.importBtn.addEventListener('click', parseAndImportText);
+    dom.addTextItemBtn.addEventListener('click', openAddTextItemModal);
     dom.clearBtn.addEventListener('click', () => {
         state.texts = [];
         clearCurrentPresetSelection();
@@ -400,9 +406,11 @@ function parseAndImportText() {
     });
 
     state.texts = [...state.texts, ...newTexts];
-    clearCurrentPresetSelection();
     renderTextList();
     dom.textInput.value = ''; // Clear input after import
+
+    const saveHint = state.currentPresetId ? '，可点击“保存到当前预设”持久化修改' : '';
+    showToast(`已导入 ${newTexts.length} 条文本${saveHint}`, 'success');
 }
 
 function renderTextList() {
@@ -423,15 +431,35 @@ function renderTextList() {
     }
 
     state.texts.forEach((item, index) => {
+        const canMoveUp = index > 0;
+        const canMoveDown = index < state.texts.length - 1;
+
         const card = document.createElement('div');
         card.className = 'text-card';
+        card.dataset.index = String(index);
         // Add unique ID for scrolling
         card.id = `text-card-${index}`;
 
         card.innerHTML = `
+            <div class="drag-handle" draggable="true" data-index="${index}" title="拖拽排序" aria-label="拖拽排序" role="button">
+                <svg class="drag-handle-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <circle cx="9" cy="6" r="1.6"></circle>
+                    <circle cx="15" cy="6" r="1.6"></circle>
+                    <circle cx="9" cy="12" r="1.6"></circle>
+                    <circle cx="15" cy="12" r="1.6"></circle>
+                    <circle cx="9" cy="18" r="1.6"></circle>
+                    <circle cx="15" cy="18" r="1.6"></circle>
+                </svg>
+            </div>
             <div class="badge badge-${item.type}">/${item.type}</div>
             <div class="text-content" title="${item.content}">${item.content}</div>
             <div class="card-actions">
+                <button class="btn btn-sm btn-ghost" onclick="moveTextUp(${index})" title="上移" ${canMoveUp ? '' : 'disabled'}>
+                    <span class="icon">↑</span>
+                </button>
+                <button class="btn btn-sm btn-ghost" onclick="moveTextDown(${index})" title="下移" ${canMoveDown ? '' : 'disabled'}>
+                    <span class="icon">↓</span>
+                </button>
                 <button class="btn btn-sm btn-secondary" onclick="sendSingle(${index})">
                     <span class="icon">🚀</span>
                 </button>
@@ -446,21 +474,194 @@ function renderTextList() {
                 </button>
             </div>
         `;
+
+        card.addEventListener('dragover', handleTextDragOver);
+        card.addEventListener('drop', handleTextDrop);
+
+        const dragHandle = card.querySelector('.drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('dragstart', handleTextDragStart);
+            dragHandle.addEventListener('dragend', handleTextDragEnd);
+        }
+
         dom.textList.appendChild(card);
     });
 }
 
 window.deleteText = (index) => {
     state.texts.splice(index, 1);
-    clearCurrentPresetSelection();
     renderTextList();
 };
+
+window.moveTextUp = (index) => {
+    if (index <= 0 || index >= state.texts.length) return;
+    if (!moveTextItem(index, index - 1)) return;
+    renderTextList();
+};
+
+window.moveTextDown = (index) => {
+    if (index < 0 || index >= state.texts.length - 1) return;
+    if (!moveTextItem(index, index + 1)) return;
+    renderTextList();
+};
+
+function getTextCardFromEventTarget(target) {
+    if (!(target instanceof Element)) return null;
+    return target.closest('.text-card');
+}
+
+function getTextCardIndex(card) {
+    if (!card) return -1;
+    const rawIndex = card.dataset?.index;
+    const index = Number.parseInt(rawIndex || '', 10);
+    return Number.isNaN(index) ? -1 : index;
+}
+
+function clearTextDragOverClasses() {
+    dom.textList.querySelectorAll('.text-card.drag-over-top, .text-card.drag-over-bottom').forEach((el) => {
+        el.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+}
+
+function clearTextDragState() {
+    state.draggingTextIndex = null;
+    state.dragOverTextIndex = null;
+    state.dragInsertMode = null;
+
+    dom.textList.querySelectorAll('.text-card.dragging').forEach((el) => {
+        el.classList.remove('dragging');
+    });
+    clearTextDragOverClasses();
+}
+
+function moveTextItem(fromIndex, toIndex) {
+    if (fromIndex < 0 || fromIndex >= state.texts.length) return false;
+    if (toIndex < 0 || toIndex > state.texts.length) return false;
+    if (fromIndex === toIndex) return false;
+
+    const [item] = state.texts.splice(fromIndex, 1);
+    if (!item) return false;
+
+    state.texts.splice(toIndex, 0, item);
+    return true;
+}
+
+function calculateDragInsertIndex(sourceIndex, targetIndex, insertMode) {
+    if (insertMode === 'after') {
+        return sourceIndex < targetIndex ? targetIndex : targetIndex + 1;
+    }
+
+    return sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+}
+
+function handleTextDragStart(event) {
+    const target = event.target;
+    if (!(target instanceof Element) || !target.closest('.drag-handle')) {
+        event.preventDefault();
+        return;
+    }
+
+    const card = getTextCardFromEventTarget(target);
+    if (!card) return;
+
+    const index = getTextCardIndex(card);
+    if (index < 0 || index >= state.texts.length) return;
+
+    state.draggingTextIndex = index;
+    state.dragOverTextIndex = null;
+    state.dragInsertMode = null;
+    card.classList.add('dragging');
+
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.dropEffect = 'move';
+        event.dataTransfer.setData('text/plain', String(index));
+    }
+}
+
+function handleTextDragOver(event) {
+    if (state.draggingTextIndex === null || state.draggingTextIndex === undefined) return;
+
+    const card = getTextCardFromEventTarget(event.target);
+    if (!card) return;
+
+    const targetIndex = getTextCardIndex(card);
+    if (targetIndex < 0 || targetIndex >= state.texts.length) return;
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+    }
+
+    if (targetIndex === state.draggingTextIndex) {
+        clearTextDragOverClasses();
+        state.dragOverTextIndex = null;
+        state.dragInsertMode = null;
+        return;
+    }
+
+    const rect = card.getBoundingClientRect();
+    const insertMode = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    if (state.dragOverTextIndex === targetIndex && state.dragInsertMode === insertMode) {
+        return;
+    }
+
+    clearTextDragOverClasses();
+    card.classList.add(insertMode === 'before' ? 'drag-over-top' : 'drag-over-bottom');
+    state.dragOverTextIndex = targetIndex;
+    state.dragInsertMode = insertMode;
+}
+
+function handleTextDrop(event) {
+    const sourceIndex = state.draggingTextIndex;
+    if (sourceIndex === null || sourceIndex === undefined) {
+        clearTextDragState();
+        return;
+    }
+
+    event.preventDefault();
+
+    const card = getTextCardFromEventTarget(event.target);
+    const targetIndex = getTextCardIndex(card);
+    if (targetIndex < 0 || targetIndex >= state.texts.length || targetIndex === sourceIndex) {
+        clearTextDragState();
+        return;
+    }
+
+    const insertMode = state.dragInsertMode === 'after' ? 'after' : 'before';
+    const insertIndex = calculateDragInsertIndex(sourceIndex, targetIndex, insertMode);
+    if (!moveTextItem(sourceIndex, insertIndex)) {
+        clearTextDragState();
+        return;
+    }
+
+    clearTextDragState();
+    renderTextList();
+}
+
+function handleTextDragEnd() {
+    clearTextDragState();
+}
+
+function openAddTextItemModal() {
+    state.editingTextIndex = null;
+    if (dom.editTextModalTitle) {
+        dom.editTextModalTitle.textContent = '新增项目';
+    }
+    dom.editTextType.value = 'me';
+    dom.editTextContent.value = '';
+    openModal('modal-edit-text');
+    dom.editTextContent.focus();
+}
 
 window.editText = (index) => {
     const item = state.texts[index];
     if (!item) return;
 
     state.editingTextIndex = index;
+    if (dom.editTextModalTitle) {
+        dom.editTextModalTitle.textContent = '编辑项目';
+    }
     dom.editTextType.value = item.type;
     dom.editTextContent.value = item.content;
     openModal('modal-edit-text');
@@ -482,8 +683,20 @@ window.openSingleRewrite = (index) => {
 
 function confirmEditTextUpdate() {
     const index = state.editingTextIndex;
+
+    const content = (dom.editTextContent.value || '').trim();
+    if (!content) {
+        showToast('文本内容不能为空', 'error');
+        return;
+    }
+
+    const type = dom.editTextType.value === 'do' ? 'do' : 'me';
+
     if (index === null || index === undefined) {
+        state.texts.push({ type, content });
+        renderTextList();
         closeModal();
+        showToast('项目已新增', 'success');
         return;
     }
 
@@ -493,17 +706,10 @@ function confirmEditTextUpdate() {
         return;
     }
 
-    const content = (dom.editTextContent.value || '').trim();
-    if (!content) {
-        showToast('文本内容不能为空', 'error');
-        return;
-    }
-
-    const type = dom.editTextType.value === 'do' ? 'do' : 'me';
     state.texts[index] = { type, content };
     renderTextList();
     closeModal();
-    showToast('文本已更新', 'success');
+    showToast('项目已更新', 'success');
 }
 
 async function sendTextNow(text, successMessage = '发送成功') {
@@ -695,9 +901,9 @@ function initAIPanel() {
         }
 
         state.texts = [...state.texts, ...state.aiPreview];
-        clearCurrentPresetSelection();
         renderTextList(); // update main list
-        showToast('已导入到发送列表', 'success');
+        const saveHint = state.currentPresetId ? '，可点击“保存到当前预设”持久化修改' : '';
+        showToast(`已导入到发送列表${saveHint}`, 'success');
         // Switch back to send panel
         document.querySelector('[data-target="panel-send"]').click();
     });
@@ -1178,9 +1384,14 @@ async function saveCurrentAsPreset() {
             showToast('保存成功', 'success');
             closeModal();
             await fetchPresets(); // Refresh list
+            return;
         }
+
+        showToast('保存失败: ' + formatApiErrorDetail(payload.detail, res.status), 'error');
     } catch (e) {
-        showToast('保存失败', 'error');
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('保存失败: ' + e.message, 'error');
+        }
     }
 }
 

@@ -98,6 +98,7 @@
                                     <button id="quick-preset-refresh-btn" class="btn btn-sm btn-ghost" title="刷新预设列表" type="button">↻</button>
                                 </div>
                             </div>
+                            <button id="add-text-item-btn" class="btn btn-sm btn-ghost" type="button">新增项目</button>
                             <button id="save-current-preset-btn" class="btn btn-sm btn-outline" disabled>保存到当前预设</button>
                             <button id="save-preset-btn" class="btn btn-sm btn-outline">存为预设</button>
                         </div>
@@ -490,7 +491,7 @@
 
     <!-- Edit Text Modal -->
     <div id="modal-edit-text" class="modal glass-card hidden">
-        <h3>编辑文本</h3>
+        <h3 id="edit-text-modal-title">编辑项目</h3>
         <div class="form-group">
             <label for="edit-text-type">类型</label>
             <select id="edit-text-type" class="full-width">
