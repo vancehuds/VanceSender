@@ -33,6 +33,7 @@ Base URL: `http://127.0.0.1:8730/api/v1`
 - [设置接口](#设置接口)
   - [获取全部设置](#获取全部设置)
   - [检查版本更新](#检查版本更新)
+  - [获取远程公共配置](#获取远程公共配置)
   - [更新发送设置](#更新发送设置)
   - [更新服务器设置](#更新服务器设置)
   - [更新 AI 设置](#更新-ai-设置)
@@ -632,6 +633,72 @@ GET /api/v1/settings/update-check
   "message": "检查更新失败，请稍后重试",
   "error_type": "HTTPError",
   "status_code": 429
+}
+```
+
+---
+
+### 获取远程公共配置
+
+```http
+GET /api/v1/settings/public-config
+```
+
+说明：
+
+- 默认从 `https://raw.githubusercontent.com/vancehuds/VanceSender/main/public-config.yaml` 拉取配置
+- 远程配置中的 `enabled=false` 时，后端会返回 `visible=false`（前端应默认不显示）
+- 当远程拉取失败、超时或格式错误时，也会返回 `visible=false`（默认不显示）
+
+响应字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | bool | 拉取+解析流程是否成功 |
+| `visible` | bool | 是否建议在 WebUI / CLI 中显示 |
+| `source_url` | string \| null | 实际拉取地址 |
+| `title` | string \| null | 显示标题 |
+| `content` | string \| null | 显示内容 |
+| `message` | string | 结果描述 |
+| `fetched_at` | string \| null | 拉取时间（UTC ISO 格式） |
+| `link_url` | string \| null | 可选跳转链接 |
+| `link_text` | string \| null | 可选链接文本 |
+| `error_type` | string \| null | 失败时错误类型 |
+| `status_code` | int \| null | 上游状态码 |
+
+成功响应示例（远程开启）：
+
+```json
+{
+  "success": true,
+  "visible": true,
+  "source_url": "https://raw.githubusercontent.com/vancehuds/VanceSender/main/public-config.yaml",
+  "title": "远程公告",
+  "content": "今晚 22:00 维护，请提前保存预设。",
+  "message": "已获取远程公共配置",
+  "fetched_at": "2026-02-18T10:35:20.123456+00:00",
+  "link_url": "https://github.com/vancehuds/VanceSender",
+  "link_text": "查看详情",
+  "error_type": null,
+  "status_code": 200
+}
+```
+
+成功响应示例（远程关闭，不显示）：
+
+```json
+{
+  "success": true,
+  "visible": false,
+  "source_url": "https://raw.githubusercontent.com/vancehuds/VanceSender/main/public-config.yaml",
+  "title": null,
+  "content": null,
+  "message": "远程开关关闭",
+  "fetched_at": "2026-02-18T10:36:00.000000+00:00",
+  "link_url": null,
+  "link_text": null,
+  "error_type": null,
+  "status_code": 200
 }
 ```
 
