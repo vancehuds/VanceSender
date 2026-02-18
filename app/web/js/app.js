@@ -155,7 +155,8 @@ const state = {
     dragInsertMode: null,
     aiRewriteTarget: null,
     lanRiskToastShown: false,
-    startupUpdateChecked: false
+    startupUpdateChecked: false,
+    updateCheckInProgress: false
 };
 
 // --- DOM Elements ---
@@ -286,7 +287,7 @@ async function loadInitialData() {
 
         if (!state.startupUpdateChecked) {
             state.startupUpdateChecked = true;
-            checkGitHubUpdate();
+            checkGitHubUpdate({ silent: true, startup: true });
         }
     } catch (e) {
         showToast('初始化失败: ' + e.message, 'error');
@@ -1763,12 +1764,25 @@ function renderUpdateCheckResult(data) {
 
 const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最新版，关闭当前程序(Ctrl+C)后删除旧文件夹后解压新文件夹(或者可尝试直接覆盖)并重新启动程序。';
 
-async function checkGitHubUpdate() {
-    if (!dom.checkUpdateBtn) return;
+async function checkGitHubUpdate(options = {}) {
+    const silent = Boolean(options.silent);
 
+    if (!dom.checkUpdateBtn) return;
+    if (state.updateCheckInProgress) {
+        if (!silent) {
+            showToast('正在检查更新，请稍候', 'info');
+        }
+        return;
+    }
+
+    state.updateCheckInProgress = true;
     const previousLabel = dom.checkUpdateBtn.textContent;
-    dom.checkUpdateBtn.disabled = true;
-    dom.checkUpdateBtn.textContent = '检查中...';
+
+    if (!silent) {
+        dom.checkUpdateBtn.disabled = true;
+        dom.checkUpdateBtn.textContent = '检查中...';
+    }
+
     if (dom.appUpdateStatus) {
         dom.appUpdateStatus.textContent = '正在检查更新...';
     }
@@ -1778,14 +1792,22 @@ async function checkGitHubUpdate() {
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-            showToast('检查更新失败: ' + formatApiErrorDetail(data.detail, res.status), 'error');
+            const message = data.message || '检查更新失败，请稍后重试';
+            if (dom.appUpdateStatus) {
+                dom.appUpdateStatus.textContent = message;
+            }
+            if (!silent) {
+                showToast(message, 'error');
+            }
             return;
         }
 
         renderUpdateCheckResult(data);
 
         if (!data.success) {
-            showToast(data.message || '检查更新失败', 'error');
+            if (!silent) {
+                showToast(data.message || '检查更新失败，请稍后重试', 'error');
+            }
             return;
         }
 
@@ -1795,17 +1817,29 @@ async function checkGitHubUpdate() {
             }
             showToast(`发现新版本: ${data.latest_version}。${UPDATE_GUIDE_TEXT}`, 'success');
         } else {
-            showToast('当前已是最新版本', 'info');
+            if (!silent) {
+                showToast('当前已是最新版本', 'info');
+            }
         }
     } catch (e) {
         if (e.message === 'AUTH_REQUIRED') {
-            showToast('请先完成 Token 验证后再检查更新', 'error');
+            if (!silent) {
+                showToast('请先完成 Token 验证后再检查更新', 'error');
+            }
         } else {
-            showToast('检查更新失败: ' + e.message, 'error');
+            if (dom.appUpdateStatus) {
+                dom.appUpdateStatus.textContent = '检查更新失败，请稍后重试';
+            }
+            if (!silent) {
+                showToast('检查更新失败，请稍后重试', 'error');
+            }
         }
     } finally {
-        dom.checkUpdateBtn.disabled = false;
-        dom.checkUpdateBtn.textContent = previousLabel;
+        state.updateCheckInProgress = false;
+        if (!silent) {
+            dom.checkUpdateBtn.disabled = false;
+            dom.checkUpdateBtn.textContent = previousLabel;
+        }
     }
 }
 
