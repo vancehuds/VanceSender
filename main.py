@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import load_config, update_config
+from app.core.network import get_lan_ipv4_address
 from app.core.runtime_paths import get_bundle_root
 
 WEB_DIR = get_bundle_root() / "app" / "web"
@@ -150,7 +151,20 @@ def main() -> None:
         lan_access = True
 
     host = "0.0.0.0" if lan_access else server_cfg.get("host", "127.0.0.1")
-    port = args.port or server_cfg.get("port", 8730)
+    try:
+        port = int(args.port or server_cfg.get("port", 8730))
+    except (TypeError, ValueError):
+        port = 8730
+
+    runtime_lan_access = host == "0.0.0.0"
+    lan_ipv4 = get_lan_ipv4_address() if runtime_lan_access else None
+    lan_url = f"http://{lan_ipv4}:{port}" if lan_ipv4 else None
+    lan_docs_url = f"{lan_url}/docs" if lan_url else None
+
+    app.state.runtime_host = host
+    app.state.runtime_port = port
+    app.state.runtime_lan_access = runtime_lan_access
+
     github_repository_url = f"https://github.com/{GITHUB_REPOSITORY}"
 
     # Persist LAN flag if changed via CLI
@@ -165,8 +179,12 @@ def main() -> None:
 ║  本地访问:  http://127.0.0.1:{port:<5}            ║
 ║  API文档:   http://127.0.0.1:{port:<5}/docs       ║""")
 
-    if host == "0.0.0.0":
-        print(f"║  局域网:    http://<your-ip>:{port:<5}           ║")
+    if runtime_lan_access:
+        if lan_url:
+            print(f"║  局域网:    {lan_url}")
+            print(f"║  LAN文档:   {lan_docs_url}")
+        else:
+            print(f"║  局域网:    http://<your-ip>:{port:<5}           ║")
 
     token = cfg.get("server", {}).get("token", "")
     if token:
@@ -178,7 +196,7 @@ def main() -> None:
     print(f"╚══════════════════════════════════════════════╝")
     print()
 
-    if host == "0.0.0.0" and not token:
+    if runtime_lan_access and not token:
         print("⚠ 风险提示: 当前已开启局域网访问且未设置 Token。")
         print("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
         print()

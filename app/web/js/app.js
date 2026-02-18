@@ -217,6 +217,10 @@ const dom = {
     settingDelayBetweenLines: document.getElementById('setting-delay-between-lines'),
     settingTypingCharDelay: document.getElementById('setting-typing-char-delay'),
     settingLanAccess: document.getElementById('setting-lan-access'),
+    lanUrls: document.getElementById('lan-urls'),
+    lanIpValue: document.getElementById('lan-ip-value'),
+    lanUrlValue: document.getElementById('lan-url-value'),
+    lanDocsUrlValue: document.getElementById('lan-docs-url-value'),
     settingOverlayEnabled: document.getElementById('setting-overlay-enabled'),
     settingOverlayShowWebuiStatus: document.getElementById('setting-overlay-show-webui-status'),
     settingOverlayCompactMode: document.getElementById('setting-overlay-compact-mode'),
@@ -2228,13 +2232,26 @@ async function fetchSettings() {
     }
 
     // Update LAN info
-    const lanDiv = document.getElementById('lan-urls');
-    if (data.server.lan_access) {
-        lanDiv.classList.remove('hidden');
-        // We'd ideally get the actual IP from API, but hardcoded hint for now
-        // or the API returns it in server object
-    } else {
-        lanDiv.classList.add('hidden');
+    const lanEnabled = Boolean(data.server.lan_access);
+    if (dom.lanUrls) {
+        dom.lanUrls.classList.toggle('hidden', !lanEnabled);
+    }
+
+    if (lanEnabled) {
+        const lanPort = Number.parseInt(String(data.server.port || ''), 10) || 8730;
+        const lanIp = String(data.server.lan_ipv4 || '').trim();
+        const lanUrl = String(data.server.lan_url || '').trim() || `http://<your-ip>:${lanPort}`;
+        const lanDocsUrl = String(data.server.lan_docs_url || '').trim() || `${lanUrl}/docs`;
+
+        if (dom.lanIpValue) {
+            dom.lanIpValue.textContent = lanIp || '未识别';
+        }
+        if (dom.lanUrlValue) {
+            dom.lanUrlValue.textContent = lanUrl;
+        }
+        if (dom.lanDocsUrlValue) {
+            dom.lanDocsUrlValue.textContent = lanDocsUrl;
+        }
     }
 
     updateLanSecurityRisk(data.server);

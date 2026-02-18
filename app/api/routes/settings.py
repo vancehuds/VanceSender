@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.api.schemas import (
     AISettings,
@@ -26,6 +26,7 @@ from app.core.config import (
     update_config,
     update_provider,
 )
+from app.core.network import get_lan_ipv4_address
 from app.core.update_checker import check_github_update
 
 router = APIRouter()
@@ -35,7 +36,7 @@ router = APIRouter()
 
 
 @router.get("", response_model=SettingsResponse)
-async def get_settings():
+async def get_settings(request: Request):
     """获取全部设置。"""
     cfg = load_config()
     ai_section = dict(cfg.get("ai", {}))
@@ -47,6 +48,39 @@ async def get_settings():
     for p in ai_section["providers"]:
         p.pop("api_key", None)
     server_section = dict(cfg.get("server", {}))
+
+    server_host = str(
+        getattr(
+            request.app.state, "runtime_host", server_section.get("host", "127.0.0.1")
+        )
+    )
+    server_port_raw = getattr(
+        request.app.state, "runtime_port", server_section.get("port", 8730)
+    )
+    try:
+        server_port = int(server_port_raw)
+    except (TypeError, ValueError):
+        server_port = 8730
+
+    runtime_lan_access = bool(getattr(request.app.state, "runtime_lan_access", False))
+    if not runtime_lan_access:
+        runtime_lan_access = (
+            bool(server_section.get("lan_access")) or server_host == "0.0.0.0"
+        )
+
+    server_section["host"] = server_host
+    server_section["port"] = server_port
+    server_section["lan_access"] = runtime_lan_access
+
+    lan_ipv4 = get_lan_ipv4_address() if runtime_lan_access else None
+    server_section["lan_ipv4"] = lan_ipv4 or ""
+    if lan_ipv4:
+        server_section["lan_url"] = f"http://{lan_ipv4}:{server_port}"
+        server_section["lan_docs_url"] = f"{server_section['lan_url']}/docs"
+    else:
+        server_section["lan_url"] = ""
+        server_section["lan_docs_url"] = ""
+
     server_section["app_version"] = APP_VERSION
     server_section["token_set"] = bool(server_section.get("token"))
     server_section["risk_no_token_with_lan"] = (
