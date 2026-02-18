@@ -1458,6 +1458,27 @@ input:checked + .slider:before {
     padding-bottom: 40px;
 }
 
+.settings-unsaved-bar {
+    position: sticky;
+    bottom: 14px;
+    z-index: 90;
+    margin-top: 10px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(79, 209, 255, 0.42);
+    background: linear-gradient(120deg, rgba(79, 209, 255, 0.12), rgba(139, 123, 255, 0.08));
+    box-shadow: 0 14px 28px rgba(2, 8, 23, 0.42);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.settings-unsaved-message {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
 /* Settings description */
 .setting-info label {
     font-size: 0.95rem;
@@ -1647,6 +1668,16 @@ input:checked + .slider:before {
         width: 40px;
         min-height: 40px;
         padding: 8px;
+    }
+
+    .settings-unsaved-bar {
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #settings-unsaved-save-btn {
+        width: 100%;
     }
 
     .modal {

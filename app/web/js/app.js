@@ -145,6 +145,9 @@ const state = {
         ai: {},
         providers: []
     },
+    settingsSnapshot: null,
+    settingsDirty: false,
+    settingsSaveInProgress: false,
     aiPreview: [],
     presets: [],
     currentPresetId: null,
@@ -219,7 +222,11 @@ const dom = {
     settingOverlayMouseSideButton: document.getElementById('setting-overlay-mouse-side-button'),
     settingOverlayPollIntervalMs: document.getElementById('setting-overlay-poll-interval-ms'),
     settingSystemPrompt: document.getElementById('setting-system-prompt'),
+    settingToken: document.getElementById('setting-token'),
+    settingCustomHeaders: document.getElementById('setting-custom-headers'),
     saveSettingsBtn: document.getElementById('save-settings-btn'),
+    settingsUnsavedBar: document.getElementById('settings-unsaved-bar'),
+    settingsUnsavedSaveBtn: document.getElementById('settings-unsaved-save-btn'),
     checkUpdateBtn: document.getElementById('check-update-btn'),
     appCurrentVersion: document.getElementById('app-current-version'),
     appLatestVersion: document.getElementById('app-latest-version'),
@@ -251,6 +258,9 @@ const dom = {
     // Toast
     toastContainer: document.getElementById('toast-container')
 };
+
+const SETTINGS_PRIMARY_SAVE_IDLE_TEXT = dom.saveSettingsBtn?.textContent || '保存全部设置';
+const SETTINGS_FLOAT_SAVE_IDLE_TEXT = dom.settingsUnsavedSaveBtn?.textContent || '保存设置';
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1600,6 +1610,7 @@ function startOverlayHotkeyCapture() {
         if (!captured) return;
 
         dom.settingOverlayHotkey.value = captured;
+        refreshSettingsDirtyState();
         stopOverlayHotkeyCapture();
         showToast(`热键已设置为 ${captured}`, 'success');
     };
@@ -1637,8 +1648,107 @@ function validateOverlayHotkeyByMode(hotkeyValue, mode) {
     return { ok: true, hotkey: normalized };
 }
 
+function getSettingsFormSnapshot() {
+    return {
+        method: dom.settingMethod?.value || '',
+        chatOpenKey: dom.settingChatKey?.value || '',
+        delayOpenChat: dom.settingDelayOpen?.value || '',
+        delayAfterPaste: dom.settingDelayPaste?.value || '',
+        delayAfterSend: dom.settingDelaySend?.value || '',
+        focusTimeout: dom.settingFocusTimeout?.value || '',
+        retryCount: dom.settingRetryCount?.value || '',
+        retryInterval: dom.settingRetryInterval?.value || '',
+        delayBetweenLines: dom.settingDelayBetweenLines?.value || '',
+        typingCharDelay: dom.settingTypingCharDelay?.value || '',
+        lanAccess: Boolean(dom.settingLanAccess?.checked),
+        overlayEnabled: Boolean(dom.settingOverlayEnabled?.checked),
+        overlayShowWebuiStatus: Boolean(dom.settingOverlayShowWebuiStatus?.checked),
+        overlayCompactMode: Boolean(dom.settingOverlayCompactMode?.checked),
+        overlayHotkeyMode: dom.settingOverlayHotkeyMode?.value || HOTKEY_MODE_SINGLE,
+        overlayHotkey: dom.settingOverlayHotkey?.value || '',
+        overlayMouseSideButton: dom.settingOverlayMouseSideButton?.value || '',
+        overlayPollIntervalMs: dom.settingOverlayPollIntervalMs?.value || '',
+        systemPrompt: dom.settingSystemPrompt?.value || '',
+        token: dom.settingToken?.value || '',
+        defaultProvider: dom.aiProvider?.value || '',
+        customHeaders: dom.settingCustomHeaders?.value || ''
+    };
+}
+
+function setSettingsDirtyState(isDirty) {
+    state.settingsDirty = Boolean(isDirty);
+    if (dom.settingsUnsavedBar) {
+        dom.settingsUnsavedBar.classList.toggle('hidden', !state.settingsDirty);
+    }
+}
+
+function refreshSettingsDirtyState() {
+    if (!state.settingsSnapshot) {
+        setSettingsDirtyState(false);
+        return;
+    }
+
+    const currentSnapshot = JSON.stringify(getSettingsFormSnapshot());
+    const baselineSnapshot = JSON.stringify(state.settingsSnapshot);
+    setSettingsDirtyState(currentSnapshot !== baselineSnapshot);
+}
+
+function setSettingsSaveInProgress(isSaving) {
+    state.settingsSaveInProgress = Boolean(isSaving);
+
+    if (dom.saveSettingsBtn) {
+        dom.saveSettingsBtn.disabled = state.settingsSaveInProgress;
+        dom.saveSettingsBtn.textContent = state.settingsSaveInProgress
+            ? '保存中...'
+            : SETTINGS_PRIMARY_SAVE_IDLE_TEXT;
+    }
+
+    if (dom.settingsUnsavedSaveBtn) {
+        dom.settingsUnsavedSaveBtn.disabled = state.settingsSaveInProgress;
+        dom.settingsUnsavedSaveBtn.textContent = state.settingsSaveInProgress
+            ? '保存中...'
+            : SETTINGS_FLOAT_SAVE_IDLE_TEXT;
+    }
+}
+
+function bindSettingsDirtyTracking() {
+    const trackedFields = [
+        dom.settingMethod,
+        dom.settingChatKey,
+        dom.settingDelayOpen,
+        dom.settingDelayPaste,
+        dom.settingDelaySend,
+        dom.settingFocusTimeout,
+        dom.settingRetryCount,
+        dom.settingRetryInterval,
+        dom.settingDelayBetweenLines,
+        dom.settingTypingCharDelay,
+        dom.settingLanAccess,
+        dom.settingOverlayEnabled,
+        dom.settingOverlayShowWebuiStatus,
+        dom.settingOverlayCompactMode,
+        dom.settingOverlayHotkeyMode,
+        dom.settingOverlayHotkey,
+        dom.settingOverlayMouseSideButton,
+        dom.settingOverlayPollIntervalMs,
+        dom.settingSystemPrompt,
+        dom.settingToken,
+        dom.aiProvider,
+        dom.settingCustomHeaders
+    ].filter(Boolean);
+
+    trackedFields.forEach((field) => {
+        field.addEventListener('input', refreshSettingsDirtyState);
+        field.addEventListener('change', refreshSettingsDirtyState);
+    });
+}
+
 function initSettingsPanel() {
     dom.saveSettingsBtn.addEventListener('click', saveAllSettings);
+    if (dom.settingsUnsavedSaveBtn) {
+        dom.settingsUnsavedSaveBtn.addEventListener('click', saveAllSettings);
+    }
+    bindSettingsDirtyTracking();
 
     if (dom.settingOverlayCaptureHotkeyBtn) {
         dom.settingOverlayCaptureHotkeyBtn.addEventListener('click', () => {
@@ -1666,6 +1776,8 @@ function initSettingsPanel() {
             } else {
                 dom.settingOverlayHotkey.value = normalized;
             }
+
+            refreshSettingsDirtyState();
         });
     }
 
@@ -1704,6 +1816,7 @@ function initSettingsPanel() {
 
     document.getElementById('reset-prompt-btn').addEventListener('click', () => {
         dom.settingSystemPrompt.value = '';
+        refreshSettingsDirtyState();
         showToast('已清空，保存后将使用内置默认提示词', 'info');
     });
 
@@ -1717,7 +1830,8 @@ function initSettingsPanel() {
             "X-Stainless-Runtime": "",
             "X-Stainless-Runtime-Version": ""
         };
-        document.getElementById('setting-custom-headers').value = JSON.stringify(defaults, null, 2);
+        dom.settingCustomHeaders.value = JSON.stringify(defaults, null, 2);
+        refreshSettingsDirtyState();
         showToast('已恢复默认请求头，请保存设置', 'info');
     });
 
@@ -1729,8 +1843,10 @@ function initSettingsPanel() {
                 body: JSON.stringify({ token: '' })
             });
             clearToken();
-            document.getElementById('setting-token').value = '';
-            document.getElementById('setting-token').placeholder = '留空则不启用认证';
+            dom.settingToken.value = '';
+            dom.settingToken.placeholder = '留空则不启用认证';
+            state.settingsSnapshot = getSettingsFormSnapshot();
+            setSettingsDirtyState(false);
             showToast('令牌已清除，认证已关闭', 'success');
         } catch (e) {
             if (e.message !== 'AUTH_REQUIRED') showToast('操作失败', 'error');
@@ -1878,15 +1994,13 @@ async function fetchSettings() {
 
     // Custom headers
     const customHeaders = data.ai.custom_headers || {};
-    const headersEl = document.getElementById('setting-custom-headers');
-    headersEl.value = Object.keys(customHeaders).length > 0
+    dom.settingCustomHeaders.value = Object.keys(customHeaders).length > 0
         ? JSON.stringify(customHeaders, null, 2)
         : '';
 
     // Token display
-    const tokenInput = document.getElementById('setting-token');
-    tokenInput.value = '';
-    tokenInput.placeholder = data.server.token_set ? '已设置 (输入新值可更新)' : '留空则不启用认证';
+    dom.settingToken.value = '';
+    dom.settingToken.placeholder = data.server.token_set ? '已设置 (输入新值可更新)' : '留空则不启用认证';
 
     if (dom.appCurrentVersion) {
         dom.appCurrentVersion.value = data.server.app_version || '-';
@@ -1905,6 +2019,9 @@ async function fetchSettings() {
     updateLanSecurityRisk(data.server);
 
     await fetchProviders();
+
+    state.settingsSnapshot = getSettingsFormSnapshot();
+    setSettingsDirtyState(false);
 }
 
 function updateLanSecurityRisk(serverSettings) {
@@ -1992,6 +2109,30 @@ async function fetchProviders() {
 }
 
 async function saveAllSettings() {
+    if (state.settingsSaveInProgress) return;
+
+    stopOverlayHotkeyCapture();
+
+    const overlayMode = dom.settingOverlayHotkeyMode?.value === HOTKEY_MODE_COMBO
+        ? HOTKEY_MODE_COMBO
+        : HOTKEY_MODE_SINGLE;
+    const overlayHotkeyCheck = validateOverlayHotkeyByMode(dom.settingOverlayHotkey.value, overlayMode);
+    if (!overlayHotkeyCheck.ok) {
+        showToast(overlayHotkeyCheck.message, 'error');
+        return;
+    }
+
+    let customHeaders;
+    try {
+        const rawHeaders = dom.settingCustomHeaders.value.trim();
+        customHeaders = rawHeaders ? JSON.parse(rawHeaders) : {};
+    } catch (parseErr) {
+        showToast('自定义请求头 JSON 格式错误，请检查', 'error');
+        return;
+    }
+
+    setSettingsSaveInProgress(true);
+
     try {
         // Sender Settings
         const rawChatKey = (dom.settingChatKey.value || '').trim();
@@ -2016,7 +2157,7 @@ async function saveAllSettings() {
 
         // Server Settings
         const serverPayload = { lan_access: dom.settingLanAccess.checked };
-        const newToken = document.getElementById('setting-token').value.trim();
+        const newToken = dom.settingToken.value.trim();
         if (newToken) serverPayload.token = newToken;
         await apiFetch('/api/v1/settings/server', {
             method: 'PUT',
@@ -2030,17 +2171,6 @@ async function saveAllSettings() {
         }
 
         // Quick Overlay Settings
-        stopOverlayHotkeyCapture();
-
-        const overlayMode = dom.settingOverlayHotkeyMode?.value === HOTKEY_MODE_COMBO
-            ? HOTKEY_MODE_COMBO
-            : HOTKEY_MODE_SINGLE;
-        const overlayHotkeyCheck = validateOverlayHotkeyByMode(dom.settingOverlayHotkey.value, overlayMode);
-        if (!overlayHotkeyCheck.ok) {
-            showToast(overlayHotkeyCheck.message, 'error');
-            return;
-        }
-
         const overlayMouseSideButton = normalizeOverlayMouseSideButton(dom.settingOverlayMouseSideButton.value);
 
         await apiFetch('/api/v1/settings/quick-overlay', {
@@ -2056,16 +2186,6 @@ async function saveAllSettings() {
             })
         });
 
-        // AI Settings (Prompt + Custom Headers)
-        let customHeaders;
-        try {
-            const rawHeaders = document.getElementById('setting-custom-headers').value.trim();
-            customHeaders = rawHeaders ? JSON.parse(rawHeaders) : {};
-        } catch (parseErr) {
-            showToast('自定义请求头 JSON 格式错误，请检查', 'error');
-            return;
-        }
-
         await apiFetch('/api/v1/settings/ai', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -2077,9 +2197,11 @@ async function saveAllSettings() {
         });
 
         showToast('设置已保存', 'success');
-        fetchSettings(); // Reload to reflect changes (e.g. LAN IP)
+        await fetchSettings(); // Reload to reflect changes (e.g. LAN IP)
     } catch (e) {
         showToast('保存设置失败', 'error');
+    } finally {
+        setSettingsSaveInProgress(false);
     }
 }
 
