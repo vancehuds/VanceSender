@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import load_config, update_config
-from app.core.network import get_lan_ipv4_address
+from app.core.network import get_lan_ipv4_addresses
 from app.core.runtime_paths import get_bundle_root
 
 WEB_DIR = get_bundle_root() / "app" / "web"
@@ -157,13 +157,14 @@ def main() -> None:
         port = 8730
 
     runtime_lan_access = host == "0.0.0.0"
-    lan_ipv4 = get_lan_ipv4_address() if runtime_lan_access else None
-    lan_url = f"http://{lan_ipv4}:{port}" if lan_ipv4 else None
-    lan_docs_url = f"{lan_url}/docs" if lan_url else None
+    lan_ipv4_list = get_lan_ipv4_addresses() if runtime_lan_access else []
+    lan_url_list = [f"http://{lan_ipv4}:{port}" for lan_ipv4 in lan_ipv4_list]
+    lan_docs_url_list = [f"{lan_url}/docs" for lan_url in lan_url_list]
 
     app.state.runtime_host = host
     app.state.runtime_port = port
     app.state.runtime_lan_access = runtime_lan_access
+    app.state.runtime_lan_ipv4_list = lan_ipv4_list
 
     github_repository_url = f"https://github.com/{GITHUB_REPOSITORY}"
 
@@ -180,9 +181,11 @@ def main() -> None:
 ║  API文档:   http://127.0.0.1:{port:<5}/docs       ║""")
 
     if runtime_lan_access:
-        if lan_url:
-            print(f"║  局域网:    {lan_url}")
-            print(f"║  LAN文档:   {lan_docs_url}")
+        if lan_url_list:
+            for index, lan_url in enumerate(lan_url_list):
+                suffix = "" if len(lan_url_list) == 1 else str(index + 1)
+                print(f"║  局域网{suffix}:   {lan_url}")
+                print(f"║  LAN文档{suffix}:  {lan_docs_url_list[index]}")
         else:
             print(f"║  局域网:    http://<your-ip>:{port:<5}           ║")
 

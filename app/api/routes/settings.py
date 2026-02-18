@@ -26,7 +26,7 @@ from app.core.config import (
     update_config,
     update_provider,
 )
-from app.core.network import get_lan_ipv4_address
+from app.core.network import get_lan_ipv4_addresses
 from app.core.update_checker import check_github_update
 
 router = APIRouter()
@@ -72,14 +72,33 @@ async def get_settings(request: Request):
     server_section["port"] = server_port
     server_section["lan_access"] = runtime_lan_access
 
-    lan_ipv4 = get_lan_ipv4_address() if runtime_lan_access else None
-    server_section["lan_ipv4"] = lan_ipv4 or ""
-    if lan_ipv4:
-        server_section["lan_url"] = f"http://{lan_ipv4}:{server_port}"
-        server_section["lan_docs_url"] = f"{server_section['lan_url']}/docs"
-    else:
-        server_section["lan_url"] = ""
-        server_section["lan_docs_url"] = ""
+    runtime_lan_ipv4_list_raw = getattr(request.app.state, "runtime_lan_ipv4_list", [])
+    lan_ipv4_list: list[str] = []
+    if isinstance(runtime_lan_ipv4_list_raw, list):
+        for item in runtime_lan_ipv4_list_raw:
+            if not isinstance(item, str):
+                continue
+            value = item.strip()
+            if not value or value in lan_ipv4_list:
+                continue
+            lan_ipv4_list.append(value)
+
+    if runtime_lan_access and not lan_ipv4_list:
+        lan_ipv4_list = get_lan_ipv4_addresses()
+    elif not runtime_lan_access:
+        lan_ipv4_list = []
+
+    lan_url_list = [f"http://{lan_ipv4}:{server_port}" for lan_ipv4 in lan_ipv4_list]
+    lan_docs_url_list = [f"{lan_url}/docs" for lan_url in lan_url_list]
+
+    server_section["lan_ipv4_list"] = lan_ipv4_list
+    server_section["lan_urls"] = lan_url_list
+    server_section["lan_docs_urls"] = lan_docs_url_list
+
+    # Backward compatibility (single-value fields)
+    server_section["lan_ipv4"] = lan_ipv4_list[0] if lan_ipv4_list else ""
+    server_section["lan_url"] = lan_url_list[0] if lan_url_list else ""
+    server_section["lan_docs_url"] = lan_docs_url_list[0] if lan_docs_url_list else ""
 
     server_section["app_version"] = APP_VERSION
     server_section["token_set"] = bool(server_section.get("token"))

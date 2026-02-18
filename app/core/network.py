@@ -22,24 +22,39 @@ def _is_usable_ipv4(value: str) -> bool:
     )
 
 
-def get_lan_ipv4_address() -> str | None:
-    """Best-effort resolve local LAN IPv4 address for display usage."""
+def _append_ipv4_candidate(candidates: list[str], value: str) -> None:
+    """Append a candidate IPv4 only when it is usable and unique."""
+    if not _is_usable_ipv4(value):
+        return
+    if value in candidates:
+        return
+    candidates.append(value)
+
+
+def get_lan_ipv4_addresses() -> list[str]:
+    """Best-effort resolve all local LAN IPv4 addresses for display usage."""
+    candidates: list[str] = []
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             sock.connect(("192.0.2.1", 80))
-            candidate = sock.getsockname()[0]
-            if _is_usable_ipv4(candidate):
-                return candidate
+            _append_ipv4_candidate(candidates, sock.getsockname()[0])
     except OSError:
         pass
 
     try:
         _hostname, _aliases, addresses = socket.gethostbyname_ex(socket.gethostname())
+        for candidate in addresses:
+            _append_ipv4_candidate(candidates, candidate)
     except OSError:
+        pass
+
+    return candidates
+
+
+def get_lan_ipv4_address() -> str | None:
+    """Best-effort resolve local LAN IPv4 address for display usage."""
+    addresses = get_lan_ipv4_addresses()
+    if not addresses:
         return None
-
-    for candidate in addresses:
-        if _is_usable_ipv4(candidate):
-            return candidate
-
-    return None
+    return addresses[0]

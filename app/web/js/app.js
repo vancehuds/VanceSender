@@ -2186,6 +2186,20 @@ async function checkGitHubUpdate(options = {}) {
 
 window.checkGitHubUpdate = checkGitHubUpdate;
 
+function pickLanList(server, listKey, singleKey) {
+    const fromList = Array.isArray(server?.[listKey])
+        ? server[listKey]
+            .map((item) => String(item || '').trim())
+            .filter((item) => item.length > 0)
+        : [];
+    if (fromList.length > 0) {
+        return fromList;
+    }
+
+    const single = String(server?.[singleKey] || '').trim();
+    return single ? [single] : [];
+}
+
 async function fetchSettings() {
     const res = await apiFetch('/api/v1/settings');
     const data = await res.json(); // {server, sender, ai, quick_overlay}
@@ -2239,18 +2253,25 @@ async function fetchSettings() {
 
     if (lanEnabled) {
         const lanPort = Number.parseInt(String(data.server.port || ''), 10) || 8730;
-        const lanIp = String(data.server.lan_ipv4 || '').trim();
-        const lanUrl = String(data.server.lan_url || '').trim() || `http://<your-ip>:${lanPort}`;
-        const lanDocsUrl = String(data.server.lan_docs_url || '').trim() || `${lanUrl}/docs`;
+        const lanIpList = pickLanList(data.server, 'lan_ipv4_list', 'lan_ipv4');
+        const lanUrlList = pickLanList(data.server, 'lan_urls', 'lan_url');
+        const lanDocsUrlListRaw = pickLanList(data.server, 'lan_docs_urls', 'lan_docs_url');
+
+        const lanUrlFallback = `http://<your-ip>:${lanPort}`;
+        const displayLanUrlList = lanUrlList.length > 0 ? lanUrlList : [lanUrlFallback];
+
+        const displayLanDocsUrlList = lanDocsUrlListRaw.length > 0
+            ? lanDocsUrlListRaw
+            : displayLanUrlList.map((url) => `${url}/docs`);
 
         if (dom.lanIpValue) {
-            dom.lanIpValue.textContent = lanIp || '未识别';
+            dom.lanIpValue.textContent = lanIpList.length > 0 ? lanIpList.join(' | ') : '未识别';
         }
         if (dom.lanUrlValue) {
-            dom.lanUrlValue.textContent = lanUrl;
+            dom.lanUrlValue.textContent = displayLanUrlList.join(' | ');
         }
         if (dom.lanDocsUrlValue) {
-            dom.lanDocsUrlValue.textContent = lanDocsUrl;
+            dom.lanDocsUrlValue.textContent = displayLanDocsUrlList.join(' | ');
         }
     }
 
