@@ -32,6 +32,7 @@ Base URL: `http://127.0.0.1:8730/api/v1`
   - [删除预设](#删除预设)
 - [设置接口](#设置接口)
   - [获取全部设置](#获取全部设置)
+  - [检查版本更新](#检查版本更新)
   - [更新发送设置](#更新发送设置)
   - [更新服务器设置](#更新服务器设置)
   - [更新 AI 设置](#更新-ai-设置)
@@ -556,6 +557,83 @@ GET /api/v1/settings
 - `server.token` 不会明文返回，只通过 `token_set` 表示是否已配置
 - provider 的 `api_key` 不会明文返回，只通过 `api_key_set` 表示是否已配置
 - 当 `lan_access=true` 且 `token` 为空时，`risk_no_token_with_lan=true`
+
+---
+
+### 检查版本更新
+
+```http
+GET /api/v1/settings/update-check
+```
+
+说明：
+
+- 优先请求 GitHub Release：`/repos/{owner}/{repo}/releases/latest`
+- 若仓库无 Release（`404`），自动回退到 Tag：`/repos/{owner}/{repo}/tags?per_page=1`
+- 后端带 10 分钟缓存与条件请求（`If-Modified-Since` / `If-None-Match`）以降低限流风险
+- 鉴权失败时仍返回 `401`；业务层统一返回 `UpdateCheckResponse`
+
+响应字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `success` | bool | 检查流程是否成功（若上游失败但命中缓存，也会返回成功缓存结果） |
+| `current_version` | string | 当前应用版本 |
+| `latest_version` | string \| null | 最新版本号（失败时可能为空） |
+| `update_available` | bool | 是否确定有更新 |
+| `release_url` | string \| null | 发布页或标签页链接 |
+| `published_at` | string \| null | Release 发布时间（Tag 回退时通常为空） |
+| `message` | string | 面向用户的结果描述 |
+| `error_type` | string \| null | 错误类型（失败时可用） |
+| `status_code` | int \| null | 上游状态码（失败时可用） |
+
+成功响应示例（发现新版本）：
+
+```json
+{
+  "success": true,
+  "current_version": "1.0.1",
+  "latest_version": "1.1.0",
+  "update_available": true,
+  "release_url": "https://github.com/vancehuds/VanceSender/releases/tag/v1.1.0",
+  "published_at": "2026-02-18T08:00:00Z",
+  "message": "发现新版本 v1.1.0",
+  "error_type": null,
+  "status_code": null
+}
+```
+
+成功响应示例（无法可靠比较版本时不误报更新）：
+
+```json
+{
+  "success": true,
+  "current_version": "1.0.1",
+  "latest_version": "nightly-2026-02-18",
+  "update_available": false,
+  "release_url": "https://github.com/vancehuds/VanceSender/tags",
+  "published_at": null,
+  "message": "已获取最新版本 vnightly-2026-02-18（基于标签），但无法可靠比较版本高低",
+  "error_type": null,
+  "status_code": null
+}
+```
+
+失败响应示例（无可用缓存时）：
+
+```json
+{
+  "success": false,
+  "current_version": "1.0.1",
+  "latest_version": null,
+  "update_available": false,
+  "release_url": null,
+  "published_at": null,
+  "message": "检查更新失败，请稍后重试",
+  "error_type": "HTTPError",
+  "status_code": 429
+}
+```
 
 ---
 
