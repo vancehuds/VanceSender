@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>VanceSender 文档站 - 帮助文档</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/intro.css">
+    <link rel="stylesheet" href="./css/help.css">
+</head>
+<body>
+
+    <div class="intro-container help-page">
+        <nav class="intro-nav">
+            <a href="./index.html" class="nav-brand">
+                <div class="logo-icon">V</div>
+                <span class="logo-text">VanceSender</span>
+            </a>
+            <div class="nav-actions">
+                <a href="./index.html" class="btn btn-ghost">返回介绍页</a>
+                <a href="https://github.com/vancehuds/VanceSender/releases/latest" target="_blank" rel="noopener noreferrer" class="btn btn-primary">下载发布版</a>
+            </div>
+        </nav>
+
+        <section class="help-hero">
+            <div class="hero-badge">📘 VanceSender 使用手册</div>
+            <h1 class="hero-title">详尽帮助文档</h1>
+            <p class="hero-subtitle">
+                面向首次使用、日常 RP 玩家与服务器管理者。<br>
+                你可以在这里快速上手，也可以按章节排查“为什么发不出去 / 为什么 AI 不工作 / 为什么局域网访问失败”。
+            </p>
+            <div class="hero-actions">
+                <a href="https://github.com/vancehuds/VanceSender/releases/latest" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-hero">下载并开始使用</a>
+                <a href="#quick-start" class="btn btn-secondary btn-hero">从快速开始看起</a>
+            </div>
+        </section>
+
+        <div class="help-layout">
+            <aside class="help-toc" aria-label="帮助文档目录">
+                <h2>目录</h2>
+                <ul class="toc-list">
+                    <li><a href="#quick-start">01. 快速开始</a></li>
+                    <li><a href="#panel-overview">02. 界面与功能总览</a></li>
+                    <li><a href="#send-flow">03. 文本发送完整流程</a></li>
+                    <li><a href="#preset-management">04. 预设管理与复用</a></li>
+                    <li><a href="#ai-guide">05. AI 生成与重写指南</a></li>
+                    <li><a href="#settings-guide">06. 设置项详解</a></li>
+                    <li><a href="#security">07. 局域网与安全建议</a></li>
+                    <li><a href="#troubleshooting">08. 常见问题排查</a></li>
+                    <li><a href="#faq">09. FAQ</a></li>
+                    <li><a href="#support">10. 反馈与进阶资源</a></li>
+                </ul>
+            </aside>
+
+            <article class="help-content">
+                <section id="quick-start" class="doc-section">
+                    <h2>01. 快速开始</h2>
+                    <p>
+                        如果你是第一次使用，建议按下面顺序进行。这样可以避免 80% 的常见问题。
+                    </p>
+
+                    <div class="doc-note tip">
+                        <strong>说明：</strong>当前站点是 GitHub Pages 静态文档站，不包含实时发送和 API 服务。完整功能需在本地运行 VanceSender。
+                    </div>
+
+                    <h3>1) 准备环境</h3>
+                    <ul class="doc-list">
+                        <li>系统：Windows 10 / 11</li>
+                        <li>目标游戏：FiveM</li>
+                        <li>推荐发送方式：<span class="code-chip">clipboard</span>（剪贴板方式）</li>
+                    </ul>
+
+                    <h3>2) 启动方式</h3>
+                    <ul class="doc-list">
+                        <li>打包版用户：直接双击 <span class="code-chip">VanceSender.exe</span></li>
+                        <li>源码用户：运行 <span class="code-chip">start.bat</span> 或 <span class="code-chip">python main.py</span></li>
+                    </ul>
+
+                    <h3>3) 打开页面</h3>
+                    <ul class="doc-list">
+                        <li>本地 WebUI：<span class="code-chip">http://127.0.0.1:8730</span></li>
+                        <li>本地接口文档：<span class="code-chip">http://127.0.0.1:8730/docs</span></li>
+                    </ul>
+
+                    <div class="doc-note tip">
+                        <strong>建议：</strong>首次使用先进入“设置”面板，确认聊天键、发送延迟、Token 与局域网开关，再开始实战发送。
+                    </div>
+                </section>
+
+                <section id="panel-overview" class="doc-section">
+                    <h2>02. 界面与功能总览</h2>
+                    <p>本地 WebUI 左侧导航包含 5 个核心面板：</p>
+
+                    <div class="doc-grid">
+                        <div class="doc-card">
+                            <h3>发送</h3>
+                            <p>导入文本、逐条管理、单条或批量发送。是日常最常用的面板。</p>
+                        </div>
+                        <div class="doc-card">
+                            <h3>快捷发送</h3>
+                            <p>快速选择某个预设，直接点击某条内容进行即时发送。</p>
+                        </div>
+                        <div class="doc-card">
+                            <h3>AI 生成</h3>
+                            <p>根据场景描述自动产出 /me 与 /do，并导入发送列表。</p>
+                        </div>
+                        <div class="doc-card">
+                            <h3>预设</h3>
+                            <p>查看、加载、保存、删除预设。适合固定人物模板或剧情模板。</p>
+                        </div>
+                        <div class="doc-card">
+                            <h3>设置</h3>
+                            <p>发送引擎、网络参数、快捷悬浮窗、AI 服务商与系统提示词统一管理。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="send-flow" class="doc-section">
+                    <h2>03. 文本发送完整流程</h2>
+                    <h3>A. 导入文本</h3>
+                    <ol class="doc-ordered-list">
+                        <li>在“发送文本”输入框中粘贴多行内容（每行一条）。</li>
+                        <li>支持显式前缀：<span class="code-chip">/me</span>、<span class="code-chip">/do</span>。</li>
+                        <li>没有前缀的行会按默认规则识别为 <span class="code-chip">/me</span>。</li>
+                        <li>点击“导入文本”或使用 <kbd>Ctrl</kbd> + <kbd>Enter</kbd> 快速导入。</li>
+                    </ol>
+
+                    <h3>B. 整理队列</h3>
+                    <ul class="doc-list">
+                        <li>可新增项目、编辑内容、调整顺序、删除无效项。</li>
+                        <li>底部会显示总条数，方便你确认当前批次规模。</li>
+                        <li>建议发送前先清理空行、重复台词与明显错字。</li>
+                    </ul>
+
+                    <h3>C. 发送策略</h3>
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th>模式</th>
+                                <th>适用场景</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>单条发送</td>
+                                <td>即时反应、临场对戏</td>
+                                <td>按需发送某一条，节奏最灵活。</td>
+                            </tr>
+                            <tr>
+                                <td>全部发送</td>
+                                <td>连续剧情、多句动作链</td>
+                                <td>按设定间隔自动发送，支持进度显示与中途取消。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="doc-note warn">
+                        <strong>注意：</strong>发送依赖“游戏窗口在前台”。如果你在切屏、加载或输入法切换过程中触发发送，可能出现漏发或顺序异常。
+                    </div>
+                </section>
+
+                <section id="preset-management" class="doc-section">
+                    <h2>04. 预设管理与复用</h2>
+                    <p>
+                        预设适合长期 RP：你可以为不同身份（警探、帮派、医生、律师）维护不同台词库，切换即用。
+                    </p>
+
+                    <h3>推荐工作流</h3>
+                    <ol class="doc-ordered-list">
+                        <li>先在“发送”面板整理好当前文本队列。</li>
+                        <li>点击“存为预设”，使用清晰命名（如：<span class="code-chip">LSPD-盘查流程-v2</span>）。</li>
+                        <li>后续有改动时，使用“保存到当前预设”覆盖更新。</li>
+                        <li>在“快捷发送”面板中选择对应预设，进行即时调用。</li>
+                    </ol>
+
+                    <h3>命名建议</h3>
+                    <ul class="doc-list">
+                        <li><strong>角色 + 场景 + 版本</strong>：例如 <span class="code-chip">EMS-抢救现场-v1</span></li>
+                        <li>尽量避免“新建预设(2)(3)”这类难维护命名。</li>
+                        <li>大版本更新（语气、剧情结构变化）建议新建版本，避免覆盖旧资产。</li>
+                    </ul>
+                </section>
+
+                <section id="ai-guide" class="doc-section">
+                    <h2>05. AI 生成与重写指南</h2>
+                    <h3>AI 生成（从 0 到 1）</h3>
+                    <ol class="doc-ordered-list">
+                        <li>输入“场景描述”（越具体越好：地点、人物、情绪、动作目的）。</li>
+                        <li>选择文本类型（混合 / 仅 /me / 仅 /do）。</li>
+                        <li>可选填写“风格”（冷峻、压迫感、电影感、简洁等）。</li>
+                        <li>点击“开始生成”，预览满意后导入发送列表。</li>
+                    </ol>
+
+                    <h3>AI 重写（从 1 到 1.5）</h3>
+                    <ul class="doc-list">
+                        <li>适合在不改变核心含义的前提下提升表达质量。</li>
+                        <li>可针对单条文本，或针对整套预设进行风格统一。</li>
+                        <li>建议明确补充要求：例如“更口语化”“更短句”“增加环境细节”。</li>
+                    </ul>
+
+                    <div class="doc-note tip">
+                        <strong>高质量提示词模板：</strong><br>
+                        <span class="inline-quote">场景 + 角色立场 + 情绪状态 + 互动对象 + 输出风格 + 长度约束</span>
+                    </div>
+                </section>
+
+                <section id="settings-guide" class="doc-section">
+                    <h2>06. 设置项详解</h2>
+                    <p>以下是影响发送稳定性和手感的关键设置：</p>
+
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th>配置项</th>
+                                <th>作用</th>
+                                <th>建议</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="code-chip">sender.method</span></td>
+                                <td>发送方式：剪贴板 / 模拟打字</td>
+                                <td>中文与稳定性优先时，选剪贴板。</td>
+                            </tr>
+                            <tr>
+                                <td><span class="code-chip">sender.chat_open_key</span></td>
+                                <td>打开聊天框的按键</td>
+                                <td>与你在 FiveM 的聊天键保持一致。</td>
+                            </tr>
+                            <tr>
+                                <td><span class="code-chip">delay_open_chat</span></td>
+                                <td>按下聊天键后等待时间</td>
+                                <td>若漏字、首字丢失可适当调大。</td>
+                            </tr>
+                            <tr>
+                                <td><span class="code-chip">delay_between_lines</span></td>
+                                <td>批量逐行间隔</td>
+                                <td>剧情长段建议 1200~2500ms，避免刷屏判定。</td>
+                            </tr>
+                            <tr>
+                                <td><span class="code-chip">focus_timeout</span></td>
+                                <td>等待窗口前台的超时</td>
+                                <td>切屏频繁时建议提高，减少“窗口未就绪”失败。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>快捷悬浮窗（Quick Overlay）</h3>
+                    <ul class="doc-list">
+                        <li>默认启用，可通过热键（默认 F7）或鼠标侧键呼出。</li>
+                        <li>适合“游戏全屏沉浸 + 快速挑选预设台词”的场景。</li>
+                        <li>相关配置改动后通常需要重启应用生效。</li>
+                    </ul>
+
+                    <h3>AI 服务商管理</h3>
+                    <ul class="doc-list">
+                        <li>在“设置 → AI 服务商管理”中填写 Base URL、API Key、Model。</li>
+                        <li>可先用“测试连接”验证配置，再进行生成/重写。</li>
+                        <li>建议至少保留一个备用 provider，防止单点故障。</li>
+                    </ul>
+                </section>
+
+                <section id="security" class="doc-section">
+                    <h2>07. 局域网与安全建议</h2>
+                    <p>
+                        开启局域网访问后，手机/平板可以控制 WebUI，但也意味着网络边界扩大。
+                    </p>
+
+                    <h3>安全基线（建议全部启用）</h3>
+                    <ul class="doc-list">
+                        <li>开启局域网访问时，务必配置 <span class="code-chip">server.token</span>。</li>
+                        <li>Token 不要在直播画面、截图或聊天记录中暴露。</li>
+                        <li>只在可信网络中启用 LAN；公共网络建议关闭。</li>
+                        <li>使用后可在设置中清空 Token 并重启服务。</li>
+                    </ul>
+
+                    <div class="doc-note warn">
+                        <strong>风险提示：</strong>当 LAN 打开且 Token 为空时，同网段设备可能直接访问你的 API。
+                    </div>
+                </section>
+
+                <section id="troubleshooting" class="doc-section">
+                    <h2>08. 常见问题排查</h2>
+                    <table class="doc-table">
+                        <thead>
+                            <tr>
+                                <th>问题现象</th>
+                                <th>常见原因</th>
+                                <th>处理建议</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>点击发送没反应</td>
+                                <td>FiveM 不在前台 / 聊天键不匹配</td>
+                                <td>切回游戏窗口；核对 <span class="code-chip">chat_open_key</span>。</td>
+                            </tr>
+                            <tr>
+                                <td>首字丢失或发送太快</td>
+                                <td>打开聊天后等待时间不足</td>
+                                <td>调高 <span class="code-chip">delay_open_chat</span>、<span class="code-chip">delay_after_paste</span>。</td>
+                            </tr>
+                            <tr>
+                                <td>批量中途失败</td>
+                                <td>窗口焦点丢失 / 网络卡顿 / 预设内容异常</td>
+                                <td>提高重试与超时参数，拆小批次发送。</td>
+                            </tr>
+                            <tr>
+                                <td>AI 返回报错</td>
+                                <td>Provider 配置错误 / Key 失效 / 模型不可用</td>
+                                <td>先用“测试连接”，再核对 Base URL 与 model 名称。</td>
+                            </tr>
+                            <tr>
+                                <td>手机无法访问 WebUI</td>
+                                <td>未启用 LAN / 防火墙未放行 / 端口冲突</td>
+                                <td>启用 LAN，检查防火墙规则，必要时更换端口。</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>快速排查顺序（建议）</h3>
+                    <ol class="doc-ordered-list">
+                        <li>看是否有错误提示（页面 Toast / 控制台日志 / 终端输出）。</li>
+                        <li>先验证基础链路：本地 WebUI 可访问、Token 正确、Provider 连通。</li>
+                        <li>再调整时序参数：从大到小逐步微调，避免一次改太多项。</li>
+                    </ol>
+                </section>
+
+                <section id="faq" class="doc-section">
+                    <h2>09. FAQ</h2>
+
+                    <h3>Q1：我主要发中文，推荐什么发送方式？</h3>
+                    <p>A：优先 <span class="code-chip">clipboard</span>。稳定性与中文兼容通常更好。</p>
+
+                    <h3>Q2：能不能只给手机访问，不给同网段其他人访问？</h3>
+                    <p>A：局域网层面无法精细到设备白名单。建议通过 Token 加强保护，并仅在可信网络使用。</p>
+
+                    <h3>Q3：AI 生成结果不符合角色语气怎么办？</h3>
+                    <p>A：在场景描述中增加“身份、情绪、语速、态度、禁用词、长度要求”等约束，效果会显著提升。</p>
+
+                    <h3>Q4：我改了悬浮窗热键但没生效？</h3>
+                    <p>A：这类配置通常需要重启应用后生效。</p>
+
+                    <h3>Q5：如何保留多个版本的预设？</h3>
+                    <p>A：使用版本化命名（v1/v2/v3），并避免直接覆盖历史版本。</p>
+                </section>
+
+                <section id="support" class="doc-section">
+                    <h2>10. 反馈与进阶资源</h2>
+                    <ul class="doc-list">
+                        <li>项目仓库：<a href="https://github.com/vancehuds/VanceSender" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+                        <li>问题反馈：<a href="https://github.com/vancehuds/VanceSender/issues" target="_blank" rel="noopener noreferrer">Issue Tracker</a></li>
+                        <li>API 文档（仓库）：<a href="https://github.com/vancehuds/VanceSender/blob/main/docs/API.md" target="_blank" rel="noopener noreferrer">docs/API.md</a></li>
+                        <li>Windows 启动教程：<a href="https://github.com/vancehuds/VanceSender/blob/main/docs/windows-start-bat.md" target="_blank" rel="noopener noreferrer">windows-start-bat.md</a></li>
+                    </ul>
+
+                    <div class="doc-note tip">
+                        如果你提交问题，建议附带以下信息：系统版本、发送方式、关键配置项、复现步骤、报错截图。
+                    </div>
+                </section>
+            </article>
+        </div>
+
+        <footer class="intro-footer help-footer">
+            <div class="footer-links">
+                <a href="./index.html" class="footer-link">返回介绍页</a>
+                <a href="https://github.com/vancehuds/VanceSender/releases/latest" class="footer-link" target="_blank" rel="noopener noreferrer">下载发布版</a>
+                <a href="https://github.com/vancehuds/VanceSender/issues" class="footer-link" target="_blank" rel="noopener noreferrer">反馈问题</a>
+            </div>
+            <div class="copyright">
+                &copy; 2026 VanceSender. 帮助文档会随功能持续更新。
+            </div>
+        </footer>
+    </div>
+
+    <button id="back-to-top-btn" class="back-to-top" type="button" aria-label="返回顶部" title="返回顶部">
+        ↑
+    </button>
+
+    <script src="./js/help.js"></script>
+</body>
+</html>

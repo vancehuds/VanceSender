@@ -1,0 +1,59 @@
+name: Deploy Static Docs to GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "pages/**"
+      - "app/web/css/intro.css"
+      - "app/web/css/help.css"
+      - "app/web/js/help.js"
+      - ".github/workflows/deploy-pages-docs.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build static docs artifact
+        run: |
+          rm -rf .site
+          mkdir -p .site/css .site/js
+          cp pages/index.html .site/index.html
+          cp pages/help.html .site/help.html
+          cp app/web/css/intro.css .site/css/intro.css
+          cp app/web/css/help.css .site/css/help.css
+          cp app/web/js/help.js .site/js/help.js
+          touch .site/.nojekyll
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
