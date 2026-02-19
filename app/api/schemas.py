@@ -182,7 +182,7 @@ class DesktopWindowActionRequest(BaseModel):
 
 
 class QuickPanelWindowActionRequest(BaseModel):
-    action: Literal["minimize", "close"]
+    action: Literal["minimize", "close", "dismiss"]
 
 
 class DesktopWindowStateResponse(BaseModel):

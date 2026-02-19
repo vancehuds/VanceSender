@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import importlib
 import importlib.util
 import threading
@@ -22,10 +23,12 @@ _CLOSE_ACTION_VALUES = {
 _window_lock = threading.Lock()
 _desktop_window: object | None = None
 _quick_panel_window: object | None = None
+_quick_panel_return_hwnd = 0
 _window_maximized = False
 _exit_requested = False
 _tray_controller: _TrayController | None = None
 _tray_title = "VanceSender"
+_user32 = ctypes.WinDLL("user32", use_last_error=True)
 
 
 class _TrayController:
@@ -160,6 +163,33 @@ def _get_quick_panel_window() -> object | None:
     """Return current quick-panel window handle if available."""
     with _window_lock:
         return _quick_panel_window
+
+
+def _set_quick_panel_return_hwnd(hwnd: int) -> None:
+    """Store target hwnd used for quick-panel focus restore."""
+    global _quick_panel_return_hwnd
+    with _window_lock:
+        _quick_panel_return_hwnd = max(0, int(hwnd))
+
+
+def _get_quick_panel_return_hwnd() -> int:
+    """Return target hwnd used for quick-panel focus restore."""
+    with _window_lock:
+        return int(_quick_panel_return_hwnd)
+
+
+def _restore_quick_panel_return_focus() -> bool:
+    """Restore foreground focus to remembered hwnd when possible."""
+    hwnd = _get_quick_panel_return_hwnd()
+    if hwnd <= 0:
+        return False
+
+    try:
+        if not bool(_user32.IsWindow(hwnd)):
+            return False
+        return bool(_user32.SetForegroundWindow(hwnd))
+    except Exception:
+        return False
 
 
 def _set_window_maximized(value: bool) -> None:
@@ -343,6 +373,7 @@ def _close_desktop_window(force_exit: bool = True) -> bool:
             except Exception:
                 pass
         _set_quick_panel_window(None)
+        _set_quick_panel_return_hwnd(0)
 
     _stop_tray_controller()
 
@@ -560,7 +591,12 @@ def get_desktop_window_state() -> dict[str, bool]:
     }
 
 
-def open_or_focus_quick_panel_window(start_url: str, title: str) -> bool:
+def open_or_focus_quick_panel_window(
+    start_url: str,
+    title: str,
+    *,
+    return_focus_hwnd: int = 0,
+) -> bool:
     """Open or focus a frameless quick-send panel window."""
     if not is_desktop_window_active():
         return False
@@ -570,6 +606,8 @@ def open_or_focus_quick_panel_window(start_url: str, title: str) -> bool:
         return False
 
     normalized_title = str(title).strip() or "VanceSender 快捷发送"
+    if int(return_focus_hwnd) > 0:
+        _set_quick_panel_return_hwnd(int(return_focus_hwnd))
 
     quick_panel_window = _get_quick_panel_window()
     if quick_panel_window is not None:
@@ -625,12 +663,36 @@ def open_or_focus_quick_panel_window(start_url: str, title: str) -> bool:
 
 
 def perform_quick_panel_window_action(
-    action: Literal["minimize", "close"],
+    action: Literal["minimize", "close", "dismiss"],
 ) -> bool:
     """Perform a window action for quick-panel frameless window."""
     window = _get_quick_panel_window()
     if window is None:
         return False
+
+    if action == "dismiss":
+        hidden = False
+
+        hide_method = getattr(window, "hide", None)
+        if callable(hide_method):
+            try:
+                hide_method()
+                hidden = True
+            except Exception:
+                hidden = False
+
+        if not hidden:
+            minimize_method = getattr(window, "minimize", None)
+            if callable(minimize_method):
+                try:
+                    minimize_method()
+                    hidden = True
+                except Exception:
+                    hidden = False
+
+        if hidden:
+            _ = _restore_quick_panel_return_focus()
+        return hidden
 
     if action == "close":
         destroy_method = getattr(window, "destroy", None)
@@ -643,6 +705,8 @@ def perform_quick_panel_window_action(
             return False
 
         _set_quick_panel_window(None)
+        _ = _restore_quick_panel_return_focus()
+        _set_quick_panel_return_hwnd(0)
         return True
 
     minimize_method = getattr(window, "minimize", None)
@@ -702,6 +766,7 @@ def open_desktop_window(
         _stop_tray_controller()
         _set_desktop_window(None)
         _set_quick_panel_window(None)
+        _set_quick_panel_return_hwnd(0)
         _set_window_maximized(False)
         _set_exit_requested(False)
     return True

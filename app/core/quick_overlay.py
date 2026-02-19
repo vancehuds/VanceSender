@@ -698,6 +698,7 @@ class QuickOverlayModule:
         return open_or_focus_quick_panel_window(
             quick_panel_url,
             "VanceSender 快捷发送面板",
+            return_focus_hwnd=self._last_foreground_hwnd,
         )
 
     def _popup_visible(self) -> bool:
@@ -709,6 +710,8 @@ class QuickOverlayModule:
             return False
 
     def _show_popup(self) -> None:
+        self._remember_foreground_window()
+
         if self._show_web_quick_panel():
             return
 
@@ -717,7 +720,6 @@ class QuickOverlayModule:
         if self._popup_visible():
             return
 
-        self._remember_foreground_window()
         self._refresh_presets()
         self._center_popup()
         self._popup.deiconify()

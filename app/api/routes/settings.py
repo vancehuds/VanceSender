@@ -209,7 +209,11 @@ async def post_quick_panel_window_action(body: QuickPanelWindowActionRequest):
     if not perform_quick_panel_window_action(body.action):
         raise HTTPException(status_code=400, detail="快捷面板窗口控制失败")
 
-    action_text = "最小化" if body.action == "minimize" else "关闭"
+    action_text = {
+        "minimize": "最小化",
+        "dismiss": "隐藏并回到上一个窗口",
+        "close": "关闭",
+    }.get(body.action, "处理")
     return MessageResponse(message=f"快捷面板已{action_text}")
 
 

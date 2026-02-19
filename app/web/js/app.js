@@ -5,6 +5,7 @@
 
 const DESKTOP_CLIENT_SESSION_KEY = 'vs_desktop_client';
 const QUICK_PANEL_SESSION_KEY = 'vs_quick_panel_mode';
+const QUICK_SEND_PRESET_MEMORY_KEY = 'vs_quick_send_last_preset';
 
 function readDesktopLaunchContext() {
     const params = new URLSearchParams(window.location.search || '');
@@ -77,6 +78,27 @@ function isDesktopEmbeddedClient() {
 
 function isQuickPanelMode() {
     return Boolean(launchContext.quickPanelMode);
+}
+
+function readRememberedQuickSendPresetId() {
+    try {
+        return String(window.localStorage.getItem(QUICK_SEND_PRESET_MEMORY_KEY) || '').trim();
+    } catch (e) {
+        return '';
+    }
+}
+
+function rememberQuickSendPresetId(presetId) {
+    const normalized = String(presetId || '').trim();
+    try {
+        if (!normalized) {
+            window.localStorage.removeItem(QUICK_SEND_PRESET_MEMORY_KEY);
+            return;
+        }
+        window.localStorage.setItem(QUICK_SEND_PRESET_MEMORY_KEY, normalized);
+    } catch (e) {
+        // ignore storage failures
+    }
 }
 
 // --- Auth ---
@@ -768,13 +790,17 @@ function initQuickPanelMode() {
     syncQuickPanelTitlebarControls();
 }
 
-async function invokeQuickPanelWindowAction(action) {
+async function invokeQuickPanelWindowAction(action, options = {}) {
     if (!state.quickPanel.mode || state.quickPanel.actionInProgress) {
-        return;
+        return false;
     }
+
+    const silent = Boolean(options.silent);
 
     state.quickPanel.actionInProgress = true;
     syncQuickPanelTitlebarControls();
+
+    let success = false;
 
     try {
         const response = await apiFetch('/api/v1/settings/quick-panel-window/action', {
@@ -785,23 +811,40 @@ async function invokeQuickPanelWindowAction(action) {
         const payload = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            showToast(`快捷面板窗口控制失败: ${formatApiErrorDetail(payload.detail, response.status)}`, 'error');
-            if (action === 'close') {
+            if (!silent) {
+                showToast(`快捷面板窗口控制失败: ${formatApiErrorDetail(payload.detail, response.status)}`, 'error');
+            }
+            if (action === 'close' && !silent) {
                 window.close();
             }
-            return;
+            return false;
         }
+
+        success = true;
     } catch (e) {
         if (e.message !== 'AUTH_REQUIRED') {
-            showToast('快捷面板窗口控制失败，请稍后重试', 'error');
-            if (action === 'close') {
+            if (!silent) {
+                showToast('快捷面板窗口控制失败，请稍后重试', 'error');
+            }
+            if (action === 'close' && !silent) {
                 window.close();
             }
         }
+        return false;
     } finally {
         state.quickPanel.actionInProgress = false;
         syncQuickPanelTitlebarControls();
     }
+
+    return success;
+}
+
+async function dismissQuickPanelForSend() {
+    if (!isQuickPanelMode()) {
+        return true;
+    }
+
+    return invokeQuickPanelWindowAction('dismiss', { silent: true });
 }
 
 async function invokeDesktopWindowAction(action) {
@@ -1042,6 +1085,7 @@ function initQuickSendPanel() {
 
     dom.quickSendPresetSelect.addEventListener('change', (e) => {
         state.currentQuickPresetId = e.target.value || null;
+        rememberQuickSendPresetId(state.currentQuickPresetId);
         renderQuickSendList();
     });
 
@@ -2038,6 +2082,7 @@ function renderQuickSendPresetSwitcher() {
 
     if (state.presets.length === 0) {
         state.currentQuickPresetId = null;
+        rememberQuickSendPresetId('');
         dom.quickSendPresetSelect.disabled = true;
         dom.quickSendPresetSelect.innerHTML = '<option value="">暂无预设</option>';
         renderQuickSendList();
@@ -2053,11 +2098,15 @@ function renderQuickSendPresetSwitcher() {
         dom.quickSendPresetSelect.appendChild(option);
     });
 
-    if (!state.currentQuickPresetId || !state.presets.some((preset) => preset.id === state.currentQuickPresetId)) {
-        state.currentQuickPresetId = state.presets[0].id;
+    const currentValid = state.presets.some((preset) => preset.id === state.currentQuickPresetId);
+    if (!currentValid) {
+        const rememberedPresetId = readRememberedQuickSendPresetId();
+        const rememberedValid = state.presets.some((preset) => preset.id === rememberedPresetId);
+        state.currentQuickPresetId = rememberedValid ? rememberedPresetId : state.presets[0].id;
     }
 
     dom.quickSendPresetSelect.value = state.currentQuickPresetId;
+    rememberQuickSendPresetId(state.currentQuickPresetId);
     renderQuickSendList();
 }
 
@@ -2100,6 +2149,12 @@ function renderQuickSendList() {
         button.addEventListener('click', async () => {
             const textToSend = `/${item.type} ${item.content}`;
             button.disabled = true;
+
+            const dismissed = await dismissQuickPanelForSend();
+            if (isQuickPanelMode() && !dismissed) {
+                showToast('无法自动隐藏快捷面板，请手动切回游戏窗口', 'error');
+            }
+
             const successMessage = isQuickPanelMode() ? '快捷面板发送成功' : '快速发送成功';
             const sent = await sendTextNow(textToSend, successMessage);
             if (sent) {
