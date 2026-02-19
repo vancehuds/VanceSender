@@ -8,7 +8,7 @@ import threading
 from collections.abc import Callable
 from typing import Any, Literal
 
-from app.core.config import load_config, update_config
+from app.core.config import load_config, resolve_enable_tray_on_start
 
 _CLOSE_ACTION_ASK = "ask"
 _CLOSE_ACTION_MINIMIZE_TO_TRAY = "minimize_to_tray"
@@ -351,15 +351,15 @@ def _resolve_launch_tray_preferences(
     """Resolve startup tray and close policy values from launch config."""
     launch_cfg = _launch_config_from_input(launch_options)
 
-    start_minimized_to_tray = bool(launch_cfg.get("start_minimized_to_tray", True))
+    enable_tray_on_start = resolve_enable_tray_on_start(launch_cfg)
     close_action = normalize_close_action(
         launch_cfg.get("close_action", _CLOSE_ACTION_ASK)
     )
-    return start_minimized_to_tray, close_action
+    return enable_tray_on_start, close_action
 
 
 def _ask_close_action_and_maybe_remember(window: object) -> str:
-    """Ask user close behavior and optionally persist as remembered choice."""
+    """Ask user close behavior once (no remembered choice here)."""
     confirm_method = getattr(window, "create_confirmation_dialog", None)
     if not callable(confirm_method):
         return _CLOSE_ACTION_MINIMIZE_TO_TRAY
@@ -377,20 +377,6 @@ def _ask_close_action_and_maybe_remember(window: object) -> str:
     selected_action = (
         _CLOSE_ACTION_EXIT if should_exit else _CLOSE_ACTION_MINIMIZE_TO_TRAY
     )
-
-    remember_choice = False
-    try:
-        remember_choice = bool(
-            confirm_method(
-                "记住本次选择",
-                "是否记住本次关闭行为？可在设置中随时修改。",
-            )
-        )
-    except Exception:
-        remember_choice = False
-
-    if remember_choice:
-        update_config({"launch": {"close_action": selected_action}})
 
     return selected_action
 
@@ -576,7 +562,7 @@ def open_desktop_window(
         "resizable": True,
         "text_select": True,
         "frameless": True,
-        "easy_drag": True,
+        "easy_drag": False,
     }
     try:
         window = webview.create_window(title, **window_kwargs)

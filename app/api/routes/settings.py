@@ -184,6 +184,10 @@ async def post_desktop_window_action(body: DesktopWindowActionRequest):
         )
     elif body.action == "minimize":
         success = perform_window_action("minimize")
+    elif body.action == "hide_to_tray":
+        success = perform_window_action("hide_to_tray")
+    elif body.action == "exit":
+        success = perform_window_action("exit")
     else:
         success = perform_window_action("request_close")
 

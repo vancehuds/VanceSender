@@ -164,7 +164,13 @@ class LaunchSettings(BaseModel):
 
 
 class DesktopWindowActionRequest(BaseModel):
-    action: Literal["minimize", "toggle_maximize", "close"]
+    action: Literal[
+        "minimize",
+        "toggle_maximize",
+        "close",
+        "hide_to_tray",
+        "exit",
+    ]
 
 
 class DesktopWindowStateResponse(BaseModel):

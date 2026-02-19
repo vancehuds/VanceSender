@@ -155,5 +155,39 @@
         </footer>
     </div>
 
+    <script>
+        (() => {
+            const params = new URLSearchParams(window.location.search || '');
+            const isDesktopClient = params.get('vs_desktop') === '1';
+            if (!isDesktopClient) {
+                return;
+            }
+
+            try {
+                window.sessionStorage.setItem('vs_desktop_client', '1');
+            } catch {
+                // ignore storage failures
+            }
+
+            const launchToken = String(params.get('vs_token') || '').trim();
+            if (launchToken) {
+                try {
+                    window.localStorage.setItem('vs_token', launchToken);
+                } catch {
+                    // ignore storage failures
+                }
+            }
+
+            params.delete('vs_desktop');
+            params.delete('vs_token');
+
+            if (window.history && typeof window.history.replaceState === 'function') {
+                const nextSearch = params.toString();
+                const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash || ''}`;
+                window.history.replaceState(null, '', nextUrl);
+            }
+        })();
+    </script>
+
 </body>
 </html>

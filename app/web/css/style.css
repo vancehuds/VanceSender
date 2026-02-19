@@ -64,6 +64,17 @@ body.desktop-shell-mode .app-container {
     -webkit-backdrop-filter: blur(14px);
     z-index: 260;
     box-shadow: 0 10px 24px rgba(2, 8, 23, 0.34);
+    overflow: hidden;
+}
+
+.desktop-titlebar::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(79, 209, 255, 0.28), rgba(139, 123, 255, 0.14), rgba(79, 209, 255, 0.06));
+    pointer-events: none;
 }
 
 .desktop-titlebar-drag {
@@ -72,6 +83,12 @@ body.desktop-shell-mode .app-container {
     display: flex;
     align-items: center;
     padding: 0 14px 0 16px;
+    cursor: grab;
+    user-select: none;
+}
+
+.desktop-titlebar-drag:active {
+    cursor: grabbing;
 }
 
 .desktop-titlebar-brand {
@@ -122,6 +139,7 @@ body.desktop-shell-mode .app-container {
     display: flex;
     align-items: stretch;
     flex-shrink: 0;
+    user-select: none;
 }
 
 .desktop-window-btn {
@@ -1702,6 +1720,29 @@ input:checked + .slider:before {
     justify-content: flex-end;
     gap: 10px;
     margin-top: 20px;
+}
+
+#modal-desktop-close-confirm {
+    max-width: 520px;
+}
+
+.desktop-close-confirm-remember-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.desktop-close-confirm-remember-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #4fd1ff;
+    flex-shrink: 0;
 }
 
 /* Empty State */

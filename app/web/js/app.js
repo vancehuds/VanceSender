@@ -3,6 +3,56 @@
  * Pure Vanilla JS - No Frameworks
  */
 
+const DESKTOP_CLIENT_SESSION_KEY = 'vs_desktop_client';
+
+function readDesktopLaunchContext() {
+    const params = new URLSearchParams(window.location.search || '');
+    const queryDesktopClient = params.get('vs_desktop') === '1';
+
+    if (queryDesktopClient) {
+        try {
+            window.sessionStorage.setItem(DESKTOP_CLIENT_SESSION_KEY, '1');
+        } catch (e) {
+            // ignore sessionStorage failures
+        }
+    }
+
+    let sessionDesktopClient = false;
+    try {
+        sessionDesktopClient = window.sessionStorage.getItem(DESKTOP_CLIENT_SESSION_KEY) === '1';
+    } catch (e) {
+        sessionDesktopClient = false;
+    }
+
+    const desktopClient = queryDesktopClient || sessionDesktopClient;
+    const launchToken = desktopClient ? String(params.get('vs_token') || '').trim() : '';
+    if (launchToken) {
+        try {
+            window.localStorage.setItem('vs_token', launchToken);
+        } catch (e) {
+            // ignore localStorage failures
+        }
+    }
+
+    if (params.has('vs_desktop') || params.has('vs_token')) {
+        params.delete('vs_desktop');
+        params.delete('vs_token');
+        if (window.history && typeof window.history.replaceState === 'function') {
+            const nextSearch = params.toString();
+            const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash || ''}`;
+            window.history.replaceState(null, '', nextUrl);
+        }
+    }
+
+    return { desktopClient };
+}
+
+const launchContext = readDesktopLaunchContext();
+
+function isDesktopEmbeddedClient() {
+    return Boolean(launchContext.desktopClient);
+}
+
 // --- Auth ---
 function getToken() {
     return localStorage.getItem('vs_token') || '';
@@ -92,6 +142,19 @@ function renderProviderTestResult(data, status) {
 }
 
 function showAuthGate() {
+    if (isDesktopEmbeddedClient()) {
+        const gate = document.getElementById('auth-gate');
+        if (gate) {
+            gate.classList.add('hidden');
+        }
+
+        if (!state.desktopShell.authFailureNotified) {
+            state.desktopShell.authFailureNotified = true;
+            showToast('内置窗口认证失败，请重启应用后重试', 'error');
+        }
+        return;
+    }
+
     document.getElementById('auth-gate').classList.remove('hidden');
     document.getElementById('auth-token-input').focus();
 }
@@ -103,6 +166,14 @@ function hideAuthGate() {
 }
 
 function initAuth() {
+    if (isDesktopEmbeddedClient()) {
+        const gate = document.getElementById('auth-gate');
+        if (gate) {
+            gate.classList.add('hidden');
+        }
+        return;
+    }
+
     document.getElementById('auth-submit').addEventListener('click', submitAuth);
     document.getElementById('auth-token-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitAuth();
@@ -126,6 +197,7 @@ async function submitAuth() {
             return;
         }
         setToken(token);
+        state.desktopShell.authFailureNotified = false;
         hideAuthGate();
         loadInitialData();
     } catch (e) {
@@ -169,7 +241,10 @@ const state = {
     desktopShell: {
         active: false,
         maximized: false,
-        actionInProgress: false
+        actionInProgress: false,
+        clientEmbedded: isDesktopEmbeddedClient(),
+        uiVisible: false,
+        authFailureNotified: false
     }
 };
 
@@ -254,7 +329,7 @@ const dom = {
     settingDelayBetweenLines: document.getElementById('setting-delay-between-lines'),
     settingTypingCharDelay: document.getElementById('setting-typing-char-delay'),
     settingLanAccess: document.getElementById('setting-lan-access'),
-    settingStartMinimizedToTray: document.getElementById('setting-start-minimized-to-tray'),
+    settingEnableTrayOnStart: document.getElementById('setting-enable-tray-on-start'),
     settingOpenWebuiOnStart: document.getElementById('setting-open-webui-on-start'),
     settingShowConsoleOnStart: document.getElementById('setting-show-console-on-start'),
     settingCloseAction: document.getElementById('setting-close-action'),
@@ -294,6 +369,7 @@ const dom = {
     modalEditText: document.getElementById('modal-edit-text'),
     modalAIRewrite: document.getElementById('modal-ai-rewrite'),
     modalProvider: document.getElementById('modal-provider'),
+    modalDesktopCloseConfirm: document.getElementById('modal-desktop-close-confirm'),
     presetNameInput: document.getElementById('preset-name-input'),
     confirmSavePreset: document.getElementById('confirm-save-preset'),
     editTextModalTitle: document.getElementById('edit-text-modal-title'),
@@ -311,6 +387,9 @@ const dom = {
     cancelRewriteBtn: document.getElementById('cancel-rewrite-btn'),
     applyRewriteBtn: document.getElementById('apply-rewrite-btn'),
     providerForm: document.getElementById('provider-form'),
+    desktopCloseConfirmRemember: document.getElementById('desktop-close-confirm-remember'),
+    desktopCloseConfirmTray: document.getElementById('desktop-close-confirm-tray'),
+    desktopCloseConfirmExit: document.getElementById('desktop-close-confirm-exit'),
 
     // Toast
     toastContainer: document.getElementById('toast-container')
@@ -393,7 +472,7 @@ function initNavigation() {
 }
 
 function syncDesktopTitlebarControls() {
-    const shouldDisable = !state.desktopShell.active || state.desktopShell.actionInProgress;
+    const shouldDisable = !state.desktopShell.uiVisible || state.desktopShell.actionInProgress;
     [
         dom.desktopWindowMinimize,
         dom.desktopWindowToggleMaximize,
@@ -409,11 +488,12 @@ function applyDesktopShellState(serverSettings) {
     const maximized = Boolean(serverSettings?.desktop_shell_maximized);
 
     state.desktopShell.active = active;
-    state.desktopShell.maximized = active ? maximized : false;
+    state.desktopShell.uiVisible = active && state.desktopShell.clientEmbedded;
+    state.desktopShell.maximized = state.desktopShell.uiVisible ? maximized : false;
 
-    document.body.classList.toggle('desktop-shell-mode', active);
+    document.body.classList.toggle('desktop-shell-mode', state.desktopShell.uiVisible);
     if (dom.desktopTitlebar) {
-        dom.desktopTitlebar.classList.toggle('hidden', !active);
+        dom.desktopTitlebar.classList.toggle('hidden', !state.desktopShell.uiVisible);
     }
 
     if (dom.desktopWindowToggleMaximize) {
@@ -430,6 +510,93 @@ function applyDesktopShellState(serverSettings) {
     }
 
     syncDesktopTitlebarControls();
+}
+
+function getConfiguredDesktopCloseAction() {
+    const closeAction = String(state.settings?.launch?.close_action || '').trim().toLowerCase();
+    if (['ask', 'minimize_to_tray', 'exit'].includes(closeAction)) {
+        return closeAction;
+    }
+    return 'ask';
+}
+
+function isDesktopTraySupported() {
+    return Boolean(state.settings?.server?.system_tray_supported ?? true);
+}
+
+async function rememberDesktopCloseAction(closeAction) {
+    await apiFetch('/api/v1/settings/launch', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ close_action: closeAction })
+    });
+
+    if (!state.settings.launch || typeof state.settings.launch !== 'object') {
+        state.settings.launch = {};
+    }
+    state.settings.launch.close_action = closeAction;
+
+    if (!state.settingsDirty) {
+        if (dom.settingCloseAction && !dom.settingCloseAction.disabled) {
+            dom.settingCloseAction.value = closeAction;
+        }
+        state.settingsSnapshot = getSettingsFormSnapshot();
+        setSettingsDirtyState(false);
+    }
+}
+
+function openDesktopCloseConfirmModal() {
+    if (!dom.modalDesktopCloseConfirm) {
+        return;
+    }
+
+    if (dom.desktopCloseConfirmRemember) {
+        dom.desktopCloseConfirmRemember.checked = false;
+    }
+    openModal('modal-desktop-close-confirm');
+}
+
+async function applyDesktopCloseDecision(closeAction) {
+    const rememberChoice = Boolean(dom.desktopCloseConfirmRemember?.checked);
+    closeModal();
+
+    if (rememberChoice) {
+        try {
+            await rememberDesktopCloseAction(closeAction);
+        } catch (e) {
+            if (e.message === 'AUTH_REQUIRED') {
+                return;
+            }
+            showToast('保存关闭偏好失败，将仅本次生效', 'error');
+        }
+    }
+
+    const desktopAction = closeAction === 'exit' ? 'exit' : 'hide_to_tray';
+    await invokeDesktopWindowAction(desktopAction);
+}
+
+async function handleDesktopCloseRequest() {
+    if (!state.desktopShell.uiVisible || state.desktopShell.actionInProgress) {
+        return;
+    }
+
+    if (!isDesktopTraySupported()) {
+        await invokeDesktopWindowAction('exit');
+        return;
+    }
+
+    const closeAction = getConfiguredDesktopCloseAction();
+    if (closeAction === 'ask') {
+        openDesktopCloseConfirmModal();
+        return;
+    }
+
+    if (closeAction === 'minimize_to_tray') {
+        await invokeDesktopWindowAction('hide_to_tray');
+        return;
+    }
+
+    await invokeDesktopWindowAction('exit');
 }
 
 function initDesktopTitlebar() {
@@ -449,13 +616,25 @@ function initDesktopTitlebar() {
 
     if (dom.desktopWindowClose) {
         dom.desktopWindowClose.addEventListener('click', () => {
-            invokeDesktopWindowAction('close');
+            void handleDesktopCloseRequest();
+        });
+    }
+
+    if (dom.desktopCloseConfirmTray) {
+        dom.desktopCloseConfirmTray.addEventListener('click', () => {
+            void applyDesktopCloseDecision('minimize_to_tray');
+        });
+    }
+
+    if (dom.desktopCloseConfirmExit) {
+        dom.desktopCloseConfirmExit.addEventListener('click', () => {
+            void applyDesktopCloseDecision('exit');
         });
     }
 }
 
 async function invokeDesktopWindowAction(action) {
-    if (!state.desktopShell.active || state.desktopShell.actionInProgress) {
+    if (!state.desktopShell.uiVisible || state.desktopShell.actionInProgress) {
         return;
     }
 
@@ -2203,7 +2382,7 @@ function getSettingsFormSnapshot() {
         delayBetweenLines: dom.settingDelayBetweenLines?.value || '',
         typingCharDelay: dom.settingTypingCharDelay?.value || '',
         lanAccess: Boolean(dom.settingLanAccess?.checked),
-        startMinimizedToTray: Boolean(dom.settingStartMinimizedToTray?.checked),
+        enableTrayOnStart: Boolean(dom.settingEnableTrayOnStart?.checked),
         openWebuiOnStart: Boolean(dom.settingOpenWebuiOnStart?.checked),
         showConsoleOnStart: Boolean(dom.settingShowConsoleOnStart?.checked),
         closeAction: dom.settingCloseAction?.value || 'ask',
@@ -2270,7 +2449,7 @@ function bindSettingsDirtyTracking() {
         dom.settingDelayBetweenLines,
         dom.settingTypingCharDelay,
         dom.settingLanAccess,
-        dom.settingStartMinimizedToTray,
+        dom.settingEnableTrayOnStart,
         dom.settingOpenWebuiOnStart,
         dom.settingShowConsoleOnStart,
         dom.settingCloseAction,
@@ -2741,9 +2920,10 @@ async function fetchSettings() {
     dom.settingLanAccess.checked = data.server.lan_access || false;
     const launch = data.launch || {};
     const traySupported = data.server.system_tray_supported ?? true;
-    if (dom.settingStartMinimizedToTray) {
-        dom.settingStartMinimizedToTray.checked = traySupported && (launch.start_minimized_to_tray ?? true);
-        dom.settingStartMinimizedToTray.disabled = !traySupported;
+    const enableTrayOnStart = launch.enable_tray_on_start ?? launch.start_minimized_to_tray ?? true;
+    if (dom.settingEnableTrayOnStart) {
+        dom.settingEnableTrayOnStart.checked = traySupported && enableTrayOnStart;
+        dom.settingEnableTrayOnStart.disabled = !traySupported;
     }
     if (dom.settingOpenWebuiOnStart) {
         dom.settingOpenWebuiOnStart.checked = launch.open_webui_on_start ?? false;
@@ -2967,7 +3147,7 @@ async function saveAllSettings() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                start_minimized_to_tray: Boolean(dom.settingStartMinimizedToTray?.checked),
+                enable_tray_on_start: Boolean(dom.settingEnableTrayOnStart?.checked),
                 open_webui_on_start: Boolean(dom.settingOpenWebuiOnStart?.checked),
                 show_console_on_start: Boolean(dom.settingShowConsoleOnStart?.checked),
                 close_action: dom.settingCloseAction?.value || 'ask'

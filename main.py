@@ -19,6 +19,7 @@ import time
 import webbrowser
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import uvicorn
 from fastapi import FastAPI
@@ -28,7 +29,7 @@ from fastapi.responses import FileResponse
 
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
-from app.core.config import load_config, update_config
+from app.core.config import load_config, resolve_enable_tray_on_start, update_config
 from app.core.desktop_shell import (
     has_system_tray_support,
     has_webview_support,
@@ -198,6 +199,30 @@ def _build_local_web_base_url(host: str, port: int) -> str:
     return f"http://{browser_host}:{port}"
 
 
+def _append_query_params(url: str, params: dict[str, str]) -> str:
+    """Append query params to URL while preserving existing query string."""
+    parsed = urlsplit(url)
+    merged_items = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+    for key, value in params.items():
+        normalized_key = str(key).strip()
+        normalized_value = str(value).strip()
+        if not normalized_key or not normalized_value:
+            continue
+        merged_items[normalized_key] = normalized_value
+
+    merged_query = urlencode(merged_items)
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            merged_query,
+            parsed.fragment,
+        )
+    )
+
+
 def _resolve_intro_start_url(
     cfg: dict[str, object], base_url: str
 ) -> tuple[str | None, bool]:
@@ -308,6 +333,9 @@ def main() -> None:
     _prepare_runtime_console(cfg)
     _configure_console_encoding()
 
+    server_token_raw = cfg.get("server", {}).get("token", "")
+    server_token = server_token_raw.strip() if isinstance(server_token_raw, str) else ""
+
     server_cfg = cfg.get("server", {})
     launch_section = cfg.get("launch")
     launch_cfg = launch_section if isinstance(launch_section, dict) else {}
@@ -346,9 +374,17 @@ def main() -> None:
         local_web_base_url,
         intro_url,
     )
-    desktop_start_url = intro_url or local_web_base_url
     webview_available = has_webview_support()
     use_desktop_shell = not args.no_webview and webview_available
+    desktop_start_url = intro_url or local_web_base_url
+    if use_desktop_shell:
+        desktop_launch_params: dict[str, str] = {"vs_desktop": "1"}
+        if server_token:
+            desktop_launch_params["vs_token"] = server_token
+        desktop_start_url = _append_query_params(
+            desktop_start_url, desktop_launch_params
+        )
+
     intro_will_be_shown = should_mark_intro_seen and (
         use_desktop_shell or bool(startup_browser_urls)
     )
@@ -369,7 +405,7 @@ def main() -> None:
 
     open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", False))
     show_console_on_start = bool(launch_cfg.get("show_console_on_start", False))
-    start_minimized_to_tray = bool(launch_cfg.get("start_minimized_to_tray", True))
+    enable_tray_on_start = resolve_enable_tray_on_start(launch_cfg)
     tray_supported = has_system_tray_support()
     ui_mode_text = "桌面内嵌窗口" if use_desktop_shell else "浏览器模式"
 
@@ -391,20 +427,19 @@ def main() -> None:
         else:
             print(f"║  局域网:    http://<your-ip>:{port:<5}           ║")
 
-    token = cfg.get("server", {}).get("token", "")
-    if token:
-        masked = token[:4] + "*" * min(8, len(token) - 4)
+    if server_token:
+        masked = server_token[:4] + "*" * min(8, len(server_token) - 4)
         print(f"║  认证:     Token {masked}")
     else:
         print(f"║  认证:     未启用")
     print(f"║  浏览器启动: {'开启' if open_webui_on_start else '关闭'}")
     print(f"║  控制台日志: {'开启' if show_console_on_start else '关闭'}")
-    print(f"║  启动托盘化: {'开启' if start_minimized_to_tray else '关闭'}")
+    print(f"║  启动托盘: {'开启' if enable_tray_on_start else '关闭'}")
     print(f"║  托盘支持: {'可用' if tray_supported else '不可用'}")
     if not args.no_webview and not webview_available:
         print(f"║  提示:     未检测到 pywebview，已回退浏览器模式")
-    if start_minimized_to_tray and not tray_supported:
-        print("║  提示:     未检测到系统托盘依赖，将改为正常显示窗口")
+    if enable_tray_on_start and not tray_supported:
+        print("║  提示:     未检测到系统托盘依赖，将禁用托盘驻留")
     print(f"║  GitHub:   {github_repository_url}")
     print(f"╚══════════════════════════════════════════════╝")
     print()
@@ -424,7 +459,7 @@ def main() -> None:
 
         print()
 
-    if runtime_lan_access and not token:
+    if runtime_lan_access and not server_token:
         print("⚠ 风险提示: 当前已开启局域网访问且未设置 Token。")
         print("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
         print()

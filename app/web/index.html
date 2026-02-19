@@ -11,7 +11,7 @@
 </head>
 <body>
     <header id="desktop-titlebar" class="desktop-titlebar hidden" role="banner" aria-label="桌面窗口标题栏">
-        <div class="desktop-titlebar-drag">
+        <div class="desktop-titlebar-drag pywebview-drag-region">
             <div class="desktop-titlebar-brand">
                 <div class="desktop-titlebar-logo">V</div>
                 <div class="desktop-titlebar-meta">
@@ -555,11 +555,11 @@
                         <h2>高级选项</h2>
                         <div class="setting-item-toggle">
                             <div class="setting-info">
-                                <label>启动后最小化到系统托盘</label>
-                                <p class="desc">默认开启。应用启动后不直接显示主窗口，可在托盘图标中打开。</p>
+                                <label>启动时启用系统托盘</label>
+                                <p class="desc">默认开启。启动时会创建托盘图标，同时主动打开主窗口。</p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting-start-minimized-to-tray">
+                                <input type="checkbox" id="setting-enable-tray-on-start">
                                 <span class="slider round"></span>
                             </label>
                         </div>
@@ -591,7 +591,7 @@
                                 <option value="exit">直接彻底关闭</option>
                             </select>
                             <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
-                                选择“每次询问”时可在关闭弹窗中勾选记住选项，后续可在这里随时修改。
+                                选择“每次询问”时会弹出单个自定义窗口，可直接选择行为并勾选“记住选择”。
                             </p>
                         </div>
                     </div>
@@ -709,6 +709,25 @@
 
     <!-- Modals -->
     <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+
+    <!-- Desktop Close Confirm Modal -->
+    <div id="modal-desktop-close-confirm" class="modal glass-card hidden">
+        <h3>关闭 VanceSender</h3>
+        <p class="desc" style="margin-top: 8px; line-height: 1.6; color: var(--text-secondary);">
+            请选择关闭行为：
+            <br>
+            <strong>彻底关闭</strong> 或 <strong>最小化到系统托盘</strong>
+        </p>
+        <label class="desktop-close-confirm-remember-row" for="desktop-close-confirm-remember">
+            <input id="desktop-close-confirm-remember" type="checkbox">
+            <span>记住本次选择（可在设置中随时修改）</span>
+        </label>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="desktop-close-confirm-tray" class="btn btn-secondary" type="button">最小化到托盘</button>
+            <button id="desktop-close-confirm-exit" class="btn btn-danger" type="button">彻底关闭</button>
+        </div>
+    </div>
     
     <!-- Save Preset Modal -->
     <div id="modal-save-preset" class="modal glass-card hidden">
