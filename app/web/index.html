@@ -10,6 +10,23 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
+    <header id="desktop-titlebar" class="desktop-titlebar hidden" role="banner" aria-label="桌面窗口标题栏">
+        <div class="desktop-titlebar-drag">
+            <div class="desktop-titlebar-brand">
+                <div class="desktop-titlebar-logo">V</div>
+                <div class="desktop-titlebar-meta">
+                    <span class="desktop-titlebar-name">VanceSender</span>
+                    <span class="desktop-titlebar-sub">桌面内嵌模式</span>
+                </div>
+            </div>
+        </div>
+        <div class="desktop-titlebar-actions" aria-label="窗口控制按钮">
+            <button id="desktop-window-minimize" class="desktop-window-btn" type="button" title="最小化" aria-label="最小化">—</button>
+            <button id="desktop-window-toggle-maximize" class="desktop-window-btn" type="button" title="最大化" aria-label="最大化">□</button>
+            <button id="desktop-window-close" class="desktop-window-btn desktop-window-btn-close" type="button" title="关闭" aria-label="关闭">✕</button>
+        </div>
+    </header>
+
     <div class="app-container">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
@@ -71,6 +88,20 @@
                     </div>
                 </header>
 
+                <div id="home-update-banner" class="home-update-banner hidden" role="status" aria-live="polite">
+                    <div class="home-update-banner-main">
+                        <span class="home-update-banner-badge">新版本可用</span>
+                        <span id="home-update-banner-text" class="home-update-banner-text">发现新版本，建议尽快更新。</span>
+                    </div>
+                    <a
+                        id="home-update-banner-link"
+                        class="btn btn-sm btn-primary hidden"
+                        href="#"
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >查看并下载</a>
+                </div>
+
                 <div class="home-grid">
                     <div class="glass-card home-card">
                         <h2>WebUI 地址</h2>
@@ -97,6 +128,47 @@
 
                         <div id="home-lan-disabled" class="home-inline-tip hidden">
                             <p>当前未开启局域网访问，可在 <strong>设置 → 网络设置</strong> 中开启。</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-card home-card">
+                        <h2>帮助与资源</h2>
+                        <p class="desc">快速访问文档、官网与项目仓库</p>
+                        <div class="home-link-actions">
+                            <a
+                                class="btn btn-secondary home-link-btn"
+                                href="/static/help.html"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            >本地帮助文档</a>
+                            <a
+                                class="btn btn-ghost home-link-btn"
+                                href="https://sender.vhuds.com"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            >在线官方网站</a>
+                            <a
+                                class="btn btn-ghost home-link-btn"
+                                href="https://github.com/vancehuds/VanceSender"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            >项目仓库</a>
+                        </div>
+                    </div>
+
+                    <div class="glass-card home-card home-card-update">
+                        <h2>版本更新</h2>
+                        <p id="home-update-status" class="desc">正在检查更新...</p>
+                        <div id="home-update-tip" class="home-inline-tip hidden"></div>
+                        <div class="home-link-actions">
+                            <a
+                                id="home-update-release-link"
+                                class="btn btn-sm btn-ghost hidden"
+                                href="#"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            >查看发布页</a>
+                            <button id="home-check-update-btn" class="btn btn-sm btn-outline" type="button">立即检查</button>
                         </div>
                     </div>
 

@@ -164,11 +164,21 @@ const state = {
     lastModalTrigger: null,
     lanRiskToastShown: false,
     startupUpdateChecked: false,
-    updateCheckInProgress: false
+    updateCheckInProgress: false,
+    desktopShell: {
+        active: false,
+        maximized: false,
+        actionInProgress: false
+    }
 };
 
 // --- DOM Elements ---
 const dom = {
+    desktopTitlebar: document.getElementById('desktop-titlebar'),
+    desktopWindowMinimize: document.getElementById('desktop-window-minimize'),
+    desktopWindowToggleMaximize: document.getElementById('desktop-window-toggle-maximize'),
+    desktopWindowClose: document.getElementById('desktop-window-close'),
+
     navItems: document.querySelectorAll('.nav-item'),
     panels: document.querySelectorAll('.panel'),
     textInput: document.getElementById('main-input'),
@@ -218,6 +228,13 @@ const dom = {
     homeSecurityWarning: document.getElementById('home-security-warning'),
     homeOpenBrowserBtn: document.getElementById('home-open-browser-btn'),
     homeCopyLocalBtn: document.getElementById('home-copy-local-btn'),
+    homeUpdateBanner: document.getElementById('home-update-banner'),
+    homeUpdateBannerText: document.getElementById('home-update-banner-text'),
+    homeUpdateBannerLink: document.getElementById('home-update-banner-link'),
+    homeUpdateStatus: document.getElementById('home-update-status'),
+    homeUpdateTip: document.getElementById('home-update-tip'),
+    homeUpdateReleaseLink: document.getElementById('home-update-release-link'),
+    homeCheckUpdateBtn: document.getElementById('home-check-update-btn'),
 
     // Settings
     settingMethod: document.getElementById('setting-method'),
@@ -297,6 +314,7 @@ const APPLY_REWRITE_IDLE_TEXT = dom.applyRewriteBtn?.textContent || '应用更�
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
+    initDesktopTitlebar();
     initNavigation();
     initHomePanel();
     initSendPanel();
@@ -364,6 +382,109 @@ function initNavigation() {
             target.classList.add('active');
         });
     });
+}
+
+function syncDesktopTitlebarControls() {
+    const shouldDisable = !state.desktopShell.active || state.desktopShell.actionInProgress;
+    [
+        dom.desktopWindowMinimize,
+        dom.desktopWindowToggleMaximize,
+        dom.desktopWindowClose
+    ].forEach((button) => {
+        if (!button) return;
+        button.disabled = shouldDisable;
+    });
+}
+
+function applyDesktopShellState(serverSettings) {
+    const active = Boolean(serverSettings?.desktop_shell_active);
+    const maximized = Boolean(serverSettings?.desktop_shell_maximized);
+
+    state.desktopShell.active = active;
+    state.desktopShell.maximized = active ? maximized : false;
+
+    document.body.classList.toggle('desktop-shell-mode', active);
+    if (dom.desktopTitlebar) {
+        dom.desktopTitlebar.classList.toggle('hidden', !active);
+    }
+
+    if (dom.desktopWindowToggleMaximize) {
+        const maximizeBtn = dom.desktopWindowToggleMaximize;
+        if (state.desktopShell.maximized) {
+            maximizeBtn.textContent = '❐';
+            maximizeBtn.title = '还原';
+            maximizeBtn.setAttribute('aria-label', '还原');
+        } else {
+            maximizeBtn.textContent = '□';
+            maximizeBtn.title = '最大化';
+            maximizeBtn.setAttribute('aria-label', '最大化');
+        }
+    }
+
+    syncDesktopTitlebarControls();
+}
+
+function initDesktopTitlebar() {
+    syncDesktopTitlebarControls();
+
+    if (dom.desktopWindowMinimize) {
+        dom.desktopWindowMinimize.addEventListener('click', () => {
+            invokeDesktopWindowAction('minimize');
+        });
+    }
+
+    if (dom.desktopWindowToggleMaximize) {
+        dom.desktopWindowToggleMaximize.addEventListener('click', () => {
+            invokeDesktopWindowAction('toggle_maximize');
+        });
+    }
+
+    if (dom.desktopWindowClose) {
+        dom.desktopWindowClose.addEventListener('click', () => {
+            invokeDesktopWindowAction('close');
+        });
+    }
+}
+
+async function invokeDesktopWindowAction(action) {
+    if (!state.desktopShell.active || state.desktopShell.actionInProgress) {
+        return;
+    }
+
+    state.desktopShell.actionInProgress = true;
+    syncDesktopTitlebarControls();
+
+    try {
+        const response = await apiFetch('/api/v1/settings/desktop-window/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            showToast(`窗口控制失败: ${formatApiErrorDetail(payload.detail, response.status)}`, 'error');
+            if (response.status === 400) {
+                applyDesktopShellState({
+                    desktop_shell_active: false,
+                    desktop_shell_maximized: false
+                });
+            }
+            return;
+        }
+
+        applyDesktopShellState({
+            desktop_shell_active: Boolean(payload.active),
+            desktop_shell_maximized: Boolean(payload.maximized)
+        });
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('窗口控制失败，请稍后重试', 'error');
+        }
+    } finally {
+        state.desktopShell.actionInProgress = false;
+        syncDesktopTitlebarControls();
+    }
 }
 
 async function copyTextToClipboard(value) {
@@ -486,6 +607,12 @@ function initHomePanel() {
 
             const copied = await copyTextToClipboard(url);
             showToast(copied ? '地址已复制' : '复制失败，请手动复制', copied ? 'success' : 'error');
+        });
+    }
+
+    if (dom.homeCheckUpdateBtn) {
+        dom.homeCheckUpdateBtn.addEventListener('click', () => {
+            checkGitHubUpdate();
         });
     }
 }
@@ -2258,15 +2385,48 @@ function initSettingsPanel() {
 
 function renderUpdateCheckResult(data) {
     if (dom.appCurrentVersion) {
-        dom.appCurrentVersion.value = data.current_version || '-';
+        dom.appCurrentVersion.value = data.current_version || dom.appCurrentVersion.value || '-';
     }
 
     if (dom.appLatestVersion) {
         dom.appLatestVersion.value = data.latest_version || '-';
     }
 
+    const message = data.message || '检查完成';
+    const hasUpdate = Boolean(data.success && data.update_available && data.latest_version);
+    const latestVersionText = String(data.latest_version || '').trim();
+    const updateStatusText = hasUpdate
+        ? `发现新版本 v${latestVersionText}`
+        : message;
+
     if (dom.appUpdateStatus) {
-        dom.appUpdateStatus.textContent = data.message || '检查完成';
+        dom.appUpdateStatus.textContent = hasUpdate
+            ? `${updateStatusText}。${UPDATE_GUIDE_TEXT}`
+            : message;
+    }
+
+    if (dom.homeUpdateStatus) {
+        dom.homeUpdateStatus.textContent = updateStatusText;
+    }
+
+    if (dom.homeUpdateTip) {
+        if (hasUpdate) {
+            dom.homeUpdateTip.textContent = UPDATE_GUIDE_TEXT;
+            dom.homeUpdateTip.classList.remove('hidden');
+        } else {
+            dom.homeUpdateTip.classList.add('hidden');
+            dom.homeUpdateTip.textContent = '';
+        }
+    }
+
+    if (dom.homeUpdateBanner) {
+        dom.homeUpdateBanner.classList.toggle('hidden', !hasUpdate);
+    }
+
+    if (dom.homeUpdateBannerText) {
+        dom.homeUpdateBannerText.textContent = hasUpdate
+            ? `发现新版本 v${latestVersionText}，建议尽快更新。`
+            : '';
     }
 
     if (dom.appUpdateReleaseLink) {
@@ -2276,6 +2436,26 @@ function renderUpdateCheckResult(data) {
         } else {
             dom.appUpdateReleaseLink.classList.add('hidden');
             dom.appUpdateReleaseLink.removeAttribute('href');
+        }
+    }
+
+    if (dom.homeUpdateReleaseLink) {
+        if (data.release_url) {
+            dom.homeUpdateReleaseLink.href = data.release_url;
+            dom.homeUpdateReleaseLink.classList.remove('hidden');
+        } else {
+            dom.homeUpdateReleaseLink.classList.add('hidden');
+            dom.homeUpdateReleaseLink.removeAttribute('href');
+        }
+    }
+
+    if (dom.homeUpdateBannerLink) {
+        if (hasUpdate && data.release_url) {
+            dom.homeUpdateBannerLink.href = data.release_url;
+            dom.homeUpdateBannerLink.classList.remove('hidden');
+        } else {
+            dom.homeUpdateBannerLink.classList.add('hidden');
+            dom.homeUpdateBannerLink.removeAttribute('href');
         }
     }
 }
@@ -2355,7 +2535,7 @@ const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最�
 async function checkGitHubUpdate(options = {}) {
     const silent = Boolean(options.silent);
 
-    if (!dom.checkUpdateBtn) return;
+    if (!dom.checkUpdateBtn && !dom.homeCheckUpdateBtn) return;
     if (state.updateCheckInProgress) {
         if (!silent) {
             showToast('正在检查更新，请稍候', 'info');
@@ -2364,15 +2544,47 @@ async function checkGitHubUpdate(options = {}) {
     }
 
     state.updateCheckInProgress = true;
-    const previousLabel = dom.checkUpdateBtn.textContent;
+    const previousLabel = dom.checkUpdateBtn?.textContent || '检查更新';
+    const previousHomeLabel = dom.homeCheckUpdateBtn?.textContent || '立即检查';
 
-    if (!silent) {
+    if (dom.checkUpdateBtn) {
         dom.checkUpdateBtn.disabled = true;
-        dom.checkUpdateBtn.textContent = '检查中...';
+        if (!silent) {
+            dom.checkUpdateBtn.textContent = '检查中...';
+        }
+    }
+
+    if (dom.homeCheckUpdateBtn) {
+        dom.homeCheckUpdateBtn.disabled = true;
+        if (!silent) {
+            dom.homeCheckUpdateBtn.textContent = '检查中...';
+        }
     }
 
     if (dom.appUpdateStatus) {
         dom.appUpdateStatus.textContent = '正在检查更新...';
+    }
+
+    if (dom.homeUpdateStatus) {
+        dom.homeUpdateStatus.textContent = '正在检查更新...';
+    }
+
+    if (dom.homeUpdateTip) {
+        dom.homeUpdateTip.classList.add('hidden');
+        dom.homeUpdateTip.textContent = '';
+    }
+
+    if (dom.homeUpdateBanner) {
+        dom.homeUpdateBanner.classList.add('hidden');
+    }
+
+    if (dom.homeUpdateBannerText) {
+        dom.homeUpdateBannerText.textContent = '';
+    }
+
+    if (dom.homeUpdateBannerLink) {
+        dom.homeUpdateBannerLink.classList.add('hidden');
+        dom.homeUpdateBannerLink.removeAttribute('href');
     }
 
     try {
@@ -2381,9 +2593,14 @@ async function checkGitHubUpdate(options = {}) {
 
         if (!res.ok) {
             const message = data.message || '检查更新失败，请稍后重试';
-            if (dom.appUpdateStatus) {
-                dom.appUpdateStatus.textContent = message;
-            }
+            renderUpdateCheckResult({
+                success: false,
+                current_version: data.current_version,
+                latest_version: data.latest_version,
+                update_available: false,
+                release_url: null,
+                message
+            });
             if (!silent) {
                 showToast(message, 'error');
             }
@@ -2400,10 +2617,9 @@ async function checkGitHubUpdate(options = {}) {
         }
 
         if (data.update_available) {
-            if (dom.appUpdateStatus) {
-                dom.appUpdateStatus.textContent = `${data.message || '发现新版本'}。${UPDATE_GUIDE_TEXT}`;
+            if (!silent) {
+                showToast(`发现新版本: ${data.latest_version}。${UPDATE_GUIDE_TEXT}`, 'success');
             }
-            showToast(`发现新版本: ${data.latest_version}。${UPDATE_GUIDE_TEXT}`, 'success');
         } else {
             if (!silent) {
                 showToast('当前已是最新版本', 'info');
@@ -2415,18 +2631,33 @@ async function checkGitHubUpdate(options = {}) {
                 showToast('请先完成 Token 验证后再检查更新', 'error');
             }
         } else {
-            if (dom.appUpdateStatus) {
-                dom.appUpdateStatus.textContent = '检查更新失败，请稍后重试';
-            }
+            renderUpdateCheckResult({
+                success: false,
+                current_version: dom.appCurrentVersion?.value || '',
+                latest_version: dom.appLatestVersion?.value || '',
+                update_available: false,
+                release_url: null,
+                message: '检查更新失败，请稍后重试'
+            });
             if (!silent) {
                 showToast('检查更新失败，请稍后重试', 'error');
             }
         }
     } finally {
         state.updateCheckInProgress = false;
-        if (!silent) {
+
+        if (dom.checkUpdateBtn) {
             dom.checkUpdateBtn.disabled = false;
-            dom.checkUpdateBtn.textContent = previousLabel;
+            if (!silent) {
+                dom.checkUpdateBtn.textContent = previousLabel;
+            }
+        }
+
+        if (dom.homeCheckUpdateBtn) {
+            dom.homeCheckUpdateBtn.disabled = false;
+            if (!silent) {
+                dom.homeCheckUpdateBtn.textContent = previousHomeLabel;
+            }
         }
     }
 }
@@ -2529,6 +2760,7 @@ async function fetchSettings() {
         }
     }
 
+    applyDesktopShellState(data.server);
     renderHomePanel(data.server);
     updateLanSecurityRisk(data.server);
 

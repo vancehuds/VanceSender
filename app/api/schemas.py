@@ -159,6 +159,15 @@ class LaunchSettings(BaseModel):
     show_console_on_start: bool | None = None
 
 
+class DesktopWindowActionRequest(BaseModel):
+    action: Literal["minimize", "toggle_maximize", "close"]
+
+
+class DesktopWindowStateResponse(BaseModel):
+    active: bool
+    maximized: bool
+
+
 class AISettings(BaseModel):
     default_provider: str | None = None
     system_prompt: str | None = None

@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.api.schemas import (
     AISettings,
+    DesktopWindowActionRequest,
+    DesktopWindowStateResponse,
     LaunchSettings,
     MessageResponse,
     PublicConfigResponse,
@@ -27,6 +29,10 @@ from app.core.config import (
     save_config,
     update_config,
     update_provider,
+)
+from app.core.desktop_shell import (
+    get_desktop_window_state as get_desktop_shell_state,
+    perform_window_action,
 )
 from app.core.network import get_lan_ipv4_addresses
 from app.core.public_config import fetch_github_public_config
@@ -120,6 +126,12 @@ async def get_settings(request: Request):
 
     server_section["app_version"] = APP_VERSION
     server_section["token_set"] = bool(server_section.get("token"))
+    desktop_window_state = get_desktop_shell_state()
+    server_section["desktop_shell_active"] = desktop_window_state["active"]
+    server_section["desktop_shell_maximized"] = desktop_window_state["maximized"]
+    server_section["ui_mode"] = (
+        "desktop" if desktop_window_state["active"] else "browser"
+    )
     server_section["risk_no_token_with_lan"] = (
         bool(server_section.get("lan_access")) and not server_section["token_set"]
     )
@@ -136,6 +148,43 @@ async def get_settings(request: Request):
         sender=cfg.get("sender", {}),
         ai=ai_section,
         quick_overlay=cfg.get("quick_overlay", {}),
+    )
+
+
+@router.get("/desktop-window", response_model=DesktopWindowStateResponse)
+async def get_desktop_window_state_route():
+    """获取内嵌桌面窗口状态。"""
+    state = get_desktop_shell_state()
+    return DesktopWindowStateResponse(
+        active=state["active"], maximized=state["maximized"]
+    )
+
+
+@router.post("/desktop-window/action", response_model=DesktopWindowStateResponse)
+async def post_desktop_window_action(body: DesktopWindowActionRequest):
+    """执行内嵌桌面窗口控制动作。"""
+    state = get_desktop_shell_state()
+    if not state["active"]:
+        raise HTTPException(status_code=400, detail="当前未启用桌面内嵌窗口")
+
+    if body.action == "toggle_maximize":
+        success = (
+            perform_window_action("restore")
+            if state["maximized"]
+            else perform_window_action("maximize")
+        )
+    elif body.action == "minimize":
+        success = perform_window_action("minimize")
+    else:
+        success = perform_window_action("close")
+
+    if not success:
+        raise HTTPException(status_code=400, detail="窗口控制失败，请稍后重试")
+
+    updated_state = get_desktop_shell_state()
+    return DesktopWindowStateResponse(
+        active=updated_state["active"],
+        maximized=updated_state["maximized"],
     )
 
 
