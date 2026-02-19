@@ -23,6 +23,7 @@ _CLOSE_ACTION_VALUES = {
 _window_lock = threading.Lock()
 _desktop_window: object | None = None
 _quick_panel_window: object | None = None
+_quick_panel_window_url = ""
 _quick_panel_return_hwnd = 0
 _window_maximized = False
 _exit_requested = False
@@ -163,6 +164,20 @@ def _get_quick_panel_window() -> object | None:
     """Return current quick-panel window handle if available."""
     with _window_lock:
         return _quick_panel_window
+
+
+def _set_quick_panel_window_url(url: str) -> None:
+    """Persist current quick-panel URL to avoid redundant reloads."""
+    global _quick_panel_window_url
+    normalized = str(url or "").strip()
+    with _window_lock:
+        _quick_panel_window_url = normalized
+
+
+def _get_quick_panel_window_url() -> str:
+    """Read cached quick-panel URL for reload checks."""
+    with _window_lock:
+        return str(_quick_panel_window_url)
 
 
 def _set_quick_panel_return_hwnd(hwnd: int) -> None:
@@ -373,6 +388,7 @@ def _close_desktop_window(force_exit: bool = True) -> bool:
             except Exception:
                 pass
         _set_quick_panel_window(None)
+        _set_quick_panel_window_url("")
         _set_quick_panel_return_hwnd(0)
 
     _stop_tray_controller()
@@ -591,6 +607,81 @@ def get_desktop_window_state() -> dict[str, bool]:
     }
 
 
+def preload_quick_panel_window(start_url: str, title: str) -> bool:
+    """Pre-create hidden quick-send panel window for hotkey instant show."""
+    if not is_desktop_window_active():
+        return False
+
+    normalized_url = str(start_url).strip()
+    if not normalized_url:
+        return False
+
+    normalized_title = str(title).strip() or "VanceSender 快捷发送"
+
+    quick_panel_window = _get_quick_panel_window()
+    if quick_panel_window is not None:
+        if _get_quick_panel_window_url() != normalized_url:
+            load_url_method = getattr(quick_panel_window, "load_url", None)
+            if callable(load_url_method):
+                try:
+                    load_url_method(normalized_url)
+                    _set_quick_panel_window_url(normalized_url)
+                except Exception:
+                    pass
+
+        hide_method = getattr(quick_panel_window, "hide", None)
+        if callable(hide_method):
+            try:
+                hide_method()
+            except Exception:
+                pass
+        return True
+
+    try:
+        webview = importlib.import_module("webview")
+    except Exception:
+        return False
+
+    window_kwargs: dict[str, object] = {
+        "url": normalized_url,
+        "width": 640,
+        "height": 780,
+        "min_size": (500, 560),
+        "resizable": True,
+        "text_select": True,
+        "frameless": True,
+        "easy_drag": False,
+        "on_top": True,
+        "hidden": True,
+    }
+
+    try:
+        quick_panel_window = webview.create_window(normalized_title, **window_kwargs)
+    except TypeError:
+        # Older runtime may not support hidden param.
+        window_kwargs.pop("hidden", None)
+        try:
+            quick_panel_window = webview.create_window(
+                normalized_title, **window_kwargs
+            )
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+    _set_quick_panel_window(quick_panel_window)
+    _set_quick_panel_window_url(normalized_url)
+
+    hide_method = getattr(quick_panel_window, "hide", None)
+    if callable(hide_method):
+        try:
+            hide_method()
+        except Exception:
+            pass
+
+    return True
+
+
 def open_or_focus_quick_panel_window(
     start_url: str,
     title: str,
@@ -611,12 +702,14 @@ def open_or_focus_quick_panel_window(
 
     quick_panel_window = _get_quick_panel_window()
     if quick_panel_window is not None:
-        load_url_method = getattr(quick_panel_window, "load_url", None)
-        if callable(load_url_method):
-            try:
-                load_url_method(normalized_url)
-            except Exception:
-                pass
+        if _get_quick_panel_window_url() != normalized_url:
+            load_url_method = getattr(quick_panel_window, "load_url", None)
+            if callable(load_url_method):
+                try:
+                    load_url_method(normalized_url)
+                    _set_quick_panel_window_url(normalized_url)
+                except Exception:
+                    pass
 
         shown = False
         for method_name in ("show", "restore"):
@@ -635,31 +728,29 @@ def open_or_focus_quick_panel_window(
             return True
 
         _set_quick_panel_window(None)
+        _set_quick_panel_window_url("")
 
-    try:
-        webview = importlib.import_module("webview")
-    except Exception:
+    if not preload_quick_panel_window(normalized_url, normalized_title):
         return False
 
-    window_kwargs: dict[str, object] = {
-        "url": normalized_url,
-        "width": 640,
-        "height": 780,
-        "min_size": (500, 560),
-        "resizable": True,
-        "text_select": True,
-        "frameless": True,
-        "easy_drag": False,
-        "on_top": True,
-    }
-
-    try:
-        quick_panel_window = webview.create_window(normalized_title, **window_kwargs)
-    except Exception:
+    quick_panel_window = _get_quick_panel_window()
+    if quick_panel_window is None:
         return False
 
-    _set_quick_panel_window(quick_panel_window)
-    return True
+    shown = False
+    for method_name in ("show", "restore"):
+        method = getattr(quick_panel_window, method_name, None)
+        if not callable(method):
+            continue
+
+        try:
+            method()
+        except Exception:
+            continue
+
+        shown = True
+
+    return shown
 
 
 def perform_quick_panel_window_action(
@@ -705,6 +796,7 @@ def perform_quick_panel_window_action(
             return False
 
         _set_quick_panel_window(None)
+        _set_quick_panel_window_url("")
         _ = _restore_quick_panel_return_focus()
         _set_quick_panel_return_hwnd(0)
         return True
@@ -766,6 +858,7 @@ def open_desktop_window(
         _stop_tray_controller()
         _set_desktop_window(None)
         _set_quick_panel_window(None)
+        _set_quick_panel_window_url("")
         _set_quick_panel_return_hwnd(0)
         _set_window_maximized(False)
         _set_exit_requested(False)

@@ -12,6 +12,7 @@ import ctypes
 import json
 import queue
 import threading
+import time
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -19,7 +20,10 @@ import tkinter as tk
 from tkinter import ttk
 
 from app.core.config import PRESETS_DIR, load_config
-from app.core.desktop_shell import open_or_focus_quick_panel_window
+from app.core.desktop_shell import (
+    open_or_focus_quick_panel_window,
+    preload_quick_panel_window,
+)
 from app.core.overlay_status import register_overlay_status_handler
 from app.core.sender import sender
 
@@ -185,6 +189,11 @@ class QuickOverlayModule:
         poll_ms = int(overlay_cfg.get("poll_interval_ms", 40) or 40)
         self._poll_interval_ms = max(20, min(200, poll_ms))
         self._compact_mode = bool(overlay_cfg.get("compact_mode", False))
+        preload_delay_ms = int(overlay_cfg.get("preload_start_delay_ms", 2500) or 2500)
+        self._preload_start_delay_seconds = max(
+            0.0,
+            min(30.0, float(preload_delay_ms) / 1000.0),
+        )
 
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -211,6 +220,11 @@ class QuickOverlayModule:
 
         self._status_hide_job: str | None = None
         self._last_foreground_hwnd = 0
+        self._last_preload_attempt_monotonic = 0.0
+        self._preload_retry_interval_seconds = 1.2
+        self._preload_not_before_monotonic = (
+            time.monotonic() + self._preload_start_delay_seconds
+        )
 
         self._web_base_url = str(web_base_url or "").strip()
         self._desktop_token = str(desktop_token or "").strip()
@@ -589,6 +603,8 @@ class QuickOverlayModule:
             self._root.quit()
             return
 
+        self._preload_web_quick_panel_if_needed()
+
         hotkey_active = bool(self._hotkey_vks) and all(
             _is_vk_pressed(vk) for vk in self._hotkey_vks
         )
@@ -699,6 +715,27 @@ class QuickOverlayModule:
             quick_panel_url,
             "VanceSender 快捷发送面板",
             return_focus_hwnd=self._last_foreground_hwnd,
+        )
+
+    def _preload_web_quick_panel_if_needed(self) -> None:
+        now = time.monotonic()
+        if now < self._preload_not_before_monotonic:
+            return
+
+        if (
+            now - self._last_preload_attempt_monotonic
+            < self._preload_retry_interval_seconds
+        ):
+            return
+        self._last_preload_attempt_monotonic = now
+
+        quick_panel_url = self._resolve_web_quick_panel_url()
+        if quick_panel_url is None:
+            return
+
+        _ = preload_quick_panel_window(
+            quick_panel_url,
+            "VanceSender 快捷发送面板",
         )
 
     def _popup_visible(self) -> bool:
