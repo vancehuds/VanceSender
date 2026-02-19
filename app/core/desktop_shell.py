@@ -24,6 +24,7 @@ _window_lock = threading.Lock()
 _desktop_window: object | None = None
 _quick_panel_window: object | None = None
 _quick_panel_window_url = ""
+_quick_panel_visible = False
 _quick_panel_return_hwnd = 0
 _window_maximized = False
 _exit_requested = False
@@ -156,14 +157,30 @@ def _get_desktop_window() -> object | None:
 def _set_quick_panel_window(window: object | None) -> None:
     """Store current quick-panel window handle for runtime controls."""
     global _quick_panel_window
+    global _quick_panel_visible
     with _window_lock:
         _quick_panel_window = window
+        if window is None:
+            _quick_panel_visible = False
 
 
 def _get_quick_panel_window() -> object | None:
     """Return current quick-panel window handle if available."""
     with _window_lock:
         return _quick_panel_window
+
+
+def _set_quick_panel_visible(value: bool) -> None:
+    """Store whether quick-panel window is currently visible."""
+    global _quick_panel_visible
+    with _window_lock:
+        _quick_panel_visible = bool(value)
+
+
+def is_quick_panel_window_visible() -> bool:
+    """Return whether quick-panel window is currently visible."""
+    with _window_lock:
+        return bool(_quick_panel_visible)
 
 
 def _set_quick_panel_window_url(url: str) -> None:
@@ -205,6 +222,40 @@ def _restore_quick_panel_return_focus() -> bool:
         return bool(_user32.SetForegroundWindow(hwnd))
     except Exception:
         return False
+
+
+def _focus_quick_panel_window(window: object, title: str) -> None:
+    """Best-effort focus activation for quick-panel window."""
+    for method_name in ("bring_to_front",):
+        method = getattr(window, method_name, None)
+        if not callable(method):
+            continue
+
+        try:
+            method()
+        except Exception:
+            continue
+
+    find_window_method = getattr(_user32, "FindWindowW", None)
+    if not callable(find_window_method):
+        return
+
+    normalized_title = str(title).strip()
+    if not normalized_title:
+        return
+
+    try:
+        raw_hwnd = find_window_method(None, normalized_title)
+        hwnd = 0
+        if isinstance(raw_hwnd, int):
+            hwnd = raw_hwnd
+        elif isinstance(raw_hwnd, ctypes.c_void_p):
+            hwnd = int(raw_hwnd.value or 0)
+
+        if hwnd > 0 and bool(_user32.IsWindow(hwnd)):
+            _user32.SetForegroundWindow(hwnd)
+    except Exception:
+        return
 
 
 def _set_window_maximized(value: bool) -> None:
@@ -670,6 +721,8 @@ def preload_quick_panel_window(start_url: str, title: str) -> bool:
         except Exception:
             pass
 
+    _set_quick_panel_visible(False)
+
     return True
 
 
@@ -716,6 +769,8 @@ def open_or_focus_quick_panel_window(
             shown = True
 
         if shown:
+            _set_quick_panel_visible(True)
+            _focus_quick_panel_window(quick_panel_window, normalized_title)
             return True
 
         _set_quick_panel_window(None)
@@ -740,6 +795,10 @@ def open_or_focus_quick_panel_window(
             continue
 
         shown = True
+
+    if shown:
+        _set_quick_panel_visible(True)
+        _focus_quick_panel_window(quick_panel_window, normalized_title)
 
     return shown
 
@@ -773,6 +832,7 @@ def perform_quick_panel_window_action(
                     hidden = False
 
         if hidden:
+            _set_quick_panel_visible(False)
             _ = _restore_quick_panel_return_focus()
         return hidden
 
@@ -801,6 +861,7 @@ def perform_quick_panel_window_action(
     except Exception:
         return False
 
+    _set_quick_panel_visible(False)
     return True
 
 

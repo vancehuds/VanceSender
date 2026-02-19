@@ -338,7 +338,6 @@ const dom = {
     desktopWindowToggleMaximize: document.getElementById('desktop-window-toggle-maximize'),
     desktopWindowClose: document.getElementById('desktop-window-close'),
     quickPanelTitlebar: document.getElementById('quick-panel-titlebar'),
-    quickPanelWindowMinimize: document.getElementById('quick-panel-window-minimize'),
     quickPanelWindowClose: document.getElementById('quick-panel-window-close'),
 
     navItems: document.querySelectorAll('.nav-item'),
@@ -741,7 +740,7 @@ function initDesktopTitlebar() {
 
 function syncQuickPanelTitlebarControls() {
     const shouldDisable = !state.quickPanel.mode || state.quickPanel.actionInProgress;
-    [dom.quickPanelWindowMinimize, dom.quickPanelWindowClose].forEach((button) => {
+    [dom.quickPanelWindowClose].forEach((button) => {
         if (!button) return;
         button.disabled = shouldDisable;
     });
@@ -773,12 +772,6 @@ function initQuickPanelMode() {
     const quickPanel = document.getElementById('panel-quick-send');
     if (quickPanel) {
         quickPanel.classList.add('active');
-    }
-
-    if (dom.quickPanelWindowMinimize) {
-        dom.quickPanelWindowMinimize.addEventListener('click', () => {
-            void invokeQuickPanelWindowAction('minimize');
-        });
     }
 
     if (dom.quickPanelWindowClose) {

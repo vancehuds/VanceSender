@@ -21,7 +21,9 @@ from tkinter import ttk
 
 from app.core.config import PRESETS_DIR, load_config
 from app.core.desktop_shell import (
+    is_quick_panel_window_visible,
     open_or_focus_quick_panel_window,
+    perform_quick_panel_window_action,
     preload_quick_panel_window,
 )
 from app.core.overlay_status import register_overlay_status_handler
@@ -747,14 +749,20 @@ class QuickOverlayModule:
             return False
 
     def _show_popup(self) -> None:
+        if is_quick_panel_window_visible():
+            _ = perform_quick_panel_window_action("dismiss")
+            return
+
+        if self._popup is not None and self._popup_visible():
+            self._hide_popup(restore_focus=True)
+            return
+
         self._remember_foreground_window()
 
         if self._show_web_quick_panel():
             return
 
         if self._popup is None:
-            return
-        if self._popup_visible():
             return
 
         self._refresh_presets()
