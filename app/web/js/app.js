@@ -74,8 +74,12 @@ async function apiFetch(url, options = {}) {
     }
     const res = await window.fetch(url, options);
     if (res.status === 401) {
+        const hadToken = Boolean(token);
         clearToken();
-        showAuthGate();
+        showAuthGate({
+            showError: hadToken,
+            message: 'Token 错误，请重新输入'
+        });
         throw new Error('AUTH_REQUIRED');
     }
     return res;
@@ -141,7 +145,10 @@ function renderProviderTestResult(data, status) {
     box.classList.remove('hidden');
 }
 
-function showAuthGate() {
+function showAuthGate(options = {}) {
+    const showError = Boolean(options.showError);
+    const message = String(options.message || 'Token 错误，请重新输入');
+
     if (isDesktopEmbeddedClient()) {
         const gate = document.getElementById('auth-gate');
         if (gate) {
@@ -155,8 +162,29 @@ function showAuthGate() {
         return;
     }
 
-    document.getElementById('auth-gate').classList.remove('hidden');
-    document.getElementById('auth-token-input').focus();
+    const gate = document.getElementById('auth-gate');
+    const input = document.getElementById('auth-token-input');
+    const errEl = document.getElementById('auth-error');
+
+    if (gate) {
+        gate.classList.remove('hidden');
+    }
+
+    if (errEl) {
+        if (showError) {
+            errEl.textContent = message;
+            errEl.classList.remove('hidden');
+        } else {
+            errEl.classList.add('hidden');
+        }
+    }
+
+    if (input) {
+        if (showError) {
+            input.value = '';
+        }
+        input.focus();
+    }
 }
 
 function hideAuthGate() {
@@ -193,7 +221,10 @@ async function submitAuth() {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (res.status === 401) {
+            errEl.textContent = 'Token 错误，请重新输入';
             errEl.classList.remove('hidden');
+            input.focus();
+            input.select();
             return;
         }
         setToken(token);
@@ -421,7 +452,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const r = await window.fetch('/api/v1/send/status', { headers });
         if (r.status === 401) {
-            showAuthGate();
+            showAuthGate({
+                showError: Boolean(token),
+                message: 'Token 错误，请重新输入'
+            });
             return;
         }
     } catch (e) { /* server unreachable — proceed, errors will surface later */ }
