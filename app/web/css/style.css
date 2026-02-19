@@ -582,14 +582,15 @@ input::placeholder {
     min-height: 0;
 }
 
-.textarea-wrapper {
-    margin-bottom: 16px;
+#modal-import-text {
+    max-width: 620px;
 }
 
-#main-input {
-    height: 120px;
+#import-text-input {
+    min-height: 220px;
     font-family: monospace;
     line-height: 1.5;
+    resize: vertical;
 }
 
 .input-actions {
@@ -1379,9 +1380,8 @@ input:checked + .slider:before {
         padding: 12px;
     }
 
-    #main-input {
-        height: 92px;
-        font-size: 14px;
+    #import-text-input {
+        min-height: 180px;
         padding: 10px;
     }
     

@@ -217,13 +217,6 @@
 
                 <div class="send-container">
                     <div class="input-card glass-card">
-                        <div class="textarea-wrapper">
-                            <textarea id="main-input" placeholder="在此输入文本...
-每行一句
-/me 开头为动作
-/do 开头为描述
-默认识别为 /me"></textarea>
-                        </div>
                         <div class="input-actions">
                             <div class="input-action-buttons">
                                 <button id="import-btn" class="btn btn-primary" type="button">
@@ -233,7 +226,7 @@
                                     <span class="icon">🗑️</span> 清空
                                 </button>
                             </div>
-                            <span class="hint">Ctrl+Enter 快速导入</span>
+                            <span class="hint">弹窗内 Ctrl+Enter 快速导入</span>
                         </div>
                     </div>
 
@@ -750,6 +743,23 @@
         <div class="modal-actions">
             <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
             <button id="confirm-save-preset" class="btn btn-primary" type="button">保存</button>
+        </div>
+    </div>
+
+    <!-- Import Text Modal -->
+    <div id="modal-import-text" class="modal glass-card hidden">
+        <h3>导入文本</h3>
+        <div class="form-group">
+            <label for="import-text-input">文本内容</label>
+            <textarea id="import-text-input" rows="8" class="full-width" placeholder="在此输入文本...
+每行一句
+/me 开头为动作
+/do 开头为描述
+默认识别为 /me"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="confirm-import-text" class="btn btn-primary" type="button">导入</button>
         </div>
     </div>
 

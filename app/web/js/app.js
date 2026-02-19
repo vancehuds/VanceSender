@@ -257,7 +257,7 @@ const dom = {
 
     navItems: document.querySelectorAll('.nav-item'),
     panels: document.querySelectorAll('.panel'),
-    textInput: document.getElementById('main-input'),
+    importTextInput: document.getElementById('import-text-input'),
     textList: document.getElementById('text-list'),
     totalCount: document.getElementById('total-count'),
     importBtn: document.getElementById('import-btn'),
@@ -366,12 +366,14 @@ const dom = {
     // Modals
     modalBackdrop: document.getElementById('modal-backdrop'),
     modalSavePreset: document.getElementById('modal-save-preset'),
+    modalImportText: document.getElementById('modal-import-text'),
     modalEditText: document.getElementById('modal-edit-text'),
     modalAIRewrite: document.getElementById('modal-ai-rewrite'),
     modalProvider: document.getElementById('modal-provider'),
     modalDesktopCloseConfirm: document.getElementById('modal-desktop-close-confirm'),
     presetNameInput: document.getElementById('preset-name-input'),
     confirmSavePreset: document.getElementById('confirm-save-preset'),
+    confirmImportText: document.getElementById('confirm-import-text'),
     editTextModalTitle: document.getElementById('edit-text-modal-title'),
     editTextType: document.getElementById('edit-text-type'),
     editTextContent: document.getElementById('edit-text-content'),
@@ -815,7 +817,9 @@ function initHomePanel() {
 
 // --- Send Panel Logic ---
 function initSendPanel() {
-    dom.importBtn.addEventListener('click', parseAndImportText);
+    dom.importBtn.addEventListener('click', () => {
+        openModal('modal-import-text');
+    });
     dom.addTextItemBtn.addEventListener('click', openAddTextItemModal);
     dom.clearBtn.addEventListener('click', () => {
         if (hasPresetUnsavedChanges()) {
@@ -825,13 +829,14 @@ function initSendPanel() {
 
         state.texts = [];
         clearCurrentPresetSelection();
-        dom.textInput.value = '';
         renderTextList();
     });
 
-    dom.textInput.addEventListener('keydown', (e) => {
+    dom.confirmImportText.addEventListener('click', submitImportTextFromModal);
+    dom.importTextInput.addEventListener('keydown', (e) => {
         if (e.ctrlKey && e.key === 'Enter') {
-            parseAndImportText();
+            e.preventDefault();
+            submitImportTextFromModal();
         }
     });
 
@@ -975,9 +980,20 @@ function bindPresetUnsavedWarning() {
     });
 }
 
-function parseAndImportText() {
-    const raw = dom.textInput.value.trim();
-    if (!raw) return;
+function submitImportTextFromModal() {
+    const importedCount = parseAndImportText(dom.importTextInput.value);
+    if (importedCount <= 0) {
+        dom.importTextInput.focus({ preventScroll: true });
+        return;
+    }
+
+    dom.importTextInput.value = '';
+    closeModal();
+}
+
+function parseAndImportText(rawText) {
+    const raw = String(rawText || '').trim();
+    if (!raw) return 0;
 
     const lines = raw.split('\n').filter(l => l.trim());
     const newTexts = lines.map(line => {
@@ -998,10 +1014,10 @@ function parseAndImportText() {
 
     state.texts = [...state.texts, ...newTexts];
     renderTextList();
-    dom.textInput.value = ''; // Clear input after import
 
     const saveHint = state.currentPresetId ? '，可点击“保存到当前预设”持久化修改' : '';
     showToast(`已导入 ${newTexts.length} 条文本${saveHint}`, 'success');
+    return newTexts.length;
 }
 
 function renderTextList() {
