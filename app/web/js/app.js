@@ -783,7 +783,7 @@ function initQuickPanelMode() {
 
     if (dom.quickPanelWindowClose) {
         dom.quickPanelWindowClose.addEventListener('click', () => {
-            void invokeQuickPanelWindowAction('close');
+            void invokeQuickPanelWindowAction('dismiss');
         });
     }
 

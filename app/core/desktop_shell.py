@@ -628,13 +628,6 @@ def preload_quick_panel_window(start_url: str, title: str) -> bool:
                     _set_quick_panel_window_url(normalized_url)
                 except Exception:
                     pass
-
-        hide_method = getattr(quick_panel_window, "hide", None)
-        if callable(hide_method):
-            try:
-                hide_method()
-            except Exception:
-                pass
         return True
 
     try:
@@ -652,20 +645,10 @@ def preload_quick_panel_window(start_url: str, title: str) -> bool:
         "frameless": True,
         "easy_drag": False,
         "on_top": True,
-        "hidden": True,
     }
 
     try:
         quick_panel_window = webview.create_window(normalized_title, **window_kwargs)
-    except TypeError:
-        # Older runtime may not support hidden param.
-        window_kwargs.pop("hidden", None)
-        try:
-            quick_panel_window = webview.create_window(
-                normalized_title, **window_kwargs
-            )
-        except Exception:
-            return False
     except Exception:
         return False
 
