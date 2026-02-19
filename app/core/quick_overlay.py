@@ -13,11 +13,13 @@ import json
 import queue
 import threading
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import tkinter as tk
 from tkinter import ttk
 
 from app.core.config import PRESETS_DIR, load_config
+from app.core.desktop_shell import open_or_focus_quick_panel_window
 from app.core.overlay_status import register_overlay_status_handler
 from app.core.sender import sender
 
@@ -159,7 +161,13 @@ def _preset_lines(preset: dict[str, Any]) -> list[str]:
 class QuickOverlayModule:
     """Global trigger popup + non-focus status overlay."""
 
-    def __init__(self, overlay_cfg: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        overlay_cfg: dict[str, Any],
+        *,
+        web_base_url: str = "",
+        desktop_token: str = "",
+    ) -> None:
         hotkey_raw = str(
             overlay_cfg.get("trigger_hotkey", DEFAULT_HOTKEY) or ""
         ).strip()
@@ -203,6 +211,9 @@ class QuickOverlayModule:
 
         self._status_hide_job: str | None = None
         self._last_foreground_hwnd = 0
+
+        self._web_base_url = str(web_base_url or "").strip()
+        self._desktop_token = str(desktop_token or "").strip()
 
         self._popup_bg = "#0a1222"
         self._surface_bg = "#111c33"
@@ -632,6 +643,63 @@ class QuickOverlayModule:
         y = max(0, (sh - h) // 2)
         self._popup.geometry(f"{w}x{h}+{x}+{y}")
 
+    def _append_query_params(self, url: str, params: dict[str, str]) -> str:
+        parsed = urlsplit(url)
+        merged_items = dict(parse_qsl(parsed.query, keep_blank_values=True))
+
+        for key, value in params.items():
+            normalized_key = str(key).strip()
+            normalized_value = str(value).strip()
+            if not normalized_key or not normalized_value:
+                continue
+            merged_items[normalized_key] = normalized_value
+
+        merged_query = urlencode(merged_items)
+        return urlunsplit(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                merged_query,
+                parsed.fragment,
+            )
+        )
+
+    def _resolve_web_quick_panel_url(self) -> str | None:
+        base_url = self._web_base_url
+        if not base_url:
+            cfg = load_config()
+            server_cfg = cfg.get("server", {})
+            host = str(server_cfg.get("host", "127.0.0.1") or "127.0.0.1").strip()
+            try:
+                port = int(server_cfg.get("port", 8730))
+            except (TypeError, ValueError):
+                port = 8730
+            browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
+            base_url = f"http://{browser_host}:{port}"
+
+        normalized_base = str(base_url).strip()
+        if not normalized_base:
+            return None
+
+        params = {
+            "vs_quick_panel": "1",
+            "vs_desktop": "1",
+        }
+        if self._desktop_token:
+            params["vs_token"] = self._desktop_token
+        return self._append_query_params(normalized_base, params)
+
+    def _show_web_quick_panel(self) -> bool:
+        quick_panel_url = self._resolve_web_quick_panel_url()
+        if quick_panel_url is None:
+            return False
+
+        return open_or_focus_quick_panel_window(
+            quick_panel_url,
+            "VanceSender 快捷发送面板",
+        )
+
     def _popup_visible(self) -> bool:
         if self._popup is None:
             return False
@@ -641,6 +709,9 @@ class QuickOverlayModule:
             return False
 
     def _show_popup(self) -> None:
+        if self._show_web_quick_panel():
+            return
+
         if self._popup is None:
             return
         if self._popup_visible():
@@ -781,7 +852,7 @@ class QuickOverlayModule:
 
         text = self._current_lines[idx]
         self._hide_popup(restore_focus=True)
-        self._enqueue_status("单条发送中...", final=False)
+        self._enqueue_status("快捷面板单条发送中...", final=False)
 
         worker = threading.Thread(
             target=self._run_single_send,
@@ -797,7 +868,7 @@ class QuickOverlayModule:
 
         texts = list(self._current_lines)
         self._hide_popup(restore_focus=True)
-        self._enqueue_status(f"开始发送，共 {len(texts)} 条", final=False)
+        self._enqueue_status(f"快捷面板批量发送开始，共 {len(texts)} 条", final=False)
 
         worker = threading.Thread(
             target=self._run_batch_send,
@@ -816,11 +887,11 @@ class QuickOverlayModule:
 
         result = sender.send_single(text, **options)
         if result.get("success"):
-            self._enqueue_status("单条发送完成", final=True)
+            self._enqueue_status("快捷面板单条发送完成", final=True)
             return
 
         error = str(result.get("error", "未知错误"))
-        self._enqueue_status(f"单条发送失败: {error}", final=True)
+        self._enqueue_status(f"快捷面板单条发送失败: {error}", final=True)
 
     def _run_batch_send(self, texts: list[str]) -> None:
         if not sender.try_claim_batch():
@@ -838,7 +909,7 @@ class QuickOverlayModule:
                 **options,
             )
         except Exception as exc:
-            self._enqueue_status(f"批量发送异常: {exc}", final=True)
+            self._enqueue_status(f"快捷面板批量发送异常: {exc}", final=True)
         finally:
             sender.mark_idle()
 
@@ -847,32 +918,32 @@ class QuickOverlayModule:
         if status == "sending":
             index = int(progress.get("index", 0)) + 1
             total = int(progress.get("total", 0))
-            self._enqueue_status(f"发送中 {index}/{total}", final=False)
+            self._enqueue_status(f"快捷面板发送中 {index}/{total}", final=False)
             return
 
         if status == "line_result":
             if not progress.get("success", False):
                 index = int(progress.get("index", 0)) + 1
                 error = str(progress.get("error", "未知错误"))
-                self._enqueue_status(f"第 {index} 条失败: {error}", final=False)
+                self._enqueue_status(f"快捷面板第 {index} 条失败: {error}", final=False)
             return
 
         if status == "completed":
             success_count = int(progress.get("success", 0))
             failed_count = int(progress.get("failed", 0))
             self._enqueue_status(
-                f"发送完成：成功 {success_count} 条，失败 {failed_count} 条",
+                f"快捷面板发送完成：成功 {success_count} 条，失败 {failed_count} 条",
                 final=True,
             )
             return
 
         if status == "cancelled":
-            self._enqueue_status("发送已取消", final=True)
+            self._enqueue_status("快捷面板发送已取消", final=True)
             return
 
         if status == "error":
             error = str(progress.get("error", "未知错误"))
-            self._enqueue_status(f"发送失败: {error}", final=True)
+            self._enqueue_status(f"快捷面板发送失败: {error}", final=True)
 
     def _enqueue_status(self, text: str, final: bool) -> None:
         self._status_queue.put((text, final))
@@ -974,7 +1045,12 @@ class QuickOverlayModule:
         user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
 
 
-def create_quick_overlay_module(cfg: dict[str, Any]) -> QuickOverlayModule | None:
+def create_quick_overlay_module(
+    cfg: dict[str, Any],
+    *,
+    web_base_url: str = "",
+    desktop_token: str = "",
+) -> QuickOverlayModule | None:
     """Create module instance from config, or return None if disabled."""
     section = cfg.get("quick_overlay", {})
     enabled = bool(section.get("enabled", True))
@@ -982,7 +1058,11 @@ def create_quick_overlay_module(cfg: dict[str, Any]) -> QuickOverlayModule | Non
         register_overlay_status_handler(None)
         return None
 
-    module = QuickOverlayModule(section)
+    module = QuickOverlayModule(
+        section,
+        web_base_url=web_base_url,
+        desktop_token=desktop_token,
+    )
     show_webui_send_status = bool(section.get("show_webui_send_status", True))
     if show_webui_send_status:
         register_overlay_status_handler(module.notify_status)

@@ -38,12 +38,20 @@ class PresetResponse(BaseModel):
 
 class SendSingleRequest(BaseModel):
     text: str = Field(..., min_length=1, description="完整的发送文本，如 /me 打开车门")
+    source: Literal["webui", "quick_panel"] = Field(
+        "webui",
+        description="发送来源标识：webui 或 quick_panel",
+    )
 
 
 class SendBatchRequest(BaseModel):
     texts: list[str] = Field(..., min_length=1, description="待发送的文本列表")
     delay_between: int | None = Field(
         None, ge=200, le=30000, description="每条消息间隔(ms)，留空使用默认值"
+    )
+    source: Literal["webui", "quick_panel"] = Field(
+        "webui",
+        description="发送来源标识：webui 或 quick_panel",
     )
 
 
@@ -171,6 +179,10 @@ class DesktopWindowActionRequest(BaseModel):
         "hide_to_tray",
         "exit",
     ]
+
+
+class QuickPanelWindowActionRequest(BaseModel):
+    action: Literal["minimize", "close"]
 
 
 class DesktopWindowStateResponse(BaseModel):

@@ -341,16 +341,6 @@ def main() -> None:
     launch_cfg = launch_section if isinstance(launch_section, dict) else {}
     public_config_result = fetch_github_public_config_sync(cfg)
 
-    quick_overlay_module = None
-    try:
-        from app.core.quick_overlay import create_quick_overlay_module
-
-        quick_overlay_module = create_quick_overlay_module(cfg)
-        if quick_overlay_module is not None:
-            quick_overlay_module.start()
-    except Exception as exc:
-        print(f"⚠ 快捷悬浮窗模块启动失败: {exc}")
-
     lan_access = bool(server_cfg.get("lan_access"))
     if args.lan:
         lan_access = True
@@ -377,6 +367,21 @@ def main() -> None:
     webview_available = has_webview_support()
     use_desktop_shell = not args.no_webview and webview_available
     desktop_start_url = intro_url or local_web_base_url
+
+    quick_overlay_module = None
+    try:
+        from app.core.quick_overlay import create_quick_overlay_module
+
+        quick_overlay_module = create_quick_overlay_module(
+            cfg,
+            web_base_url=local_web_base_url,
+            desktop_token=server_token,
+        )
+        if quick_overlay_module is not None:
+            quick_overlay_module.start()
+    except Exception as exc:
+        print(f"⚠ 快捷悬浮窗模块启动失败: {exc}")
+
     if use_desktop_shell:
         desktop_launch_params: dict[str, str] = {"vs_desktop": "1"}
         if server_token:

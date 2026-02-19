@@ -14,6 +14,7 @@ from app.api.schemas import (
     ProviderCreate,
     ProviderResponse,
     ProviderUpdate,
+    QuickPanelWindowActionRequest,
     QuickOverlaySettings,
     SenderSettings,
     ServerSettings,
@@ -35,6 +36,7 @@ from app.core.desktop_shell import (
     get_desktop_window_state as get_desktop_shell_state,
     has_system_tray_support,
     normalize_close_action,
+    perform_quick_panel_window_action,
     perform_window_action,
 )
 from app.core.network import get_lan_ipv4_addresses
@@ -199,6 +201,16 @@ async def post_desktop_window_action(body: DesktopWindowActionRequest):
         active=updated_state["active"],
         maximized=updated_state["maximized"],
     )
+
+
+@router.post("/quick-panel-window/action", response_model=MessageResponse)
+async def post_quick_panel_window_action(body: QuickPanelWindowActionRequest):
+    """执行快捷面板窗口控制动作。"""
+    if not perform_quick_panel_window_action(body.action):
+        raise HTTPException(status_code=400, detail="快捷面板窗口控制失败")
+
+    action_text = "最小化" if body.action == "minimize" else "关闭"
+    return MessageResponse(message=f"快捷面板已{action_text}")
 
 
 @router.get("/update-check", response_model=UpdateCheckResponse)

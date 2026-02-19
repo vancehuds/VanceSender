@@ -4,14 +4,24 @@
  */
 
 const DESKTOP_CLIENT_SESSION_KEY = 'vs_desktop_client';
+const QUICK_PANEL_SESSION_KEY = 'vs_quick_panel_mode';
 
 function readDesktopLaunchContext() {
     const params = new URLSearchParams(window.location.search || '');
     const queryDesktopClient = params.get('vs_desktop') === '1';
+    const queryQuickPanelMode = params.get('vs_quick_panel') === '1';
 
     if (queryDesktopClient) {
         try {
             window.sessionStorage.setItem(DESKTOP_CLIENT_SESSION_KEY, '1');
+        } catch (e) {
+            // ignore sessionStorage failures
+        }
+    }
+
+    if (queryQuickPanelMode) {
+        try {
+            window.sessionStorage.setItem(QUICK_PANEL_SESSION_KEY, '1');
         } catch (e) {
             // ignore sessionStorage failures
         }
@@ -24,7 +34,15 @@ function readDesktopLaunchContext() {
         sessionDesktopClient = false;
     }
 
+    let sessionQuickPanelMode = false;
+    try {
+        sessionQuickPanelMode = window.sessionStorage.getItem(QUICK_PANEL_SESSION_KEY) === '1';
+    } catch (e) {
+        sessionQuickPanelMode = false;
+    }
+
     const desktopClient = queryDesktopClient || sessionDesktopClient;
+    const quickPanelMode = queryQuickPanelMode || sessionQuickPanelMode;
     const launchToken = desktopClient ? String(params.get('vs_token') || '').trim() : '';
     if (launchToken) {
         try {
@@ -34,9 +52,10 @@ function readDesktopLaunchContext() {
         }
     }
 
-    if (params.has('vs_desktop') || params.has('vs_token')) {
+    if (params.has('vs_desktop') || params.has('vs_token') || params.has('vs_quick_panel')) {
         params.delete('vs_desktop');
         params.delete('vs_token');
+        params.delete('vs_quick_panel');
         if (window.history && typeof window.history.replaceState === 'function') {
             const nextSearch = params.toString();
             const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash || ''}`;
@@ -44,13 +63,20 @@ function readDesktopLaunchContext() {
         }
     }
 
-    return { desktopClient };
+    return {
+        desktopClient,
+        quickPanelMode
+    };
 }
 
 const launchContext = readDesktopLaunchContext();
 
 function isDesktopEmbeddedClient() {
     return Boolean(launchContext.desktopClient);
+}
+
+function isQuickPanelMode() {
+    return Boolean(launchContext.quickPanelMode);
 }
 
 // --- Auth ---
@@ -276,6 +302,10 @@ const state = {
         clientEmbedded: isDesktopEmbeddedClient(),
         uiVisible: false,
         authFailureNotified: false
+    },
+    quickPanel: {
+        mode: isQuickPanelMode(),
+        actionInProgress: false
     }
 };
 
@@ -285,6 +315,9 @@ const dom = {
     desktopWindowMinimize: document.getElementById('desktop-window-minimize'),
     desktopWindowToggleMaximize: document.getElementById('desktop-window-toggle-maximize'),
     desktopWindowClose: document.getElementById('desktop-window-close'),
+    quickPanelTitlebar: document.getElementById('quick-panel-titlebar'),
+    quickPanelWindowMinimize: document.getElementById('quick-panel-window-minimize'),
+    quickPanelWindowClose: document.getElementById('quick-panel-window-close'),
 
     navItems: document.querySelectorAll('.nav-item'),
     panels: document.querySelectorAll('.panel'),
@@ -435,6 +468,7 @@ const APPLY_REWRITE_IDLE_TEXT = dom.applyRewriteBtn?.textContent || '应用更�
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     initDesktopTitlebar();
+    initQuickPanelMode();
     initNavigation();
     initHomePanel();
     initSendPanel();
@@ -522,6 +556,20 @@ function syncDesktopTitlebarControls() {
 function applyDesktopShellState(serverSettings) {
     const active = Boolean(serverSettings?.desktop_shell_active);
     const maximized = Boolean(serverSettings?.desktop_shell_maximized);
+
+    if (isQuickPanelMode()) {
+        state.desktopShell.active = active;
+        state.desktopShell.uiVisible = false;
+        state.desktopShell.maximized = false;
+
+        document.body.classList.remove('desktop-shell-mode');
+        if (dom.desktopTitlebar) {
+            dom.desktopTitlebar.classList.add('hidden');
+        }
+
+        syncDesktopTitlebarControls();
+        return;
+    }
 
     state.desktopShell.active = active;
     state.desktopShell.uiVisible = active && state.desktopShell.clientEmbedded;
@@ -666,6 +714,93 @@ function initDesktopTitlebar() {
         dom.desktopCloseConfirmExit.addEventListener('click', () => {
             void applyDesktopCloseDecision('exit');
         });
+    }
+}
+
+function syncQuickPanelTitlebarControls() {
+    const shouldDisable = !state.quickPanel.mode || state.quickPanel.actionInProgress;
+    [dom.quickPanelWindowMinimize, dom.quickPanelWindowClose].forEach((button) => {
+        if (!button) return;
+        button.disabled = shouldDisable;
+    });
+}
+
+function initQuickPanelMode() {
+    if (!state.quickPanel.mode) {
+        return;
+    }
+
+    document.body.classList.add('quick-panel-mode');
+
+    if (dom.desktopTitlebar) {
+        dom.desktopTitlebar.classList.add('hidden');
+    }
+
+    if (dom.quickPanelTitlebar) {
+        dom.quickPanelTitlebar.classList.remove('hidden');
+    }
+
+    dom.navItems.forEach((item) => {
+        item.classList.remove('active');
+    });
+
+    dom.panels.forEach((panel) => {
+        panel.classList.remove('active');
+    });
+
+    const quickPanel = document.getElementById('panel-quick-send');
+    if (quickPanel) {
+        quickPanel.classList.add('active');
+    }
+
+    if (dom.quickPanelWindowMinimize) {
+        dom.quickPanelWindowMinimize.addEventListener('click', () => {
+            void invokeQuickPanelWindowAction('minimize');
+        });
+    }
+
+    if (dom.quickPanelWindowClose) {
+        dom.quickPanelWindowClose.addEventListener('click', () => {
+            void invokeQuickPanelWindowAction('close');
+        });
+    }
+
+    syncQuickPanelTitlebarControls();
+}
+
+async function invokeQuickPanelWindowAction(action) {
+    if (!state.quickPanel.mode || state.quickPanel.actionInProgress) {
+        return;
+    }
+
+    state.quickPanel.actionInProgress = true;
+    syncQuickPanelTitlebarControls();
+
+    try {
+        const response = await apiFetch('/api/v1/settings/quick-panel-window/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            showToast(`快捷面板窗口控制失败: ${formatApiErrorDetail(payload.detail, response.status)}`, 'error');
+            if (action === 'close') {
+                window.close();
+            }
+            return;
+        }
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') {
+            showToast('快捷面板窗口控制失败，请稍后重试', 'error');
+            if (action === 'close') {
+                window.close();
+            }
+        }
+    } finally {
+        state.quickPanel.actionInProgress = false;
+        syncQuickPanelTitlebarControls();
     }
 }
 
@@ -1357,11 +1492,12 @@ function confirmEditTextUpdate() {
 }
 
 async function sendTextNow(text, successMessage = '发送成功') {
+    const source = isQuickPanelMode() ? 'quick_panel' : 'webui';
     try {
         const res = await apiFetch('/api/v1/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            body: JSON.stringify({ text, source })
         });
         const data = await res.json().catch(() => ({}));
 
@@ -1400,6 +1536,7 @@ async function startBatchSend() {
     // Convert state texts to raw strings
     const textsToSend = state.texts.map(t => `/${t.type} ${t.content}`);
     const delay = parseInt(dom.sendDelay.value) || 1800;
+    const source = isQuickPanelMode() ? 'quick_panel' : 'webui';
 
     try {
         const response = await apiFetch('/api/v1/send/batch', {
@@ -1407,7 +1544,8 @@ async function startBatchSend() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 texts: textsToSend,
-                delay_between: delay
+                delay_between: delay,
+                source
             })
         });
 
@@ -1962,7 +2100,8 @@ function renderQuickSendList() {
         button.addEventListener('click', async () => {
             const textToSend = `/${item.type} ${item.content}`;
             button.disabled = true;
-            const sent = await sendTextNow(textToSend, '快速发送成功');
+            const successMessage = isQuickPanelMode() ? '快捷面板发送成功' : '快速发送成功';
+            const sent = await sendTextNow(textToSend, successMessage);
             if (sent) {
                 button.classList.add('sent');
                 setTimeout(() => button.classList.remove('sent'), 320);

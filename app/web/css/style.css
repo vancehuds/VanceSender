@@ -20,6 +20,7 @@
     --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --transition-speed: 0.24s;
     --desktop-titlebar-height: 50px;
+    --quick-panel-titlebar-height: 52px;
 }
 
 * {
@@ -174,6 +175,180 @@ body.desktop-shell-mode .app-container {
 
 body.desktop-shell-mode .toast-container {
     top: calc(var(--desktop-titlebar-height) + 16px);
+}
+
+/* Quick Panel Frameless Titlebar */
+.quick-panel-titlebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--quick-panel-titlebar-height);
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    background: linear-gradient(110deg, rgba(6, 16, 30, 0.94), rgba(9, 18, 33, 0.9) 55%, rgba(14, 18, 38, 0.9));
+    border-bottom: 1px solid rgba(79, 209, 255, 0.26);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 24px rgba(2, 8, 23, 0.42);
+    z-index: 280;
+    overflow: hidden;
+}
+
+.quick-panel-titlebar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(79, 209, 255, 0.24), rgba(139, 123, 255, 0.12), rgba(79, 209, 255, 0));
+    opacity: 0.9;
+}
+
+.quick-panel-titlebar-drag {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 14px 0 16px;
+    cursor: grab;
+    user-select: none;
+}
+
+.quick-panel-titlebar-drag:active {
+    cursor: grabbing;
+}
+
+.quick-panel-titlebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    pointer-events: none;
+}
+
+.quick-panel-titlebar-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #53dbff, #8b7bff);
+    color: #061222;
+    font-size: 0.96rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(79, 209, 255, 0.32);
+}
+
+.quick-panel-titlebar-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.quick-panel-titlebar-name {
+    color: #ecf4ff;
+    font-size: 0.92rem;
+    font-weight: 620;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.quick-panel-titlebar-sub {
+    color: var(--text-muted);
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+
+.quick-panel-titlebar-actions {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.quick-panel-window-btn {
+    width: 46px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.98rem;
+    cursor: pointer;
+    transition: background var(--transition-speed), color var(--transition-speed);
+}
+
+.quick-panel-window-btn:hover {
+    background: rgba(79, 209, 255, 0.14);
+    color: #f8fbff;
+}
+
+.quick-panel-window-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.quick-panel-window-btn:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgba(79, 209, 255, 0.55);
+}
+
+.quick-panel-window-btn-close:hover {
+    background: rgba(251, 113, 133, 0.76);
+    color: #fff;
+}
+
+body.quick-panel-mode {
+    padding-top: var(--quick-panel-titlebar-height);
+}
+
+body.quick-panel-mode .app-container {
+    height: calc(100vh - var(--quick-panel-titlebar-height));
+}
+
+body.quick-panel-mode .sidebar {
+    display: none;
+}
+
+body.quick-panel-mode .content {
+    width: 100%;
+}
+
+body.quick-panel-mode .panel:not(#panel-quick-send) {
+    display: none !important;
+}
+
+body.quick-panel-mode #panel-quick-send {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    height: 100%;
+    overflow: hidden;
+    padding: 20px 20px 18px;
+}
+
+body.quick-panel-mode #panel-quick-send .panel-header {
+    margin-bottom: 14px;
+}
+
+body.quick-panel-mode #panel-quick-send .quick-send-container {
+    flex: 1;
+    min-height: 0;
+}
+
+body.quick-panel-mode #panel-quick-send .quick-send-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+body.quick-panel-mode .toast-container {
+    top: calc(var(--quick-panel-titlebar-height) + 14px);
 }
 
 /* Scrollbar */

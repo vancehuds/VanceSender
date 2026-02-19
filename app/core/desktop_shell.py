@@ -21,6 +21,7 @@ _CLOSE_ACTION_VALUES = {
 
 _window_lock = threading.Lock()
 _desktop_window: object | None = None
+_quick_panel_window: object | None = None
 _window_maximized = False
 _exit_requested = False
 _tray_controller: _TrayController | None = None
@@ -146,6 +147,19 @@ def _get_desktop_window() -> object | None:
     """Return current desktop window handle if available."""
     with _window_lock:
         return _desktop_window
+
+
+def _set_quick_panel_window(window: object | None) -> None:
+    """Store current quick-panel window handle for runtime controls."""
+    global _quick_panel_window
+    with _window_lock:
+        _quick_panel_window = window
+
+
+def _get_quick_panel_window() -> object | None:
+    """Return current quick-panel window handle if available."""
+    with _window_lock:
+        return _quick_panel_window
 
 
 def _set_window_maximized(value: bool) -> None:
@@ -319,6 +333,16 @@ def _close_desktop_window(force_exit: bool = True) -> bool:
 
     if force_exit:
         _set_exit_requested(True)
+
+    quick_panel_window = _get_quick_panel_window()
+    if quick_panel_window is not None:
+        quick_panel_destroy = getattr(quick_panel_window, "destroy", None)
+        if callable(quick_panel_destroy):
+            try:
+                quick_panel_destroy()
+            except Exception:
+                pass
+        _set_quick_panel_window(None)
 
     _stop_tray_controller()
 
@@ -536,6 +560,103 @@ def get_desktop_window_state() -> dict[str, bool]:
     }
 
 
+def open_or_focus_quick_panel_window(start_url: str, title: str) -> bool:
+    """Open or focus a frameless quick-send panel window."""
+    if not is_desktop_window_active():
+        return False
+
+    normalized_url = str(start_url).strip()
+    if not normalized_url:
+        return False
+
+    normalized_title = str(title).strip() or "VanceSender 快捷发送"
+
+    quick_panel_window = _get_quick_panel_window()
+    if quick_panel_window is not None:
+        load_url_method = getattr(quick_panel_window, "load_url", None)
+        if callable(load_url_method):
+            try:
+                load_url_method(normalized_url)
+            except Exception:
+                pass
+
+        shown = False
+        for method_name in ("show", "restore"):
+            method = getattr(quick_panel_window, method_name, None)
+            if not callable(method):
+                continue
+
+            try:
+                method()
+            except Exception:
+                continue
+
+            shown = True
+
+        if shown:
+            return True
+
+        _set_quick_panel_window(None)
+
+    try:
+        webview = importlib.import_module("webview")
+    except Exception:
+        return False
+
+    window_kwargs: dict[str, object] = {
+        "url": normalized_url,
+        "width": 640,
+        "height": 780,
+        "min_size": (500, 560),
+        "resizable": True,
+        "text_select": True,
+        "frameless": True,
+        "easy_drag": False,
+        "on_top": True,
+    }
+
+    try:
+        quick_panel_window = webview.create_window(normalized_title, **window_kwargs)
+    except Exception:
+        return False
+
+    _set_quick_panel_window(quick_panel_window)
+    return True
+
+
+def perform_quick_panel_window_action(
+    action: Literal["minimize", "close"],
+) -> bool:
+    """Perform a window action for quick-panel frameless window."""
+    window = _get_quick_panel_window()
+    if window is None:
+        return False
+
+    if action == "close":
+        destroy_method = getattr(window, "destroy", None)
+        if not callable(destroy_method):
+            return False
+
+        try:
+            destroy_method()
+        except Exception:
+            return False
+
+        _set_quick_panel_window(None)
+        return True
+
+    minimize_method = getattr(window, "minimize", None)
+    if not callable(minimize_method):
+        return False
+
+    try:
+        minimize_method()
+    except Exception:
+        return False
+
+    return True
+
+
 def open_desktop_window(
     start_url: str,
     title: str,
@@ -580,6 +701,7 @@ def open_desktop_window(
     finally:
         _stop_tray_controller()
         _set_desktop_window(None)
+        _set_quick_panel_window(None)
         _set_window_maximized(False)
         _set_exit_requested(False)
     return True
