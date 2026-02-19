@@ -1667,7 +1667,7 @@ async function applyRewrite() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ texts: rewritten })
             });
-            
+
             if (!saveRes.ok) {
                 const savePayload = await saveRes.json().catch(() => ({}));
                 throw new Error(formatApiErrorDetail(savePayload.detail, saveRes.status));
@@ -2801,7 +2801,7 @@ async function fetchPublicConfig(options = {}) {
     }
 }
 
-const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最新版，关闭当前程序(Ctrl+C)后删除旧文件夹后解压新文件夹(或者可尝试直接覆盖)并重新启动程序。';
+const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最新版，关闭程序后删除旧文件夹后解压新文件夹(或者可尝试直接覆盖)并重新启动程序。';
 
 async function checkGitHubUpdate(options = {}) {
     const silent = Boolean(options.silent);
