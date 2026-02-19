@@ -530,7 +530,7 @@ GET /api/v1/settings
     "enable_tray_on_start": true,
     "close_action": "ask",
     "open_webui_on_start": false,
-    "open_intro_on_first_start": true,
+    "open_intro_on_first_start": false,
     "show_console_on_start": false
   },
   "sender": {

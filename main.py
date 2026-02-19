@@ -230,7 +230,7 @@ def _resolve_intro_start_url(
     launch_section = cfg.get("launch")
     launch_cfg = launch_section if isinstance(launch_section, dict) else {}
 
-    open_intro_on_first_start = bool(launch_cfg.get("open_intro_on_first_start", True))
+    open_intro_on_first_start = bool(launch_cfg.get("open_intro_on_first_start", False))
     intro_seen = bool(launch_cfg.get("intro_seen", False))
     if open_intro_on_first_start and not intro_seen:
         return f"{base_url}/static/intro.html", True

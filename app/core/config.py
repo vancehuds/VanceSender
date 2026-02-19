@@ -62,7 +62,7 @@ def _default_config() -> dict[str, Any]:
         },
         "launch": {
             "open_webui_on_start": False,
-            "open_intro_on_first_start": True,
+            "open_intro_on_first_start": False,
             "intro_seen": False,
             "show_console_on_start": False,
             "enable_tray_on_start": True,
