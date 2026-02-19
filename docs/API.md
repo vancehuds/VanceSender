@@ -522,10 +522,13 @@ GET /api/v1/settings
     "webui_url": "http://127.0.0.1:8730",
     "docs_url": "http://127.0.0.1:8730/docs",
     "token_set": true,
+    "system_tray_supported": true,
     "risk_no_token_with_lan": false,
     "security_warning": ""
   },
   "launch": {
+    "start_minimized_to_tray": true,
+    "close_action": "ask",
     "open_webui_on_start": false,
     "open_intro_on_first_start": true,
     "show_console_on_start": false
@@ -566,7 +569,7 @@ GET /api/v1/settings
 - `server.token` 不会明文返回，只通过 `token_set` 表示是否已配置
 - provider 的 `api_key` 不会明文返回，只通过 `api_key_set` 表示是否已配置
 - 当 `lan_access=true` 且 `token` 为空时，`risk_no_token_with_lan=true`
-- `launch` 区块用于控制启动行为（浏览器自动打开、介绍页、控制台日志窗口）
+- `launch` 区块用于控制启动行为（托盘化、关闭行为、浏览器自动打开、介绍页、控制台日志窗口）
 
 ---
 
@@ -793,6 +796,8 @@ PUT /api/v1/settings/launch
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
+| `start_minimized_to_tray` | bool | 启动后是否先最小化到系统托盘 |
+| `close_action` | string | 关闭行为：`ask` / `minimize_to_tray` / `exit` |
 | `open_webui_on_start` | bool | 是否在启动时自动打开系统浏览器 |
 | `open_intro_on_first_start` | bool | 是否在首次启动时打开介绍页 |
 | `show_console_on_start` | bool | 是否在启动时显示控制台日志窗口 |

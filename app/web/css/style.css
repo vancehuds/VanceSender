@@ -380,6 +380,10 @@ body.desktop-shell-mode .toast-container {
     grid-column: 1 / -1;
 }
 
+.home-card-announcement {
+    grid-column: 1 / -1;
+}
+
 .home-code-block {
     padding: 10px 12px;
     border-radius: 10px;
@@ -406,6 +410,11 @@ body.desktop-shell-mode .toast-container {
 
 .home-link-btn {
     flex: 1 1 150px;
+}
+
+.section-inline-link {
+    margin-top: 8px;
+    display: inline-flex;
 }
 
 /* Glass Cards */
@@ -1242,6 +1251,10 @@ input:checked + .slider:before {
     }
 
     .home-card-security {
+        grid-column: auto;
+    }
+
+    .home-card-announcement {
         grid-column: auto;
     }
 

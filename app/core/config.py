@@ -65,6 +65,8 @@ def _default_config() -> dict[str, Any]:
             "open_intro_on_first_start": True,
             "intro_seen": False,
             "show_console_on_start": False,
+            "start_minimized_to_tray": True,
+            "close_action": "ask",
         },
         "sender": {
             "method": "clipboard",

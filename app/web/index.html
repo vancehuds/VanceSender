@@ -175,6 +175,18 @@
                         </div>
                     </div>
 
+                    <div id="home-public-config-card" class="glass-card home-card home-card-announcement hidden">
+                        <h2 id="home-public-config-title">远程公告</h2>
+                        <div id="home-public-config-content" class="public-config-content"></div>
+                        <a
+                            id="home-public-config-link"
+                            class="btn btn-sm btn-ghost hidden section-inline-link"
+                            href="#"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >查看详情</a>
+                    </div>
+
                     <div class="glass-card home-card home-card-security">
                         <h2>安全提示</h2>
                         <div id="home-security-warning" class="risk-warning hidden"></div>
@@ -417,10 +429,9 @@
                         <div id="public-config-content" class="public-config-content"></div>
                         <a
                             id="public-config-link"
-                            class="btn btn-sm btn-ghost hidden"
+                            class="btn btn-sm btn-ghost hidden section-inline-link"
                             href="#"
                             rel="noopener noreferrer"
-                            style="margin-top:8px;display:inline-block;"
                             target="_blank"
                         >查看详情</a>
                     </div>
@@ -446,10 +457,9 @@
                             <div id="app-update-status" class="desc">未检查</div>
                             <a
                                 id="app-update-release-link"
-                                class="btn btn-sm btn-ghost hidden"
+                                class="btn btn-sm btn-ghost hidden section-inline-link"
                                 href="#"
                                 rel="noopener noreferrer"
-                                style="margin-top:8px;display:inline-block;"
                                 target="_blank"
                             >查看发布页</a>
                         </div>
@@ -545,6 +555,16 @@
                         <h2>高级选项</h2>
                         <div class="setting-item-toggle">
                             <div class="setting-info">
+                                <label>启动后最小化到系统托盘</label>
+                                <p class="desc">默认开启。应用启动后不直接显示主窗口，可在托盘图标中打开。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-start-minimized-to-tray">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
                                 <label>启动时自动在浏览器打开 WebUI</label>
                                 <p class="desc">默认关闭。桌面版会自动以内嵌窗口显示，可按需手动开启浏览器启动。</p>
                             </div>
@@ -562,6 +582,17 @@
                                 <input type="checkbox" id="setting-show-console-on-start">
                                 <span class="slider round"></span>
                             </label>
+                        </div>
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label for="setting-close-action">点击关闭按钮时</label>
+                            <select id="setting-close-action">
+                                <option value="ask">每次询问（退出或最小化到托盘）</option>
+                                <option value="minimize_to_tray">直接最小化到托盘</option>
+                                <option value="exit">直接彻底关闭</option>
+                            </select>
+                            <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                选择“每次询问”时可在关闭弹窗中勾选记住选项，后续可在这里随时修改。
+                            </p>
                         </div>
                     </div>
 

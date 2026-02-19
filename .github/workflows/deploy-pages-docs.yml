@@ -10,6 +10,7 @@ on:
       - "app/web/css/intro.css"
       - "app/web/css/help.css"
       - "app/web/js/help.js"
+      - "public-config.yaml"
       - ".github/workflows/deploy-pages-docs.yml"
 
 permissions:
@@ -40,6 +41,7 @@ jobs:
           cp app/web/css/intro.css .site/css/intro.css
           cp app/web/css/help.css .site/css/help.css
           cp app/web/js/help.js .site/js/help.js
+          cp public-config.yaml .site/public-config.yaml
           touch .site/.nojekyll
 
       - name: Upload GitHub Pages artifact

@@ -7,6 +7,14 @@ on:
       - main
     tags:
       - "v*"
+    paths-ignore:
+      - "docs/**"
+      - ".gitignore"
+      - "AGENTS.md"
+      - "CNAME"
+      - "LICENSE"
+      - "README.md"
+      - "public-config.yaml"
 
 permissions:
   contents: write

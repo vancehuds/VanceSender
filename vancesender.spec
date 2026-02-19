@@ -16,6 +16,8 @@ datas = [
 
 hiddenimports = collect_submodules("uvicorn") + [
     *collect_submodules("webview"),
+    *collect_submodules("pystray"),
+    *collect_submodules("PIL"),
     "multipart",
 ]
 

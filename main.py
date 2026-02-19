@@ -29,7 +29,11 @@ from fastapi.responses import FileResponse
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import load_config, update_config
-from app.core.desktop_shell import has_webview_support, open_desktop_window
+from app.core.desktop_shell import (
+    has_system_tray_support,
+    has_webview_support,
+    open_desktop_window,
+)
 from app.core.network import get_lan_ipv4_addresses
 from app.core.public_config import fetch_github_public_config_sync
 from app.core.runtime_paths import get_bundle_root
@@ -365,6 +369,8 @@ def main() -> None:
 
     open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", False))
     show_console_on_start = bool(launch_cfg.get("show_console_on_start", False))
+    start_minimized_to_tray = bool(launch_cfg.get("start_minimized_to_tray", True))
+    tray_supported = has_system_tray_support()
     ui_mode_text = "桌面内嵌窗口" if use_desktop_shell else "浏览器模式"
 
     print(f"""
@@ -393,8 +399,12 @@ def main() -> None:
         print(f"║  认证:     未启用")
     print(f"║  浏览器启动: {'开启' if open_webui_on_start else '关闭'}")
     print(f"║  控制台日志: {'开启' if show_console_on_start else '关闭'}")
+    print(f"║  启动托盘化: {'开启' if start_minimized_to_tray else '关闭'}")
+    print(f"║  托盘支持: {'可用' if tray_supported else '不可用'}")
     if not args.no_webview and not webview_available:
         print(f"║  提示:     未检测到 pywebview，已回退浏览器模式")
+    if start_minimized_to_tray and not tray_supported:
+        print("║  提示:     未检测到系统托盘依赖，将改为正常显示窗口")
     print(f"║  GitHub:   {github_repository_url}")
     print(f"╚══════════════════════════════════════════════╝")
     print()
@@ -432,6 +442,7 @@ def main() -> None:
                 opened = open_desktop_window(
                     start_url=desktop_start_url,
                     title=f"{APP_NAME} v{APP_VERSION}",
+                    launch_options=launch_cfg,
                 )
                 _stop_uvicorn_background(server, server_thread)
                 if opened:

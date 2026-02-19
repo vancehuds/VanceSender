@@ -237,6 +237,10 @@ const dom = {
     homeUpdateTip: document.getElementById('home-update-tip'),
     homeUpdateReleaseLink: document.getElementById('home-update-release-link'),
     homeCheckUpdateBtn: document.getElementById('home-check-update-btn'),
+    homePublicConfigCard: document.getElementById('home-public-config-card'),
+    homePublicConfigTitle: document.getElementById('home-public-config-title'),
+    homePublicConfigContent: document.getElementById('home-public-config-content'),
+    homePublicConfigLink: document.getElementById('home-public-config-link'),
 
     // Settings
     settingMethod: document.getElementById('setting-method'),
@@ -250,8 +254,10 @@ const dom = {
     settingDelayBetweenLines: document.getElementById('setting-delay-between-lines'),
     settingTypingCharDelay: document.getElementById('setting-typing-char-delay'),
     settingLanAccess: document.getElementById('setting-lan-access'),
+    settingStartMinimizedToTray: document.getElementById('setting-start-minimized-to-tray'),
     settingOpenWebuiOnStart: document.getElementById('setting-open-webui-on-start'),
     settingShowConsoleOnStart: document.getElementById('setting-show-console-on-start'),
+    settingCloseAction: document.getElementById('setting-close-action'),
     lanUrls: document.getElementById('lan-urls'),
     lanIpValue: document.getElementById('lan-ip-value'),
     lanUrlValue: document.getElementById('lan-url-value'),
@@ -2197,8 +2203,10 @@ function getSettingsFormSnapshot() {
         delayBetweenLines: dom.settingDelayBetweenLines?.value || '',
         typingCharDelay: dom.settingTypingCharDelay?.value || '',
         lanAccess: Boolean(dom.settingLanAccess?.checked),
+        startMinimizedToTray: Boolean(dom.settingStartMinimizedToTray?.checked),
         openWebuiOnStart: Boolean(dom.settingOpenWebuiOnStart?.checked),
         showConsoleOnStart: Boolean(dom.settingShowConsoleOnStart?.checked),
+        closeAction: dom.settingCloseAction?.value || 'ask',
         overlayEnabled: Boolean(dom.settingOverlayEnabled?.checked),
         overlayShowWebuiStatus: Boolean(dom.settingOverlayShowWebuiStatus?.checked),
         overlayCompactMode: Boolean(dom.settingOverlayCompactMode?.checked),
@@ -2262,8 +2270,10 @@ function bindSettingsDirtyTracking() {
         dom.settingDelayBetweenLines,
         dom.settingTypingCharDelay,
         dom.settingLanAccess,
+        dom.settingStartMinimizedToTray,
         dom.settingOpenWebuiOnStart,
         dom.settingShowConsoleOnStart,
+        dom.settingCloseAction,
         dom.settingOverlayEnabled,
         dom.settingOverlayShowWebuiStatus,
         dom.settingOverlayCompactMode,
@@ -2476,53 +2486,70 @@ function renderUpdateCheckResult(data) {
 }
 
 function renderPublicConfig(data) {
-    if (!dom.publicConfigCard) return;
+    renderPublicConfigSection(data, {
+        card: dom.publicConfigCard,
+        title: dom.publicConfigTitle,
+        content: dom.publicConfigContent,
+        link: dom.publicConfigLink
+    });
+
+    renderPublicConfigSection(data, {
+        card: dom.homePublicConfigCard,
+        title: dom.homePublicConfigTitle,
+        content: dom.homePublicConfigContent,
+        link: dom.homePublicConfigLink
+    });
+}
+
+function renderPublicConfigSection(data, refs) {
+    const card = refs?.card;
+    if (!card) return;
 
     const contentText = String(data?.content || '').trim();
     const visible = Boolean(data?.visible && contentText);
-    dom.publicConfigCard.classList.toggle('hidden', !visible);
+    card.classList.toggle('hidden', !visible);
 
     if (!visible) {
-        if (dom.publicConfigTitle) {
-            dom.publicConfigTitle.textContent = '远程公告';
+        if (refs.title) {
+            refs.title.textContent = '远程公告';
         }
-        if (dom.publicConfigContent) {
-            dom.publicConfigContent.textContent = '';
+        if (refs.content) {
+            refs.content.textContent = '';
         }
-        if (dom.publicConfigLink) {
-            dom.publicConfigLink.classList.add('hidden');
-            dom.publicConfigLink.removeAttribute('href');
-            dom.publicConfigLink.textContent = '查看详情';
+        if (refs.link) {
+            refs.link.classList.add('hidden');
+            refs.link.removeAttribute('href');
+            refs.link.textContent = '查看详情';
         }
         return;
     }
 
     const titleText = String(data?.title || '').trim() || '远程公告';
-    if (dom.publicConfigTitle) {
-        dom.publicConfigTitle.textContent = titleText;
+    if (refs.title) {
+        refs.title.textContent = titleText;
     }
-    if (dom.publicConfigContent) {
-        dom.publicConfigContent.textContent = contentText;
+    if (refs.content) {
+        refs.content.textContent = contentText;
     }
 
-    if (dom.publicConfigLink) {
+    if (refs.link) {
         const linkUrl = String(data?.link_url || '').trim();
         const linkText = String(data?.link_text || '').trim() || '查看详情';
         if (linkUrl) {
-            dom.publicConfigLink.href = linkUrl;
-            dom.publicConfigLink.textContent = linkText;
-            dom.publicConfigLink.classList.remove('hidden');
+            refs.link.href = linkUrl;
+            refs.link.textContent = linkText;
+            refs.link.classList.remove('hidden');
         } else {
-            dom.publicConfigLink.classList.add('hidden');
-            dom.publicConfigLink.removeAttribute('href');
-            dom.publicConfigLink.textContent = '查看详情';
+            refs.link.classList.add('hidden');
+            refs.link.removeAttribute('href');
+            refs.link.textContent = '查看详情';
         }
     }
 }
 
 async function fetchPublicConfig(options = {}) {
     const silent = Boolean(options.silent);
-    if (!dom.publicConfigCard) return;
+    if (!dom.publicConfigCard && !dom.homePublicConfigCard) return;
 
     try {
         const res = await apiFetch('/api/v1/settings/public-config');
@@ -2713,11 +2740,25 @@ async function fetchSettings() {
     dom.sendDelay.value = data.sender.delay_between_lines || 1800;
     dom.settingLanAccess.checked = data.server.lan_access || false;
     const launch = data.launch || {};
+    const traySupported = data.server.system_tray_supported ?? true;
+    if (dom.settingStartMinimizedToTray) {
+        dom.settingStartMinimizedToTray.checked = traySupported && (launch.start_minimized_to_tray ?? true);
+        dom.settingStartMinimizedToTray.disabled = !traySupported;
+    }
     if (dom.settingOpenWebuiOnStart) {
         dom.settingOpenWebuiOnStart.checked = launch.open_webui_on_start ?? false;
     }
     if (dom.settingShowConsoleOnStart) {
         dom.settingShowConsoleOnStart.checked = launch.show_console_on_start ?? false;
+    }
+    if (dom.settingCloseAction) {
+        dom.settingCloseAction.value = ['ask', 'minimize_to_tray', 'exit'].includes(launch.close_action)
+            ? launch.close_action
+            : 'ask';
+        if (!traySupported) {
+            dom.settingCloseAction.value = 'exit';
+        }
+        dom.settingCloseAction.disabled = !traySupported;
     }
     dom.settingSystemPrompt.value = data.ai.system_prompt || '';
 
@@ -2926,8 +2967,10 @@ async function saveAllSettings() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                start_minimized_to_tray: Boolean(dom.settingStartMinimizedToTray?.checked),
                 open_webui_on_start: Boolean(dom.settingOpenWebuiOnStart?.checked),
-                show_console_on_start: Boolean(dom.settingShowConsoleOnStart?.checked)
+                show_console_on_start: Boolean(dom.settingShowConsoleOnStart?.checked),
+                close_action: dom.settingCloseAction?.value || 'ask'
             })
         });
 
