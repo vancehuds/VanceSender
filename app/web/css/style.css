@@ -352,6 +352,13 @@ body.desktop-shell-mode .toast-container {
     line-height: 1.45;
 }
 
+.home-update-banner-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .home-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -768,10 +775,6 @@ input::placeholder {
     box-shadow: 0 0 12px rgba(79, 209, 255, 0.55);
 }
 
-.hidden {
-    display: none !important;
-}
-
 /* Quick Send Panel */
 #panel-quick-send {
     display: flex;
@@ -1117,7 +1120,7 @@ input:checked + .slider:before {
     }
 
     .desktop-titlebar {
-        display: none !important;
+        display: none;
     }
 
     body.desktop-shell-mode {
@@ -1230,6 +1233,12 @@ input:checked + .slider:before {
 
     .home-update-banner .btn {
         width: 100%;
+    }
+
+    .home-update-banner-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .home-card-security {
@@ -2184,4 +2193,9 @@ input:checked + .slider:before {
         min-height: 44px;
         padding: 8px;
     }
+}
+
+/* Keep at file end so it can override component display rules */
+.hidden {
+    display: none;
 }

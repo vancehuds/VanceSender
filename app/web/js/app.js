@@ -165,6 +165,7 @@ const state = {
     lanRiskToastShown: false,
     startupUpdateChecked: false,
     updateCheckInProgress: false,
+    homeUpdateBannerDismissed: false,
     desktopShell: {
         active: false,
         maximized: false,
@@ -230,6 +231,7 @@ const dom = {
     homeCopyLocalBtn: document.getElementById('home-copy-local-btn'),
     homeUpdateBanner: document.getElementById('home-update-banner'),
     homeUpdateBannerText: document.getElementById('home-update-banner-text'),
+    homeUpdateBannerDismissBtn: document.getElementById('home-update-banner-dismiss-btn'),
     homeUpdateBannerLink: document.getElementById('home-update-banner-link'),
     homeUpdateStatus: document.getElementById('home-update-status'),
     homeUpdateTip: document.getElementById('home-update-tip'),
@@ -613,6 +615,15 @@ function initHomePanel() {
     if (dom.homeCheckUpdateBtn) {
         dom.homeCheckUpdateBtn.addEventListener('click', () => {
             checkGitHubUpdate();
+        });
+    }
+
+    if (dom.homeUpdateBannerDismissBtn) {
+        dom.homeUpdateBannerDismissBtn.addEventListener('click', () => {
+            state.homeUpdateBannerDismissed = true;
+            if (dom.homeUpdateBanner) {
+                dom.homeUpdateBanner.classList.add('hidden');
+            }
         });
     }
 }
@@ -2395,6 +2406,10 @@ function renderUpdateCheckResult(data) {
     const message = data.message || '检查完成';
     const hasUpdate = Boolean(data.success && data.update_available && data.latest_version);
     const latestVersionText = String(data.latest_version || '').trim();
+    if (!hasUpdate) {
+        state.homeUpdateBannerDismissed = false;
+    }
+    const shouldShowBanner = hasUpdate && !state.homeUpdateBannerDismissed;
     const updateStatusText = hasUpdate
         ? `发现新版本 v${latestVersionText}`
         : message;
@@ -2420,7 +2435,7 @@ function renderUpdateCheckResult(data) {
     }
 
     if (dom.homeUpdateBanner) {
-        dom.homeUpdateBanner.classList.toggle('hidden', !hasUpdate);
+        dom.homeUpdateBanner.classList.toggle('hidden', !shouldShowBanner);
     }
 
     if (dom.homeUpdateBannerText) {
@@ -2450,7 +2465,7 @@ function renderUpdateCheckResult(data) {
     }
 
     if (dom.homeUpdateBannerLink) {
-        if (hasUpdate && data.release_url) {
+        if (shouldShowBanner && data.release_url) {
             dom.homeUpdateBannerLink.href = data.release_url;
             dom.homeUpdateBannerLink.classList.remove('hidden');
         } else {
