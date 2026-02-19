@@ -169,7 +169,7 @@ server:
   token: ''
 
 launch:
-  start_minimized_to_tray: true  # 启动后先最小化到系统托盘（默认开启）
+  enable_tray_on_start: true  # 启动时启用系统托盘图标（默认开启）
   close_action: ask              # 关闭行为：ask / minimize_to_tray / exit
   open_webui_on_start: false  # 启动时自动在系统浏览器打开 WebUI（默认关闭）
   open_intro_on_first_start: true  # 首次启动时自动打开介绍页
@@ -216,7 +216,7 @@ ai:
 
 ### 启动页、浏览器自动打开、托盘与控制台
 
-- `launch.start_minimized_to_tray`：控制启动后是否先最小化到系统托盘（默认 `true`）
+- `launch.enable_tray_on_start`：控制启动时是否启用系统托盘图标（默认 `true`，启动后仍会打开主窗口）
 - `launch.close_action`：控制关闭行为（`ask` 每次询问、`minimize_to_tray` 直接托盘化、`exit` 直接退出）
 - `launch.open_webui_on_start`：控制每次启动是否自动在系统浏览器打开 WebUI（默认 `false`）
 - `launch.open_intro_on_first_start`：控制首次启动是否自动打开介绍页（默认 `true`）

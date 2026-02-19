@@ -254,7 +254,7 @@ const dom = {
     settingDelayBetweenLines: document.getElementById('setting-delay-between-lines'),
     settingTypingCharDelay: document.getElementById('setting-typing-char-delay'),
     settingLanAccess: document.getElementById('setting-lan-access'),
-    settingStartMinimizedToTray: document.getElementById('setting-start-minimized-to-tray'),
+    settingEnableTrayOnStart: document.getElementById('setting-enable-tray-on-start'),
     settingOpenWebuiOnStart: document.getElementById('setting-open-webui-on-start'),
     settingShowConsoleOnStart: document.getElementById('setting-show-console-on-start'),
     settingCloseAction: document.getElementById('setting-close-action'),
@@ -2203,7 +2203,7 @@ function getSettingsFormSnapshot() {
         delayBetweenLines: dom.settingDelayBetweenLines?.value || '',
         typingCharDelay: dom.settingTypingCharDelay?.value || '',
         lanAccess: Boolean(dom.settingLanAccess?.checked),
-        startMinimizedToTray: Boolean(dom.settingStartMinimizedToTray?.checked),
+        enableTrayOnStart: Boolean(dom.settingEnableTrayOnStart?.checked),
         openWebuiOnStart: Boolean(dom.settingOpenWebuiOnStart?.checked),
         showConsoleOnStart: Boolean(dom.settingShowConsoleOnStart?.checked),
         closeAction: dom.settingCloseAction?.value || 'ask',
@@ -2270,7 +2270,7 @@ function bindSettingsDirtyTracking() {
         dom.settingDelayBetweenLines,
         dom.settingTypingCharDelay,
         dom.settingLanAccess,
-        dom.settingStartMinimizedToTray,
+        dom.settingEnableTrayOnStart,
         dom.settingOpenWebuiOnStart,
         dom.settingShowConsoleOnStart,
         dom.settingCloseAction,
@@ -2741,9 +2741,10 @@ async function fetchSettings() {
     dom.settingLanAccess.checked = data.server.lan_access || false;
     const launch = data.launch || {};
     const traySupported = data.server.system_tray_supported ?? true;
-    if (dom.settingStartMinimizedToTray) {
-        dom.settingStartMinimizedToTray.checked = traySupported && (launch.start_minimized_to_tray ?? true);
-        dom.settingStartMinimizedToTray.disabled = !traySupported;
+    const launchEnableTrayOnStart = launch.enable_tray_on_start ?? launch.start_minimized_to_tray ?? true;
+    if (dom.settingEnableTrayOnStart) {
+        dom.settingEnableTrayOnStart.checked = traySupported && launchEnableTrayOnStart;
+        dom.settingEnableTrayOnStart.disabled = !traySupported;
     }
     if (dom.settingOpenWebuiOnStart) {
         dom.settingOpenWebuiOnStart.checked = launch.open_webui_on_start ?? false;
@@ -2967,7 +2968,7 @@ async function saveAllSettings() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                start_minimized_to_tray: Boolean(dom.settingStartMinimizedToTray?.checked),
+                enable_tray_on_start: Boolean(dom.settingEnableTrayOnStart?.checked),
                 open_webui_on_start: Boolean(dom.settingOpenWebuiOnStart?.checked),
                 show_console_on_start: Boolean(dom.settingShowConsoleOnStart?.checked),
                 close_action: dom.settingCloseAction?.value || 'ask'

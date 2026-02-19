@@ -21,14 +21,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
-from app.core.config import load_config, update_config
+from app.core.config import load_config, resolve_enable_tray_on_start, update_config
 from app.core.desktop_shell import (
     has_system_tray_support,
     has_webview_support,
@@ -39,6 +39,7 @@ from app.core.public_config import fetch_github_public_config_sync
 from app.core.runtime_paths import get_bundle_root
 
 WEB_DIR = get_bundle_root() / "app" / "web"
+ICON_FILE = get_bundle_root() / "ICON.PNG"
 
 
 def _is_ignorable_proactor_disconnect(context: dict[str, object]) -> bool:
@@ -106,9 +107,22 @@ def create_app() -> FastAPI:
     if WEB_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
-        @app.get("/")
-        async def serve_index():
+        async def _serve_icon_png() -> FileResponse:
+            if not ICON_FILE.exists():
+                raise HTTPException(status_code=404, detail="ICON.PNG not found")
+            return FileResponse(str(ICON_FILE), media_type="image/png")
+
+        async def _serve_favicon() -> FileResponse:
+            if not ICON_FILE.exists():
+                raise HTTPException(status_code=404, detail="ICON.PNG not found")
+            return FileResponse(str(ICON_FILE), media_type="image/png")
+
+        async def _serve_index() -> FileResponse:
             return FileResponse(str(WEB_DIR / "index.html"))
+
+        app.add_api_route("/ICON.PNG", _serve_icon_png, methods=["GET"])
+        app.add_api_route("/favicon.ico", _serve_favicon, methods=["GET"])
+        app.add_api_route("/", _serve_index, methods=["GET"])
 
     return app
 
@@ -369,7 +383,7 @@ def main() -> None:
 
     open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", False))
     show_console_on_start = bool(launch_cfg.get("show_console_on_start", False))
-    start_minimized_to_tray = bool(launch_cfg.get("start_minimized_to_tray", True))
+    enable_tray_on_start = resolve_enable_tray_on_start(launch_cfg)
     tray_supported = has_system_tray_support()
     ui_mode_text = "桌面内嵌窗口" if use_desktop_shell else "浏览器模式"
 
@@ -399,12 +413,12 @@ def main() -> None:
         print(f"║  认证:     未启用")
     print(f"║  浏览器启动: {'开启' if open_webui_on_start else '关闭'}")
     print(f"║  控制台日志: {'开启' if show_console_on_start else '关闭'}")
-    print(f"║  启动托盘化: {'开启' if start_minimized_to_tray else '关闭'}")
+    print(f"║  启动托盘: {'开启' if enable_tray_on_start else '关闭'}")
     print(f"║  托盘支持: {'可用' if tray_supported else '不可用'}")
     if not args.no_webview and not webview_available:
         print(f"║  提示:     未检测到 pywebview，已回退浏览器模式")
-    if start_minimized_to_tray and not tray_supported:
-        print("║  提示:     未检测到系统托盘依赖，将改为正常显示窗口")
+    if enable_tray_on_start and not tray_supported:
+        print("║  提示:     未检测到系统托盘依赖，将禁用托盘驻留")
     print(f"║  GitHub:   {github_repository_url}")
     print(f"╚══════════════════════════════════════════════╝")
     print()

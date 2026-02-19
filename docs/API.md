@@ -527,7 +527,7 @@ GET /api/v1/settings
     "security_warning": ""
   },
   "launch": {
-    "start_minimized_to_tray": true,
+    "enable_tray_on_start": true,
     "close_action": "ask",
     "open_webui_on_start": false,
     "open_intro_on_first_start": true,
@@ -796,7 +796,7 @@ PUT /api/v1/settings/launch
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `start_minimized_to_tray` | bool | 启动后是否先最小化到系统托盘 |
+| `enable_tray_on_start` | bool | 启动时是否启用系统托盘图标（启动后仍会显示主窗口） |
 | `close_action` | string | 关闭行为：`ask` / `minimize_to_tray` / `exit` |
 | `open_webui_on_start` | bool | 是否在启动时自动打开系统浏览器 |
 | `open_intro_on_first_start` | bool | 是否在首次启动时打开介绍页 |
@@ -805,6 +805,7 @@ PUT /api/v1/settings/launch
 说明：
 
 - 启动行为相关配置通常需重启后生效
+- 为兼容旧版本，服务端仍接受 `start_minimized_to_tray` 作为输入别名，并会写入新字段 `enable_tray_on_start`
 
 响应示例：
 

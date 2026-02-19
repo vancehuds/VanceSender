@@ -157,6 +157,8 @@ class LaunchSettings(BaseModel):
     open_webui_on_start: bool | None = None
     open_intro_on_first_start: bool | None = None
     show_console_on_start: bool | None = None
+    enable_tray_on_start: bool | None = None
+    # Deprecated input key, kept for backward compatibility.
     start_minimized_to_tray: bool | None = None
     close_action: Literal["ask", "minimize_to_tray", "exit"] | None = None
 

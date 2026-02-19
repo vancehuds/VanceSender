@@ -26,6 +26,7 @@ from app.core.config import (
     delete_provider,
     get_providers,
     load_config,
+    resolve_enable_tray_on_start,
     save_config,
     update_config,
     update_provider,
@@ -61,6 +62,7 @@ async def get_settings(request: Request):
     server_section = dict(cfg.get("server", {}))
     launch_raw = cfg.get("launch", {})
     launch_section = launch_raw if isinstance(launch_raw, dict) else {}
+    enable_tray_on_start = resolve_enable_tray_on_start(launch_section)
     launch_section = {
         "open_webui_on_start": bool(launch_section.get("open_webui_on_start", False)),
         "open_intro_on_first_start": bool(
@@ -69,9 +71,7 @@ async def get_settings(request: Request):
         "show_console_on_start": bool(
             launch_section.get("show_console_on_start", False)
         ),
-        "start_minimized_to_tray": bool(
-            launch_section.get("start_minimized_to_tray", True)
-        ),
+        "enable_tray_on_start": enable_tray_on_start,
         "close_action": normalize_close_action(
             launch_section.get("close_action", "ask")
         ),
@@ -266,7 +266,18 @@ async def update_launch_settings(body: LaunchSettings):
     if not patch:
         return MessageResponse(message="没有需要更新的设置", success=False)
 
-    update_config({"launch": patch})
+    if "enable_tray_on_start" not in patch and "start_minimized_to_tray" in patch:
+        patch["enable_tray_on_start"] = patch["start_minimized_to_tray"]
+    patch.pop("start_minimized_to_tray", None)
+
+    cfg = load_config()
+    launch_raw = cfg.get("launch", {})
+    launch_section = launch_raw if isinstance(launch_raw, dict) else {}
+    launch_section.pop("start_minimized_to_tray", None)
+    launch_section.update(patch)
+    cfg["launch"] = launch_section
+    save_config(cfg)
+
     return MessageResponse(message="启动设置已更新，重启后生效")
 
 

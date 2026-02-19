@@ -65,7 +65,7 @@ def _default_config() -> dict[str, Any]:
             "open_intro_on_first_start": True,
             "intro_seen": False,
             "show_console_on_start": False,
-            "start_minimized_to_tray": True,
+            "enable_tray_on_start": True,
             "close_action": "ask",
         },
         "sender": {
@@ -114,7 +114,32 @@ def _merge_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
     defaults = _default_config()
     result = defaults.copy()
     _deep_merge(result, cfg)
+
+    launch_raw = cfg.get("launch", {})
+    launch_section = result.get("launch", {})
+    if isinstance(launch_section, dict):
+        if (
+            isinstance(launch_raw, dict)
+            and "enable_tray_on_start" not in launch_raw
+            and "start_minimized_to_tray" in launch_raw
+        ):
+            launch_section["enable_tray_on_start"] = bool(
+                launch_raw.get("start_minimized_to_tray")
+            )
+        launch_section.pop("start_minimized_to_tray", None)
+
     return result
+
+
+def resolve_enable_tray_on_start(launch_cfg: dict[str, Any] | None) -> bool:
+    """Resolve launch tray switch with backward-compatible legacy key support."""
+    if not isinstance(launch_cfg, dict):
+        return True
+
+    if "enable_tray_on_start" in launch_cfg:
+        return bool(launch_cfg.get("enable_tray_on_start", True))
+
+    return bool(launch_cfg.get("start_minimized_to_tray", True))
 
 
 # ---------------------------------------------------------------------------
