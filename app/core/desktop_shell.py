@@ -379,17 +379,7 @@ def _close_desktop_window(force_exit: bool = True) -> bool:
     if force_exit:
         _set_exit_requested(True)
 
-    quick_panel_window = _get_quick_panel_window()
-    if quick_panel_window is not None:
-        quick_panel_destroy = getattr(quick_panel_window, "destroy", None)
-        if callable(quick_panel_destroy):
-            try:
-                quick_panel_destroy()
-            except Exception:
-                pass
-        _set_quick_panel_window(None)
-        _set_quick_panel_window_url("")
-        _set_quick_panel_return_hwnd(0)
+    _destroy_quick_panel_for_shutdown()
 
     _stop_tray_controller()
 
@@ -402,6 +392,22 @@ def _close_desktop_window(force_exit: bool = True) -> bool:
     _set_desktop_window(None)
     _set_window_maximized(False)
     return True
+
+
+def _destroy_quick_panel_for_shutdown() -> None:
+    """Destroy quick panel window before desktop shell shutdown."""
+    quick_panel_window = _get_quick_panel_window()
+    if quick_panel_window is not None:
+        quick_panel_destroy = getattr(quick_panel_window, "destroy", None)
+        if callable(quick_panel_destroy):
+            try:
+                quick_panel_destroy()
+            except Exception:
+                pass
+
+    _set_quick_panel_window(None)
+    _set_quick_panel_window_url("")
+    _set_quick_panel_return_hwnd(0)
 
 
 def _launch_config_from_input(
@@ -482,6 +488,7 @@ def _on_desktop_window_closing() -> bool:
     Return True to continue closing, False to cancel close.
     """
     if _is_exit_requested():
+        _destroy_quick_panel_for_shutdown()
         _stop_tray_controller()
         return True
 
@@ -489,6 +496,7 @@ def _on_desktop_window_closing() -> bool:
     if action == _CLOSE_ACTION_MINIMIZE_TO_TRAY and _hide_desktop_window_to_tray():
         return False
 
+    _destroy_quick_panel_for_shutdown()
     _set_exit_requested(True)
     _stop_tray_controller()
     return True
@@ -838,11 +846,9 @@ def open_desktop_window(
     try:
         webview.start(debug=False)
     finally:
+        _destroy_quick_panel_for_shutdown()
         _stop_tray_controller()
         _set_desktop_window(None)
-        _set_quick_panel_window(None)
-        _set_quick_panel_window_url("")
-        _set_quick_panel_return_hwnd(0)
         _set_window_maximized(False)
         _set_exit_requested(False)
     return True
