@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.api.schemas import (
     AISettings,
+    LaunchSettings,
     MessageResponse,
     PublicConfigResponse,
     ProviderCreate,
@@ -50,6 +51,17 @@ async def get_settings(request: Request):
     for p in ai_section["providers"]:
         p.pop("api_key", None)
     server_section = dict(cfg.get("server", {}))
+    launch_raw = cfg.get("launch", {})
+    launch_section = launch_raw if isinstance(launch_raw, dict) else {}
+    launch_section = {
+        "open_webui_on_start": bool(launch_section.get("open_webui_on_start", False)),
+        "open_intro_on_first_start": bool(
+            launch_section.get("open_intro_on_first_start", True)
+        ),
+        "show_console_on_start": bool(
+            launch_section.get("show_console_on_start", False)
+        ),
+    }
 
     server_host = str(
         getattr(
@@ -102,6 +114,10 @@ async def get_settings(request: Request):
     server_section["lan_url"] = lan_url_list[0] if lan_url_list else ""
     server_section["lan_docs_url"] = lan_docs_url_list[0] if lan_docs_url_list else ""
 
+    browser_host = "127.0.0.1" if server_host in {"0.0.0.0", "::"} else server_host
+    server_section["webui_url"] = f"http://{browser_host}:{server_port}"
+    server_section["docs_url"] = f"{server_section['webui_url']}/docs"
+
     server_section["app_version"] = APP_VERSION
     server_section["token_set"] = bool(server_section.get("token"))
     server_section["risk_no_token_with_lan"] = (
@@ -116,6 +132,7 @@ async def get_settings(request: Request):
     server_section.pop("token", None)
     return SettingsResponse(
         server=server_section,
+        launch=launch_section,
         sender=cfg.get("sender", {}),
         ai=ai_section,
         quick_overlay=cfg.get("quick_overlay", {}),
@@ -182,6 +199,17 @@ async def update_server_settings(body: ServerSettings):
         patch["host"] = host
     update_config({"server": patch})
     return MessageResponse(message="服务器设置已更新，部分配置需重启生效")
+
+
+@router.put("/launch", response_model=MessageResponse)
+async def update_launch_settings(body: LaunchSettings):
+    """更新启动行为设置。"""
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not patch:
+        return MessageResponse(message="没有需要更新的设置", success=False)
+
+    update_config({"launch": patch})
+    return MessageResponse(message="启动设置已更新，重启后生效")
 
 
 @router.put("/ai", response_model=MessageResponse)

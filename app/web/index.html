@@ -19,7 +19,13 @@
             </div>
             
             <ul class="nav-links">
-                <li class="nav-item active" data-target="panel-send">
+                <li class="nav-item active" data-target="panel-home">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><title>首页</title><path d="M3 11.5L12 4l9 7.5"></path><path d="M5 10.5V20h14v-9.5"></path><path d="M9 20v-5h6v5"></path></svg>
+                    </span>
+                    <span class="label">首页</span>
+                </li>
+                <li class="nav-item" data-target="panel-send">
                     <span class="icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
                     </span>
@@ -54,9 +60,57 @@
 
         <!-- Main Content Area -->
         <main class="content">
-            
-            <!-- Panel 1: Send (Default) -->
-            <section id="panel-send" class="panel active">
+
+            <!-- Panel 0: Home (Default) -->
+            <section id="panel-home" class="panel active">
+                <header class="panel-header">
+                    <h1>首页</h1>
+                    <div class="header-actions">
+                        <button id="home-open-browser-btn" class="btn btn-secondary" type="button">在浏览器打开</button>
+                        <button id="home-copy-local-btn" class="btn btn-ghost" type="button">复制地址</button>
+                    </div>
+                </header>
+
+                <div class="home-grid">
+                    <div class="glass-card home-card">
+                        <h2>WebUI 地址</h2>
+                        <p class="desc">本机访问地址（桌面壳内默认使用该地址）</p>
+                        <div class="home-code-block">
+                            <span id="home-local-url" class="code">http://127.0.0.1:8730</span>
+                        </div>
+                        <p class="desc">API 文档地址</p>
+                        <div class="home-code-block">
+                            <span id="home-docs-url" class="code">http://127.0.0.1:8730/docs</span>
+                        </div>
+                    </div>
+
+                    <div class="glass-card home-card">
+                        <h2>局域网访问</h2>
+                        <p id="home-lan-status" class="desc">局域网访问状态检测中...</p>
+
+                        <div id="home-lan-enabled" class="hidden">
+                            <div class="home-code-block">
+                                <span id="home-lan-urls" class="code">http://192.168.x.x:8730</span>
+                            </div>
+                            <p class="desc">建议设置 Token 保护局域网访问安全。</p>
+                        </div>
+
+                        <div id="home-lan-disabled" class="home-inline-tip hidden">
+                            <p>当前未开启局域网访问，可在 <strong>设置 → 网络设置</strong> 中开启。</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-card home-card home-card-security">
+                        <h2>安全提示</h2>
+                        <div id="home-security-warning" class="risk-warning hidden"></div>
+                        <p id="home-token-status" class="desc">Token 状态检测中...</p>
+                        <p class="desc">若需手机/平板访问，请先设置 Token，再开启局域网访问。</p>
+                    </div>
+                </div>
+            </section>
+             
+            <!-- Panel 1: Send -->
+            <section id="panel-send" class="panel">
                 <header class="panel-header">
                     <h1>发送文本</h1>
                     <div class="header-actions">
@@ -408,6 +462,31 @@
                                 <button type="button" id="clear-token-btn" class="btn btn-sm btn-ghost">清除</button>
                             </div>
                             <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">设置后所有 API 请求需携带此 Token</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Overlay Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>高级选项</h2>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启动时自动在浏览器打开 WebUI</label>
+                                <p class="desc">默认关闭。桌面版会自动以内嵌窗口显示，可按需手动开启浏览器启动。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-open-webui-on-start">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启动时显示控制台日志窗口</label>
+                                <p class="desc">默认关闭。开启后可查看实时日志输出，重启后生效。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-show-console-on-start">
+                                <span class="slider round"></span>
+                            </label>
                         </div>
                     </div>
 

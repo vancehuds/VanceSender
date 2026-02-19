@@ -36,6 +36,7 @@ Base URL: `http://127.0.0.1:8730/api/v1`
   - [获取远程公共配置](#获取远程公共配置)
   - [更新发送设置](#更新发送设置)
   - [更新服务器设置](#更新服务器设置)
+  - [更新启动设置](#更新启动设置)
   - [更新 AI 设置](#更新-ai-设置)
 - [AI 服务商接口](#ai-服务商接口)
   - [列出服务商](#列出服务商)
@@ -518,9 +519,16 @@ GET /api/v1/settings
     "host": "127.0.0.1",
     "port": 8730,
     "lan_access": false,
+    "webui_url": "http://127.0.0.1:8730",
+    "docs_url": "http://127.0.0.1:8730/docs",
     "token_set": true,
     "risk_no_token_with_lan": false,
     "security_warning": ""
+  },
+  "launch": {
+    "open_webui_on_start": false,
+    "open_intro_on_first_start": true,
+    "show_console_on_start": false
   },
   "sender": {
     "method": "clipboard",
@@ -558,6 +566,7 @@ GET /api/v1/settings
 - `server.token` 不会明文返回，只通过 `token_set` 表示是否已配置
 - provider 的 `api_key` 不会明文返回，只通过 `api_key_set` 表示是否已配置
 - 当 `lan_access=true` 且 `token` 为空时，`risk_no_token_with_lan=true`
+- `launch` 区块用于控制启动行为（浏览器自动打开、介绍页、控制台日志窗口）
 
 ---
 
@@ -768,6 +777,35 @@ PUT /api/v1/settings/server
 ```json
 {
   "message": "服务器设置已更新，部分配置需重启生效",
+  "success": true
+}
+```
+
+---
+
+### 更新启动设置
+
+```http
+PUT /api/v1/settings/launch
+```
+
+请求体（按需传递）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `open_webui_on_start` | bool | 是否在启动时自动打开系统浏览器 |
+| `open_intro_on_first_start` | bool | 是否在首次启动时打开介绍页 |
+| `show_console_on_start` | bool | 是否在启动时显示控制台日志窗口 |
+
+说明：
+
+- 启动行为相关配置通常需重启后生效
+
+响应示例：
+
+```json
+{
+  "message": "启动设置已更新，重启后生效",
   "success": true
 }
 ```

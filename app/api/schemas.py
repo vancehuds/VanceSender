@@ -153,6 +153,12 @@ class ServerSettings(BaseModel):
     token: str | None = None
 
 
+class LaunchSettings(BaseModel):
+    open_webui_on_start: bool | None = None
+    open_intro_on_first_start: bool | None = None
+    show_console_on_start: bool | None = None
+
+
 class AISettings(BaseModel):
     default_provider: str | None = None
     system_prompt: str | None = None
@@ -170,6 +176,7 @@ class QuickOverlaySettings(BaseModel):
 
 class SettingsResponse(BaseModel):
     server: dict[str, Any]
+    launch: dict[str, Any]
     sender: dict[str, Any]
     ai: dict[str, Any]
     quick_overlay: dict[str, Any]

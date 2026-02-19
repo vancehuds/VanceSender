@@ -61,9 +61,10 @@ def _default_config() -> dict[str, Any]:
             "token": "",
         },
         "launch": {
-            "open_webui_on_start": True,
+            "open_webui_on_start": False,
             "open_intro_on_first_start": True,
             "intro_seen": False,
+            "show_console_on_start": False,
         },
         "sender": {
             "method": "clipboard",

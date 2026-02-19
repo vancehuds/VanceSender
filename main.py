@@ -4,6 +4,7 @@ Usage:
     python main.py              # Start on 127.0.0.1:8730
     python main.py --lan        # Start on 0.0.0.0:8730 (LAN access)
     python main.py --port 9000  # Custom port
+    python main.py --no-webview # Disable embedded desktop window
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import multiprocessing
+import os
 import sys
 import threading
 import time
@@ -27,6 +29,7 @@ from fastapi.responses import FileResponse
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import load_config, update_config
+from app.core.desktop_shell import has_webview_support, open_desktop_window
 from app.core.network import get_lan_ipv4_addresses
 from app.core.public_config import fetch_github_public_config_sync
 from app.core.runtime_paths import get_bundle_root
@@ -108,6 +111,62 @@ def create_app() -> FastAPI:
 
 app = create_app()
 
+_DEVNULL_STREAMS: list[object] = []
+_CONSOLE_STREAMS: list[object] = []
+
+
+def _attach_runtime_console_window() -> bool:
+    """Attach a Win32 console dynamically for frozen windowed builds."""
+    if sys.platform != "win32":
+        return False
+
+    if not getattr(sys, "frozen", False):
+        return False
+
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        has_console = bool(kernel32.GetConsoleWindow())
+        if not has_console and kernel32.AllocConsole() == 0:
+            return False
+
+        stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
+        stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
+        stdin = open("CONIN$", "r", encoding="utf-8", errors="replace")
+
+        sys.stdout = stdout
+        sys.stderr = stderr
+        sys.stdin = stdin
+        _CONSOLE_STREAMS.extend([stdout, stderr, stdin])
+        return True
+    except Exception:
+        return False
+
+
+def _ensure_standard_streams() -> None:
+    """Ensure stdout/stderr exist for windowed execution mode."""
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None:
+            continue
+
+        devnull_stream = open(os.devnull, "w", encoding="utf-8", errors="replace")
+        setattr(sys, stream_name, devnull_stream)
+        _DEVNULL_STREAMS.append(devnull_stream)
+
+
+def _prepare_runtime_console(cfg: dict[str, object]) -> None:
+    """Initialize runtime console behavior according to launch settings."""
+    launch_section = cfg.get("launch")
+    launch_cfg = launch_section if isinstance(launch_section, dict) else {}
+    show_console_on_start = bool(launch_cfg.get("show_console_on_start", False))
+
+    if show_console_on_start:
+        _attach_runtime_console_window()
+
+    _ensure_standard_streams()
+
 
 def _configure_console_encoding() -> None:
     """Avoid UnicodeEncodeError on non-UTF8 Windows shells."""
@@ -135,29 +194,78 @@ def _build_local_web_base_url(host: str, port: int) -> str:
     return f"http://{browser_host}:{port}"
 
 
-def _collect_startup_browser_urls(
-    cfg: dict[str, object],
-    base_url: str,
-) -> tuple[list[str], bool]:
-    """Collect startup URLs and whether first-run intro flag should be persisted."""
+def _resolve_intro_start_url(
+    cfg: dict[str, object], base_url: str
+) -> tuple[str | None, bool]:
+    """Resolve intro page startup URL and whether intro should be marked as seen."""
     launch_section = cfg.get("launch")
     launch_cfg = launch_section if isinstance(launch_section, dict) else {}
 
-    open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", True))
     open_intro_on_first_start = bool(launch_cfg.get("open_intro_on_first_start", True))
     intro_seen = bool(launch_cfg.get("intro_seen", False))
+    if open_intro_on_first_start and not intro_seen:
+        return f"{base_url}/static/intro.html", True
+    return None, False
+
+
+def _collect_startup_browser_urls(
+    cfg: dict[str, object],
+    base_url: str,
+    intro_url: str | None,
+) -> list[str]:
+    """Collect external browser URLs based on launch settings."""
+    launch_section = cfg.get("launch")
+    launch_cfg = launch_section if isinstance(launch_section, dict) else {}
+    open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", False))
+
+    if not open_webui_on_start:
+        return []
 
     urls: list[str] = []
-    should_mark_intro_seen = False
+    if intro_url:
+        urls.append(intro_url)
+    urls.append(base_url)
+    return urls
 
-    if open_intro_on_first_start and not intro_seen:
-        urls.append(f"{base_url}/static/intro.html")
-        should_mark_intro_seen = True
 
-    if open_webui_on_start:
-        urls.append(base_url)
+def _start_uvicorn_in_background(
+    host: str, port: int
+) -> tuple[uvicorn.Server, threading.Thread]:
+    """Start uvicorn server on background thread and wait for readiness."""
+    config = uvicorn.Config(
+        app,
+        host=host,
+        port=port,
+        reload=False,
+        log_level="info",
+    )
+    server = uvicorn.Server(config)
+    thread = threading.Thread(
+        target=server.run,
+        daemon=True,
+        name="embedded-uvicorn-server",
+    )
+    thread.start()
 
-    return urls, should_mark_intro_seen
+    deadline = time.time() + 15
+    while time.time() < deadline:
+        if getattr(server, "started", False):
+            return server, thread
+
+        if not thread.is_alive():
+            break
+
+        time.sleep(0.05)
+
+    server.should_exit = True
+    raise RuntimeError("服务启动失败，无法打开内嵌窗口")
+
+
+def _stop_uvicorn_background(server: uvicorn.Server, thread: threading.Thread) -> None:
+    """Stop background uvicorn server gracefully."""
+    server.should_exit = True
+    if thread.is_alive():
+        thread.join(timeout=5)
 
 
 def _open_urls_in_browser(urls: list[str], delay_seconds: float = 0.9) -> None:
@@ -182,15 +290,23 @@ def _open_urls_in_browser(urls: list[str], delay_seconds: float = 0.9) -> None:
 
 
 def main() -> None:
-    _configure_console_encoding()
-
     parser = argparse.ArgumentParser(description="VanceSender Server")
     parser.add_argument("--lan", action="store_true", help="启用局域网访问 (0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="服务端口")
+    parser.add_argument(
+        "--no-webview",
+        action="store_true",
+        help="禁用内嵌桌面窗口，仅使用浏览器访问 WebUI",
+    )
     args = parser.parse_args()
 
     cfg = load_config()
+    _prepare_runtime_console(cfg)
+    _configure_console_encoding()
+
     server_cfg = cfg.get("server", {})
+    launch_section = cfg.get("launch")
+    launch_cfg = launch_section if isinstance(launch_section, dict) else {}
     public_config_result = fetch_github_public_config_sync(cfg)
 
     quick_overlay_module = None
@@ -218,9 +334,19 @@ def main() -> None:
     lan_url_list = [f"http://{lan_ipv4}:{port}" for lan_ipv4 in lan_ipv4_list]
     lan_docs_url_list = [f"{lan_url}/docs" for lan_url in lan_url_list]
     local_web_base_url = _build_local_web_base_url(host, port)
-    startup_browser_urls, should_mark_intro_seen = _collect_startup_browser_urls(
+    intro_url, should_mark_intro_seen = _resolve_intro_start_url(
+        cfg, local_web_base_url
+    )
+    startup_browser_urls = _collect_startup_browser_urls(
         cfg,
         local_web_base_url,
+        intro_url,
+    )
+    desktop_start_url = intro_url or local_web_base_url
+    webview_available = has_webview_support()
+    use_desktop_shell = not args.no_webview and webview_available
+    intro_will_be_shown = should_mark_intro_seen and (
+        use_desktop_shell or bool(startup_browser_urls)
     )
 
     app.state.runtime_host = host
@@ -234,14 +360,19 @@ def main() -> None:
     if args.lan and not server_cfg.get("lan_access"):
         update_config({"server": {"lan_access": True, "host": "0.0.0.0"}})
 
-    if should_mark_intro_seen:
+    if intro_will_be_shown:
         update_config({"launch": {"intro_seen": True}})
+
+    open_webui_on_start = bool(launch_cfg.get("open_webui_on_start", False))
+    show_console_on_start = bool(launch_cfg.get("show_console_on_start", False))
+    ui_mode_text = "桌面内嵌窗口" if use_desktop_shell else "浏览器模式"
 
     print(f"""
 ╔══════════════════════════════════════════════╗
 ║           {APP_NAME} v{APP_VERSION}                 ║
 ║  FiveM /me /do 文本发送器 & AI生成工具       ║
 ╠══════════════════════════════════════════════╣
+║  UI模式:   {ui_mode_text:<32}║
 ║  本地访问:  http://127.0.0.1:{port:<5}            ║
 ║  API文档:   http://127.0.0.1:{port:<5}/docs       ║""")
 
@@ -260,6 +391,10 @@ def main() -> None:
         print(f"║  认证:     Token {masked}")
     else:
         print(f"║  认证:     未启用")
+    print(f"║  浏览器启动: {'开启' if open_webui_on_start else '关闭'}")
+    print(f"║  控制台日志: {'开启' if show_console_on_start else '关闭'}")
+    if not args.no_webview and not webview_available:
+        print(f"║  提示:     未检测到 pywebview，已回退浏览器模式")
     print(f"║  GitHub:   {github_repository_url}")
     print(f"╚══════════════════════════════════════════════╝")
     print()
@@ -284,10 +419,29 @@ def main() -> None:
         print("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
         print()
 
-    if startup_browser_urls:
-        _open_urls_in_browser(startup_browser_urls)
-
     try:
+        if use_desktop_shell:
+            try:
+                server, server_thread = _start_uvicorn_in_background(host, port)
+            except RuntimeError as exc:
+                print(f"⚠ {exc}，将回退为浏览器模式。")
+            else:
+                if startup_browser_urls:
+                    _open_urls_in_browser(startup_browser_urls)
+
+                opened = open_desktop_window(
+                    start_url=desktop_start_url,
+                    title=f"{APP_NAME} v{APP_VERSION}",
+                )
+                _stop_uvicorn_background(server, server_thread)
+                if opened:
+                    return
+
+                print("⚠ 内嵌窗口启动失败，将回退为浏览器模式。")
+
+        if startup_browser_urls:
+            _open_urls_in_browser(startup_browser_urls)
+
         uvicorn.run(
             app,
             host=host,

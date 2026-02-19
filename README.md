@@ -9,7 +9,7 @@ FiveM `/me` `/do` 角色扮演文本发送器，支持 AI 生成与 AI 重写。
 - **AI 重写**：可重写单条文本或整套预设，保留 `/me` `/do` 类型与顺序
 - **预设管理**：保存、加载、删除预设文本
 - **快捷悬浮窗**：默认启用，支持热键（默认 `F7`）或鼠标侧键快速选预设并发送
-- **WebUI + REST API**：浏览器可视化操作 + 完整 API（含 Swagger）
+- **桌面内嵌UI + WebUI + REST API**：默认内嵌窗口操作，也可浏览器访问与完整 API（含 Swagger）
 - **可选鉴权**：支持 `Bearer Token` 保护 `/api/v1/*`
 
 ## 快速开始
@@ -94,6 +94,11 @@ python main.py --lan --port 9000
 - Swagger：`http://127.0.0.1:8730/docs`
 - OpenAPI JSON：`http://127.0.0.1:8730/openapi.json`
 
+默认会优先使用内嵌桌面窗口（依赖 `pywebview`）。
+
+- 若环境不支持 `pywebview`，会自动回退到浏览器模式
+- 可使用 `python main.py --no-webview` 强制仅浏览器模式
+
 ## Windows `start.bat` 教程
 
 已新增独立教程文档：`docs/windows-start-bat.md`
@@ -164,9 +169,10 @@ server:
   token: ''
 
 launch:
-  open_webui_on_start: true   # 启动时自动打开 WebUI
+  open_webui_on_start: false  # 启动时自动在系统浏览器打开 WebUI（默认关闭）
   open_intro_on_first_start: true  # 首次启动时自动打开介绍页
   intro_seen: false           # 内部状态：介绍页是否已展示过
+  show_console_on_start: false  # 启动时显示控制台日志窗口（默认关闭）
 
 sender:
   method: clipboard          # clipboard 或 typing
@@ -206,11 +212,12 @@ ai:
     X-Stainless-Runtime-Version: ''
 ```
 
-### 启动页与自动打开行为
+### 启动页、浏览器自动打开与控制台
 
-- `launch.open_webui_on_start`：控制每次启动是否自动打开 WebUI（默认 `true`）
+- `launch.open_webui_on_start`：控制每次启动是否自动在系统浏览器打开 WebUI（默认 `false`）
 - `launch.open_intro_on_first_start`：控制首次启动是否自动打开介绍页（默认 `true`）
 - `launch.intro_seen`：程序首次成功触发介绍页后会自动写为 `true`，通常无需手动修改
+- `launch.show_console_on_start`：控制是否在启动时显示控制台日志窗口（默认 `false`，重启后生效）
 
 ## API 文档
 

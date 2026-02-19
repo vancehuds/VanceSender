@@ -141,6 +141,7 @@ const state = {
     sendController: null, // AbortController for cancelling
     settings: {
         server: {},
+        launch: {},
         sender: {},
         ai: {},
         providers: []
@@ -206,6 +207,18 @@ const dom = {
     quickSendRefreshBtn: document.getElementById('quick-send-refresh-btn'),
     quickSendList: document.getElementById('quick-send-list'),
 
+    // Home
+    homeLocalUrl: document.getElementById('home-local-url'),
+    homeDocsUrl: document.getElementById('home-docs-url'),
+    homeLanStatus: document.getElementById('home-lan-status'),
+    homeLanEnabled: document.getElementById('home-lan-enabled'),
+    homeLanDisabled: document.getElementById('home-lan-disabled'),
+    homeLanUrls: document.getElementById('home-lan-urls'),
+    homeTokenStatus: document.getElementById('home-token-status'),
+    homeSecurityWarning: document.getElementById('home-security-warning'),
+    homeOpenBrowserBtn: document.getElementById('home-open-browser-btn'),
+    homeCopyLocalBtn: document.getElementById('home-copy-local-btn'),
+
     // Settings
     settingMethod: document.getElementById('setting-method'),
     settingChatKey: document.getElementById('setting-chat-key'),
@@ -218,6 +231,8 @@ const dom = {
     settingDelayBetweenLines: document.getElementById('setting-delay-between-lines'),
     settingTypingCharDelay: document.getElementById('setting-typing-char-delay'),
     settingLanAccess: document.getElementById('setting-lan-access'),
+    settingOpenWebuiOnStart: document.getElementById('setting-open-webui-on-start'),
+    settingShowConsoleOnStart: document.getElementById('setting-show-console-on-start'),
     lanUrls: document.getElementById('lan-urls'),
     lanIpValue: document.getElementById('lan-ip-value'),
     lanUrlValue: document.getElementById('lan-url-value'),
@@ -283,6 +298,7 @@ const APPLY_REWRITE_IDLE_TEXT = dom.applyRewriteBtn?.textContent || '应用更�
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     initNavigation();
+    initHomePanel();
     initSendPanel();
     initQuickSendPanel();
     initAIPanel();
@@ -336,14 +352,142 @@ function initNavigation() {
             }
 
             // Update UI
-            dom.navItems.forEach(n => n.classList.remove('active'));
+            dom.navItems.forEach((n) => {
+                n.classList.remove('active');
+            });
             item.classList.add('active');
 
-            dom.panels.forEach(p => p.classList.remove('active'));
+            dom.panels.forEach((p) => {
+                p.classList.remove('active');
+            });
             const target = document.getElementById(item.dataset.target);
             target.classList.add('active');
         });
     });
+}
+
+async function copyTextToClipboard(value) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            // fallback below
+        }
+    }
+
+    const input = document.createElement('textarea');
+    input.value = text;
+    input.setAttribute('readonly', 'readonly');
+    input.style.position = 'absolute';
+    input.style.left = '-9999px';
+    document.body.appendChild(input);
+    input.select();
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch (e) {
+        copied = false;
+    }
+
+    document.body.removeChild(input);
+    return copied;
+}
+
+function getServerLocalWebuiUrl(serverSettings) {
+    const apiUrl = String(serverSettings?.webui_url || '').trim();
+    if (apiUrl) return apiUrl;
+
+    const origin = String(window.location.origin || '').trim();
+    if (origin && origin !== 'null') return origin;
+
+    const port = Number.parseInt(String(serverSettings?.port || ''), 10) || 8730;
+    return `http://127.0.0.1:${port}`;
+}
+
+function renderHomePanel(serverSettings) {
+    const localUrl = getServerLocalWebuiUrl(serverSettings);
+    const docsUrl = String(serverSettings?.docs_url || '').trim() || `${localUrl}/docs`;
+
+    if (dom.homeLocalUrl) {
+        dom.homeLocalUrl.textContent = localUrl;
+    }
+
+    if (dom.homeDocsUrl) {
+        dom.homeDocsUrl.textContent = docsUrl;
+    }
+
+    const lanEnabled = Boolean(serverSettings?.lan_access);
+    const lanPort = Number.parseInt(String(serverSettings?.port || ''), 10) || 8730;
+    const lanUrlList = pickLanList(serverSettings, 'lan_urls', 'lan_url');
+    const displayLanList = lanUrlList.length > 0 ? lanUrlList : [`http://<your-ip>:${lanPort}`];
+
+    if (dom.homeLanStatus) {
+        dom.homeLanStatus.textContent = lanEnabled
+            ? '局域网访问已开启，下列地址可供同网络设备访问。'
+            : '局域网访问未开启，仅本机可访问。';
+    }
+
+    if (dom.homeLanEnabled) {
+        dom.homeLanEnabled.classList.toggle('hidden', !lanEnabled);
+    }
+
+    if (dom.homeLanDisabled) {
+        dom.homeLanDisabled.classList.toggle('hidden', lanEnabled);
+    }
+
+    if (dom.homeLanUrls) {
+        dom.homeLanUrls.textContent = displayLanList.join(' | ');
+    }
+
+    const tokenSet = Boolean(serverSettings?.token_set);
+    if (dom.homeTokenStatus) {
+        dom.homeTokenStatus.textContent = tokenSet
+            ? '当前已设置 Token 认证。'
+            : '当前未设置 Token，建议立即设置。';
+    }
+
+    const securityWarning = String(serverSettings?.security_warning || '').trim();
+    const hasRisk = Boolean(
+        serverSettings?.risk_no_token_with_lan
+        || (serverSettings?.lan_access && !serverSettings?.token_set)
+    );
+    if (dom.homeSecurityWarning) {
+        dom.homeSecurityWarning.classList.toggle('hidden', !hasRisk);
+        dom.homeSecurityWarning.textContent = hasRisk
+            ? (securityWarning || '已开启局域网访问且未设置 Token，存在访问风险。')
+            : '';
+    }
+}
+
+function initHomePanel() {
+    if (dom.homeOpenBrowserBtn) {
+        dom.homeOpenBrowserBtn.addEventListener('click', () => {
+            const url = String(dom.homeLocalUrl?.textContent || '').trim();
+            if (!url) {
+                showToast('地址未就绪，请稍后重试', 'error');
+                return;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
+        });
+    }
+
+    if (dom.homeCopyLocalBtn) {
+        dom.homeCopyLocalBtn.addEventListener('click', async () => {
+            const url = String(dom.homeLocalUrl?.textContent || '').trim();
+            if (!url) {
+                showToast('地址未就绪，请稍后重试', 'error');
+                return;
+            }
+
+            const copied = await copyTextToClipboard(url);
+            showToast(copied ? '地址已复制' : '复制失败，请手动复制', copied ? 'success' : 'error');
+        });
+    }
 }
 
 // --- Send Panel Logic ---
@@ -1036,7 +1180,9 @@ function resetSendState() {
     dom.progressBar.style.width = '0%';
 
     // Reset list styles
-    Array.from(dom.textList.children).forEach(c => c.style.borderColor = '');
+    Array.from(dom.textList.children).forEach((c) => {
+        c.style.borderColor = '';
+    });
 }
 
 // --- AI Panel Logic ---
@@ -1913,6 +2059,8 @@ function getSettingsFormSnapshot() {
         delayBetweenLines: dom.settingDelayBetweenLines?.value || '',
         typingCharDelay: dom.settingTypingCharDelay?.value || '',
         lanAccess: Boolean(dom.settingLanAccess?.checked),
+        openWebuiOnStart: Boolean(dom.settingOpenWebuiOnStart?.checked),
+        showConsoleOnStart: Boolean(dom.settingShowConsoleOnStart?.checked),
         overlayEnabled: Boolean(dom.settingOverlayEnabled?.checked),
         overlayShowWebuiStatus: Boolean(dom.settingOverlayShowWebuiStatus?.checked),
         overlayCompactMode: Boolean(dom.settingOverlayCompactMode?.checked),
@@ -1976,6 +2124,8 @@ function bindSettingsDirtyTracking() {
         dom.settingDelayBetweenLines,
         dom.settingTypingCharDelay,
         dom.settingLanAccess,
+        dom.settingOpenWebuiOnStart,
+        dom.settingShowConsoleOnStart,
         dom.settingOverlayEnabled,
         dom.settingOverlayShowWebuiStatus,
         dom.settingOverlayCompactMode,
@@ -2299,7 +2449,7 @@ function pickLanList(server, listKey, singleKey) {
 
 async function fetchSettings() {
     const res = await apiFetch('/api/v1/settings');
-    const data = await res.json(); // {server, sender, ai, quick_overlay}
+    const data = await res.json(); // {server, launch, sender, ai, quick_overlay}
     state.settings = data;
     stopOverlayHotkeyCapture();
 
@@ -2316,6 +2466,13 @@ async function fetchSettings() {
     dom.settingTypingCharDelay.value = data.sender.typing_char_delay || 18;
     dom.sendDelay.value = data.sender.delay_between_lines || 1800;
     dom.settingLanAccess.checked = data.server.lan_access || false;
+    const launch = data.launch || {};
+    if (dom.settingOpenWebuiOnStart) {
+        dom.settingOpenWebuiOnStart.checked = launch.open_webui_on_start ?? false;
+    }
+    if (dom.settingShowConsoleOnStart) {
+        dom.settingShowConsoleOnStart.checked = launch.show_console_on_start ?? false;
+    }
     dom.settingSystemPrompt.value = data.ai.system_prompt || '';
 
     const quickOverlay = data.quick_overlay || {};
@@ -2372,6 +2529,7 @@ async function fetchSettings() {
         }
     }
 
+    renderHomePanel(data.server);
     updateLanSecurityRisk(data.server);
 
     await fetchProviders();
@@ -2515,6 +2673,15 @@ async function saveAllSettings() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(serverPayload)
+        });
+
+        await apiFetch('/api/v1/settings/launch', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                open_webui_on_start: Boolean(dom.settingOpenWebuiOnStart?.checked),
+                show_console_on_start: Boolean(dom.settingShowConsoleOnStart?.checked)
+            })
         });
 
         // If token was changed, update localStorage too
@@ -2672,7 +2839,9 @@ function closeModal() {
     }
 
     dom.modalBackdrop.classList.add('hidden');
-    document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    document.querySelectorAll('.modal').forEach((m) => {
+        m.classList.add('hidden');
+    });
     state.editingTextIndex = null;
     state.aiRewriteTarget = null;
 
@@ -2689,7 +2858,9 @@ function closeModal() {
 }
 
 // Close modal triggers
-document.querySelectorAll('[data-action="close-modal"]').forEach(b => b.addEventListener('click', closeModal));
+document.querySelectorAll('[data-action="close-modal"]').forEach((b) => {
+    b.addEventListener('click', closeModal);
+});
 dom.modalBackdrop.addEventListener('click', closeModal);
 document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;

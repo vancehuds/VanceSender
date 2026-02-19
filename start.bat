@@ -108,7 +108,8 @@ echo [4/4] Starting VanceSender...
 if not exist "data\presets" mkdir "data\presets"
 
 echo.
-echo Open in browser: http://127.0.0.1:8730
+echo Default local URL: http://127.0.0.1:8730
+echo UI mode prefers embedded desktop window when available.
 echo Press Ctrl+C to stop.
 echo.
 

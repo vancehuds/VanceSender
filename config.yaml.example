@@ -5,9 +5,10 @@ server:
   token: ''
 
 launch:
-  open_webui_on_start: true
+  open_webui_on_start: false
   open_intro_on_first_start: true
   intro_seen: false
+  show_console_on_start: false
 
 sender:
   method: clipboard
