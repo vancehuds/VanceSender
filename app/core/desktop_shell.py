@@ -6,11 +6,9 @@ import importlib
 import importlib.util
 import threading
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any, Literal
 
-from app.core.config import load_config, resolve_enable_tray_on_start, update_config
-from app.core.runtime_paths import get_bundle_root, get_runtime_root
+from app.core.config import load_config, update_config
 
 _CLOSE_ACTION_ASK = "ask"
 _CLOSE_ACTION_MINIMIZE_TO_TRAY = "minimize_to_tray"
@@ -27,8 +25,6 @@ _window_maximized = False
 _exit_requested = False
 _tray_controller: _TrayController | None = None
 _tray_title = "VanceSender"
-_ICON_PNG_NAME = "ICON.PNG"
-_ICON_ICO_NAME = "ICON.ico"
 
 
 class _TrayController:
@@ -237,23 +233,8 @@ def is_desktop_window_active() -> bool:
     return _get_desktop_window() is not None
 
 
-def _get_bundle_icon_png_path() -> Path:
-    """Return bundled ICON.PNG absolute path."""
-    return get_bundle_root() / _ICON_PNG_NAME
-
-
-def _get_bundle_icon_ico_path() -> Path:
-    """Return bundled ICON.ico absolute path."""
-    return get_bundle_root() / _ICON_ICO_NAME
-
-
-def _get_runtime_icon_ico_path() -> Path:
-    """Return writable runtime ICON.ico path for generated fallback."""
-    return get_runtime_root() / _ICON_ICO_NAME
-
-
-def _create_fallback_tray_icon_image() -> object | None:
-    """Create fallback in-memory tray icon when ICON.PNG is unavailable."""
+def _create_tray_icon_image() -> object | None:
+    """Create simple in-memory tray icon image."""
     try:
         image_module = importlib.import_module("PIL.Image")
         draw_module = importlib.import_module("PIL.ImageDraw")
@@ -276,123 +257,6 @@ def _create_fallback_tray_icon_image() -> object | None:
         return image
     except Exception:
         return None
-
-
-def _export_icon_png_to_ico(source_png: Path, target_ico: Path) -> bool:
-    """Convert ICON.PNG to ICON.ico for APIs requiring ICO format."""
-    try:
-        image_module = importlib.import_module("PIL.Image")
-    except Exception:
-        return False
-
-    open_method = getattr(image_module, "open", None)
-    if not callable(open_method):
-        return False
-
-    source_image: object | None = None
-    try:
-        target_ico.parent.mkdir(parents=True, exist_ok=True)
-        source_image = open_method(str(source_png))
-        converted = getattr(source_image, "convert", None)
-        image_to_save = converted("RGBA") if callable(converted) else source_image
-        save_method = getattr(image_to_save, "save", None)
-        if not callable(save_method):
-            return False
-
-        save_method(
-            str(target_ico),
-            format="ICO",
-            sizes=[
-                (16, 16),
-                (24, 24),
-                (32, 32),
-                (48, 48),
-                (64, 64),
-                (128, 128),
-                (256, 256),
-            ],
-        )
-    except Exception:
-        return False
-    finally:
-        if source_image is not None:
-            close_method = getattr(source_image, "close", None)
-            if callable(close_method):
-                try:
-                    close_method()
-                except Exception:
-                    pass
-
-    return target_ico.exists()
-
-
-def _resolve_webview_icon_path() -> str | None:
-    """Resolve icon path suitable for webview.start(icon=...) calls."""
-    bundle_ico_path = _get_bundle_icon_ico_path()
-    if bundle_ico_path.exists():
-        return str(bundle_ico_path)
-
-    icon_png_path = _get_bundle_icon_png_path()
-    if not icon_png_path.exists():
-        return None
-
-    runtime_ico_path = _get_runtime_icon_ico_path()
-    should_regenerate = not runtime_ico_path.exists()
-    if not should_regenerate:
-        try:
-            should_regenerate = (
-                runtime_ico_path.stat().st_mtime < icon_png_path.stat().st_mtime
-            )
-        except OSError:
-            should_regenerate = False
-
-    if should_regenerate and not _export_icon_png_to_ico(
-        icon_png_path, runtime_ico_path
-    ):
-        return None
-
-    if runtime_ico_path.exists():
-        return str(runtime_ico_path)
-    return None
-
-
-def _create_tray_icon_image() -> object | None:
-    """Create tray icon image from bundled ICON.PNG with safe fallback."""
-    try:
-        image_module = importlib.import_module("PIL.Image")
-    except Exception:
-        return None
-
-    open_method = getattr(image_module, "open", None)
-    if not callable(open_method):
-        return _create_fallback_tray_icon_image()
-
-    icon_png_path = _get_bundle_icon_png_path()
-    if not icon_png_path.exists():
-        return _create_fallback_tray_icon_image()
-
-    source_image: object | None = None
-    try:
-        source_image = open_method(str(icon_png_path))
-        converted = getattr(source_image, "convert", None)
-        if callable(converted):
-            return converted("RGBA")
-
-        copy_method = getattr(source_image, "copy", None)
-        if callable(copy_method):
-            return copy_method()
-
-        return source_image
-    except Exception:
-        return _create_fallback_tray_icon_image()
-    finally:
-        if source_image is not None:
-            close_method = getattr(source_image, "close", None)
-            if callable(close_method):
-                try:
-                    close_method()
-                except Exception:
-                    pass
 
 
 def _show_desktop_window() -> bool:
@@ -487,11 +351,11 @@ def _resolve_launch_tray_preferences(
     """Resolve startup tray and close policy values from launch config."""
     launch_cfg = _launch_config_from_input(launch_options)
 
-    start_tray_on_launch = resolve_enable_tray_on_start(launch_cfg)
+    start_minimized_to_tray = bool(launch_cfg.get("start_minimized_to_tray", True))
     close_action = normalize_close_action(
         launch_cfg.get("close_action", _CLOSE_ACTION_ASK)
     )
-    return start_tray_on_launch, close_action
+    return start_minimized_to_tray, close_action
 
 
 def _ask_close_action_and_maybe_remember(window: object) -> str:
@@ -726,11 +590,7 @@ def open_desktop_window(
     _bind_window_closing_event(window)
 
     try:
-        webview_start_kwargs: dict[str, object] = {"debug": False}
-        webview_icon_path = _resolve_webview_icon_path()
-        if webview_icon_path:
-            webview_start_kwargs["icon"] = webview_icon_path
-        webview.start(**webview_start_kwargs)
+        webview.start(debug=False)
     finally:
         _stop_tray_controller()
         _set_desktop_window(None)

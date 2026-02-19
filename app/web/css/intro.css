@@ -21,7 +21,6 @@
     --radius-lg: 18px;
     --radius-xl: 24px;
     --ring-cyan: 0 0 0 3px rgba(79, 209, 255, 0.2);
-    --app-icon-url: url('/ICON.PNG');
     --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --transition-speed: 0.24s;
 }
@@ -127,16 +126,13 @@ body {
 .logo-icon {
     width: 36px;
     height: 36px;
-    background-image: var(--app-icon-url);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background: linear-gradient(140deg, var(--accent-cyan), var(--accent-purple));
     border-radius: 11px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: transparent;
-    font-size: 0;
+    font-weight: bold;
+    color: #061222;
     box-shadow: 0 10px 30px rgba(79, 209, 255, 0.3);
 }
 
@@ -307,30 +303,21 @@ body {
 .feature-icon {
     width: 56px;
     height: 56px;
-    background-image: var(--app-icon-url);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background: rgba(148, 163, 184, 0.1);
     border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 24px;
-    color: transparent;
+    color: var(--text-main);
     font-size: 1.5rem;
     transition: all 0.3s ease;
 }
 
-.feature-icon > * {
-    display: none !important;
-}
-
 .feature-card:hover .feature-icon {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    color: #05101f;
     transform: scale(1.1) rotate(-3deg);
-}
-
-.btn-hero svg {
-    display: none;
 }
 
 .feature-title {
