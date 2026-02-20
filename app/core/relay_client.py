@@ -14,6 +14,7 @@ from typing import Any
 
 import httpx
 import qrcode
+from qrcode.constants import ERROR_CORRECT_M
 
 from app.core.app_meta import APP_VERSION
 from app.core.config import load_config, update_config
@@ -131,6 +132,17 @@ class RelayClient:
             payload["remote_webui_url"]
             or str(relay_cfg.get("remote_webui_url", "")).strip()
         )
+
+        if not payload["pairing_url"]:
+            payload["qr_image_base64"] = ""
+            return payload
+
+        if not payload["qr_image_base64"]:
+            qr_base64 = self._build_qr_image_base64(payload["pairing_url"])
+            payload["qr_image_base64"] = qr_base64
+            if qr_base64:
+                self._set_state(qr_image_base64=qr_base64)
+
         return payload
 
     def refresh_pairing(self) -> None:
@@ -175,15 +187,34 @@ class RelayClient:
         return random.uniform(0.5, cap)
 
     def _build_qr_image_base64(self, content: str) -> str:
-        if not content:
+        normalized_content = str(content or "").strip()
+        if not normalized_content:
             return ""
-        qr = qrcode.QRCode(border=2, box_size=6)
-        qr.add_data(content)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        output = io.BytesIO()
-        img.save(output, "PNG")
-        return base64.b64encode(output.getvalue()).decode("ascii")
+
+        def _encode_qr_image(image_obj: Any) -> str:
+            output = io.BytesIO()
+            image_obj.save(output, format="PNG")
+            raw = output.getvalue()
+            if not raw:
+                return ""
+            return base64.b64encode(raw).decode("ascii")
+
+        try:
+            qr = qrcode.QRCode(
+                box_size=6,
+                border=2,
+                error_correction=ERROR_CORRECT_M,
+            )
+            qr.add_data(normalized_content)
+            qr.make(fit=True)
+            return _encode_qr_image(
+                qr.make_image(fill_color="black", back_color="white")
+            )
+        except Exception:
+            try:
+                return _encode_qr_image(qrcode.make(normalized_content))
+            except Exception:
+                return ""
 
     def _clear_session(self) -> None:
         update_config(
