@@ -11,8 +11,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import csv
+import errno
 import multiprocessing
 import os
+import socket
+import subprocess
 import sys
 import threading
 import time
@@ -198,6 +202,185 @@ def _configure_console_encoding() -> None:
                 continue
 
 
+def _has_visible_console_window() -> bool:
+    """Check whether current process has a visible Win32 console window."""
+    if sys.platform != "win32":
+        return True
+
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        return bool(kernel32.GetConsoleWindow())
+    except Exception:
+        return True
+
+
+def _show_windows_warning_dialog(title: str, lines: list[str]) -> None:
+    """Show a Windows warning dialog when console output is unavailable."""
+    if sys.platform != "win32":
+        return
+
+    try:
+        import ctypes
+
+        MB_OK = 0x00000000
+        MB_ICONWARNING = 0x00000030
+        MB_SETFOREGROUND = 0x00010000
+        message = "\n".join(lines)
+        ctypes.windll.user32.MessageBoxW(  # type: ignore[attr-defined]
+            None,
+            message,
+            title,
+            MB_OK | MB_ICONWARNING | MB_SETFOREGROUND,
+        )
+    except Exception:
+        return
+
+
+def _is_port_occupied(host: str, port: int) -> bool:
+    """Check whether the startup TCP port is already occupied."""
+    bind_host = "0.0.0.0" if host in {"0.0.0.0", "::"} else host
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind((bind_host, port))
+            return False
+        except OSError as exc:
+            if exc.errno == getattr(errno, "EADDRINUSE", None):
+                return True
+            if exc.errno == 10048:
+                return True
+            return False
+
+
+def _find_windows_listening_pids(port: int) -> list[int]:
+    """Find listening Windows PIDs occupying the given port."""
+    if sys.platform != "win32":
+        return []
+
+    try:
+        result = subprocess.run(
+            ["netstat", "-ano", "-p", "tcp"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except OSError:
+        return []
+
+    target_port = str(port)
+    pid_set: set[int] = set()
+    for line in result.stdout.splitlines():
+        columns = line.split()
+        if len(columns) < 5:
+            continue
+        if columns[0].upper() != "TCP":
+            continue
+        if columns[3].upper() not in {"LISTENING", "侦听"}:
+            continue
+        if columns[1].rpartition(":")[2] != target_port:
+            continue
+        if not columns[4].isdigit():
+            continue
+
+        pid_set.add(int(columns[4]))
+
+    return sorted(pid_set)
+
+
+def _resolve_windows_process_name(pid: int) -> str | None:
+    """Resolve process name for a Windows PID."""
+    if sys.platform != "win32":
+        return None
+
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except OSError:
+        return None
+
+    rows = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    if not rows:
+        return None
+    if rows[0].startswith("INFO:"):
+        return None
+
+    try:
+        parsed_row = next(csv.reader([rows[0]]), [])
+    except Exception:
+        return None
+
+    if not parsed_row:
+        return None
+
+    process_name = parsed_row[0].strip()
+    return process_name or None
+
+
+def _print_port_occupancy_guidance(host: str, port: int) -> None:
+    """Print actionable guidance when startup port is occupied."""
+    scope = "全部网卡" if host in {"0.0.0.0", "::"} else host
+    message_lines = [
+        f"⚠ 端口 {port} 已被占用，服务无法启动。",
+        f"  当前监听地址: {scope}",
+    ]
+
+    occupying_pids = _find_windows_listening_pids(port)
+    if occupying_pids:
+        pid_text = "、".join(str(pid) for pid in occupying_pids)
+        message_lines.append(f"  检测到占用进程 PID: {pid_text}")
+        for pid in occupying_pids[:3]:
+            process_name = _resolve_windows_process_name(pid)
+            if process_name:
+                message_lines.append(f"    PID {pid}: {process_name}")
+
+    if sys.platform == "win32":
+        message_lines.append("  你可以按下面步骤解除占用：")
+        message_lines.append(f"    1) netstat -ano | findstr :{port}")
+        message_lines.append("    2) taskkill /PID <PID> /F")
+        if len(occupying_pids) == 1:
+            message_lines.append(f"       例如: taskkill /PID {occupying_pids[0]} /F")
+    else:
+        message_lines.append("  你可以按下面步骤排查并解除占用：")
+        message_lines.append(f"    1) lsof -i :{port}")
+        message_lines.append("    2) kill -9 <PID>")
+
+    fallback_port = 9000 if port == 8730 else port + 1
+    message_lines.extend(
+        [
+            "  或改用其他端口启动：",
+            f"    python main.py --port {fallback_port}",
+            f"    start.bat --port {fallback_port}",
+        ]
+    )
+
+    for line in message_lines:
+        print(line)
+
+    if not _has_visible_console_window():
+        _show_windows_warning_dialog(
+            title=f"{APP_NAME} 启动失败",
+            lines=message_lines,
+        )
+
+
+def _ensure_startup_port_available(host: str, port: int) -> None:
+    """Abort startup early when the target port is occupied."""
+    if not _is_port_occupied(host, port):
+        return
+
+    _print_port_occupancy_guidance(host, port)
+    raise SystemExit(1)
+
+
 def _build_local_web_base_url(host: str, port: int) -> str:
     """Return browser-friendly local base URL for startup links."""
     browser_host = "127.0.0.1" if host in {"0.0.0.0", "::"} else host
@@ -368,6 +551,8 @@ def main() -> None:
         port = int(args.port or server_cfg.get("port", 8730))
     except (TypeError, ValueError):
         port = 8730
+
+    _ensure_startup_port_available(host, port)
 
     runtime_lan_access = host == "0.0.0.0"
     lan_ipv4_list = get_lan_ipv4_addresses() if runtime_lan_access else []

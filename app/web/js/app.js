@@ -3282,13 +3282,15 @@ async function fetchRelayStatus(options = {}) {
             if (!silent) {
                 showToast(`读取中继状态失败: ${formatApiErrorDetail(payload.detail || payload.message, response.status)}`, 'error');
             }
-            return;
+            return null;
         }
         renderRelayStatus(payload);
+        return payload;
     } catch (error) {
         if (error.message !== 'AUTH_REQUIRED' && !silent) {
             showToast('读取中继状态失败', 'error');
         }
+        return null;
     }
 }
 
@@ -3348,6 +3350,15 @@ async function refreshRelayPairing() {
     dom.refreshRelayPairingBtn.disabled = true;
     dom.refreshRelayPairingBtn.textContent = '刷新中...';
     try {
+        const preStatus = await fetchRelayStatus({ silent: true });
+
+        if (preStatus && !preStatus.enabled) {
+            showToast('中继未启用，无法刷新配对码', 'info');
+            return;
+        }
+
+        const preSessionId = (preStatus && preStatus.session_public_id) || null;
+
         const response = await apiFetch('/api/v1/relay/refresh-pairing', {
             method: 'POST'
         });
@@ -3357,8 +3368,32 @@ async function refreshRelayPairing() {
             return;
         }
 
-        showToast('已触发配对码刷新', 'success');
-        await fetchRelayStatus({ silent: true });
+        const POLL_INTERVAL = 700;
+        const POLL_MAX = 12;
+        let lastStatus = null;
+        let refreshed = false;
+
+        for (let i = 0; i < POLL_MAX; i++) {
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+            lastStatus = await fetchRelayStatus({ silent: true });
+            if (!lastStatus) continue;
+
+            const hasNewPairing = lastStatus.pairing_url && lastStatus.pairing_code;
+            const sessionChanged = !preSessionId || lastStatus.session_public_id !== preSessionId;
+            if (hasNewPairing && sessionChanged) {
+                refreshed = true;
+                break;
+            }
+        }
+
+        if (refreshed) {
+            showToast('配对码已刷新', 'success');
+        } else {
+            const errMsg = (lastStatus && lastStatus.last_error)
+                ? `刷新未完成：${lastStatus.last_error}`
+                : '刷新已触发，请稍后重试';
+            showToast(errMsg, 'warning');
+        }
     } catch (error) {
         if (error.message !== 'AUTH_REQUIRED') {
             showToast('刷新配对码失败', 'error');
