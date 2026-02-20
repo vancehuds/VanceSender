@@ -432,6 +432,17 @@ const dom = {
     settingOverlayPollIntervalMs: document.getElementById('setting-overlay-poll-interval-ms'),
     settingSystemPrompt: document.getElementById('setting-system-prompt'),
     settingToken: document.getElementById('setting-token'),
+    settingRelayEnabled: document.getElementById('setting-relay-enabled'),
+    settingRelayServerUrl: document.getElementById('setting-relay-server-url'),
+    settingRelayCardKey: document.getElementById('setting-relay-card-key'),
+    relayPairingUrl: document.getElementById('relay-pairing-url'),
+    relayPairingCode: document.getElementById('relay-pairing-code'),
+    relayPairingExpiry: document.getElementById('relay-pairing-expiry'),
+    relayQrImage: document.getElementById('relay-qr-image'),
+    relayStatusText: document.getElementById('relay-status-text'),
+    relayLastError: document.getElementById('relay-last-error'),
+    saveRelaySettingsBtn: document.getElementById('save-relay-settings-btn'),
+    refreshRelayPairingBtn: document.getElementById('refresh-relay-pairing-btn'),
     settingCustomHeaders: document.getElementById('setting-custom-headers'),
     saveSettingsBtn: document.getElementById('save-settings-btn'),
     settingsUnsavedBar: document.getElementById('settings-unsaved-bar'),
@@ -523,7 +534,8 @@ async function loadInitialData() {
         await Promise.all([
             fetchSettings(),
             fetchPresets(),
-            fetchPublicConfig({ silent: true })
+            fetchPublicConfig({ silent: true }),
+            fetchRelayStatus({ silent: true })
         ]);
         showToast('系统已就绪', 'success');
 
@@ -2714,6 +2726,19 @@ function initSettingsPanel() {
     if (dom.settingsUnsavedSaveBtn) {
         dom.settingsUnsavedSaveBtn.addEventListener('click', saveAllSettings);
     }
+
+    if (dom.saveRelaySettingsBtn) {
+        dom.saveRelaySettingsBtn.addEventListener('click', () => {
+            saveRelaySettings();
+        });
+    }
+
+    if (dom.refreshRelayPairingBtn) {
+        dom.refreshRelayPairingBtn.addEventListener('click', () => {
+            refreshRelayPairing();
+        });
+    }
+
     bindSettingsDirtyTracking();
 
     if (dom.settingOverlayCaptureHotkeyBtn) {
@@ -3134,6 +3159,155 @@ function pickLanList(server, listKey, singleKey) {
 
     const single = String(server?.[singleKey] || '').trim();
     return single ? [single] : [];
+}
+
+function formatUnixTimestamp(seconds) {
+    const value = Number.parseInt(String(seconds || ''), 10);
+    if (!Number.isFinite(value) || value <= 0) return '-';
+    const date = new Date(value * 1000);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
+}
+
+function renderRelayStatus(data) {
+    if (!data) return;
+
+    if (dom.settingRelayEnabled) {
+        dom.settingRelayEnabled.checked = Boolean(data.enabled);
+    }
+
+    if (dom.settingRelayServerUrl) {
+        dom.settingRelayServerUrl.value = String(data.server_url || '').trim();
+    }
+
+    if (dom.settingRelayCardKey) {
+        dom.settingRelayCardKey.value = '';
+        dom.settingRelayCardKey.placeholder = data.card_key_set
+            ? '已设置（留空表示不修改）'
+            : '服务器启用卡密时填写';
+    }
+
+    if (dom.relayPairingUrl) {
+        dom.relayPairingUrl.textContent = String(data.pairing_url || '-');
+    }
+
+    if (dom.relayPairingCode) {
+        dom.relayPairingCode.textContent = String(data.pairing_code || '-');
+    }
+
+    if (dom.relayPairingExpiry) {
+        dom.relayPairingExpiry.textContent = formatUnixTimestamp(data.pairing_expires_at);
+    }
+
+    if (dom.relayQrImage) {
+        const qrBase64 = String(data.qr_image_base64 || '').trim();
+        if (qrBase64) {
+            dom.relayQrImage.src = `data:image/png;base64,${qrBase64}`;
+            dom.relayQrImage.classList.remove('hidden');
+        } else {
+            dom.relayQrImage.removeAttribute('src');
+            dom.relayQrImage.classList.add('hidden');
+        }
+    }
+
+    if (dom.relayStatusText) {
+        if (!data.enabled) {
+            dom.relayStatusText.textContent = '中继未启用';
+        } else if (data.connected) {
+            dom.relayStatusText.textContent = `中继已连接 · 会话 ${data.session_public_id || '-'}`;
+        } else {
+            dom.relayStatusText.textContent = '中继连接中或离线';
+        }
+    }
+
+    if (dom.relayLastError) {
+        const err = String(data.last_error || '').trim();
+        dom.relayLastError.textContent = err ? `错误：${err}` : '无';
+    }
+}
+
+async function fetchRelayStatus(options = {}) {
+    const silent = Boolean(options.silent);
+    try {
+        const response = await apiFetch('/api/v1/relay/status');
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            if (!silent) {
+                showToast(`读取中继状态失败: ${formatApiErrorDetail(payload.detail || payload.message, response.status)}`, 'error');
+            }
+            return;
+        }
+        renderRelayStatus(payload);
+    } catch (error) {
+        if (error.message !== 'AUTH_REQUIRED' && !silent) {
+            showToast('读取中继状态失败', 'error');
+        }
+    }
+}
+
+async function saveRelaySettings() {
+    if (!dom.saveRelaySettingsBtn) return;
+
+    const payload = {
+        enabled: Boolean(dom.settingRelayEnabled?.checked),
+        server_url: String(dom.settingRelayServerUrl?.value || '').trim()
+    };
+
+    const cardKey = String(dom.settingRelayCardKey?.value || '').trim();
+    if (cardKey) {
+        payload.card_key = cardKey;
+    }
+
+    dom.saveRelaySettingsBtn.disabled = true;
+    dom.saveRelaySettingsBtn.textContent = '保存中...';
+    try {
+        const response = await apiFetch('/api/v1/relay/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            showToast(`中继设置保存失败: ${formatApiErrorDetail(result.detail || result.message, response.status)}`, 'error');
+            return;
+        }
+        showToast('中继设置已保存', 'success');
+        await fetchRelayStatus({ silent: true });
+    } catch (error) {
+        if (error.message !== 'AUTH_REQUIRED') {
+            showToast('中继设置保存失败', 'error');
+        }
+    } finally {
+        dom.saveRelaySettingsBtn.disabled = false;
+        dom.saveRelaySettingsBtn.textContent = '保存中继设置';
+    }
+}
+
+async function refreshRelayPairing() {
+    if (!dom.refreshRelayPairingBtn) return;
+
+    dom.refreshRelayPairingBtn.disabled = true;
+    dom.refreshRelayPairingBtn.textContent = '刷新中...';
+    try {
+        const response = await apiFetch('/api/v1/relay/refresh-pairing', {
+            method: 'POST'
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            showToast(`刷新配对码失败: ${formatApiErrorDetail(result.detail || result.message, response.status)}`, 'error');
+            return;
+        }
+
+        showToast('已触发配对码刷新', 'success');
+        await fetchRelayStatus({ silent: true });
+    } catch (error) {
+        if (error.message !== 'AUTH_REQUIRED') {
+            showToast('刷新配对码失败', 'error');
+        }
+    } finally {
+        dom.refreshRelayPairingBtn.disabled = false;
+        dom.refreshRelayPairingBtn.textContent = '刷新配对码';
+    }
 }
 
 async function fetchSettings() {

@@ -32,6 +32,17 @@ quick_overlay:
   mouse_side_button: ''
   poll_interval_ms: 40
 
+relay:
+  enabled: false
+  server_url: ''
+  card_key: ''
+  session_public_id: ''
+  device_token: ''
+  pairing_url: ''
+  pairing_code: ''
+  pairing_expires_at: 0
+  remote_webui_url: ''
+
 public_config:
   source_url: ''
   timeout_seconds: 5

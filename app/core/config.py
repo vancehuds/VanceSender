@@ -55,8 +55,11 @@ def save_config(cfg: dict[str, Any]) -> None:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 yaml.dump(
-                    cfg, f, default_flow_style=False,
-                    allow_unicode=True, sort_keys=False,
+                    cfg,
+                    f,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                    sort_keys=False,
                 )
             os.replace(tmp_path, str(CONFIG_PATH))
         except BaseException:
@@ -121,6 +124,17 @@ def _default_config() -> dict[str, Any]:
             "trigger_hotkey": "f7",
             "mouse_side_button": "",
             "poll_interval_ms": 40,
+        },
+        "relay": {
+            "enabled": False,
+            "server_url": "",
+            "card_key": "",
+            "session_public_id": "",
+            "device_token": "",
+            "pairing_url": "",
+            "pairing_code": "",
+            "pairing_expires_at": 0,
+            "remote_webui_url": "",
         },
         "public_config": {
             "source_url": "",

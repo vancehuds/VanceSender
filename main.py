@@ -37,6 +37,7 @@ from app.core.desktop_shell import (
 )
 from app.core.network import get_lan_ipv4_addresses
 from app.core.public_config import fetch_github_public_config_sync
+from app.core.relay_client import relay_client
 from app.core.runtime_paths import get_bundle_root
 
 WEB_DIR = get_bundle_root() / "app" / "web"
@@ -82,7 +83,11 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         _install_asyncio_exception_filter()
-        yield
+        relay_client.start()
+        try:
+            yield
+        finally:
+            relay_client.stop()
 
     app = FastAPI(
         title=APP_NAME,
@@ -344,9 +349,14 @@ def main() -> None:
         public_config_result = fetch_github_public_config_sync(cfg)
     except Exception:
         from app.core.public_config import GitHubPublicConfigResult
+
         public_config_result = GitHubPublicConfigResult(
-            success=False, visible=False, source_url=None,
-            title=None, content=None, message="远程配置获取异常",
+            success=False,
+            visible=False,
+            source_url=None,
+            title=None,
+            content=None,
+            message="远程配置获取异常",
         )
 
     lan_access = bool(server_cfg.get("lan_access"))

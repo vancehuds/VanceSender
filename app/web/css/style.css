@@ -2239,6 +2239,24 @@ input:checked+.slider:before {
     margin-top: 6px;
 }
 
+.relay-qr-wrap {
+    width: min(220px, 100%);
+    min-height: 160px;
+    border-radius: 10px;
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    background: rgba(2, 8, 23, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+
+.relay-qr-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 8px;
+}
+
 .risk-warning {
     margin-top: 10px;
     padding: 10px 12px;
