@@ -20,6 +20,13 @@ from app.core.app_meta import APP_VERSION
 from app.core.config import load_config, update_config
 
 
+RELAY_REGISTER_TIMEOUT_SECONDS = 35.0
+RELAY_POLL_MAX_WAIT_SECONDS = 35
+RELAY_POLL_TIMEOUT_SECONDS = 70.0
+RELAY_RESPOND_TIMEOUT_SECONDS = 25.0
+RELAY_DISCONNECT_TIMEOUT_SECONDS = 25.0
+
+
 def _now_ts() -> int:
     return int(time.time())
 
@@ -244,7 +251,7 @@ class RelayClient:
                 f"{server_url}/api/v1/device/viewers/disconnect",
                 headers=headers,
                 json=payload,
-                timeout=15.0,
+                timeout=RELAY_DISCONNECT_TIMEOUT_SECONDS,
             )
         except Exception:
             return False, "断开失败，请检查网络或中继服务状态"
@@ -353,7 +360,7 @@ class RelayClient:
             response = httpx.post(
                 f"{server_url}/api/v1/device/sessions",
                 json=payload,
-                timeout=20.0,
+                timeout=RELAY_REGISTER_TIMEOUT_SECONDS,
             )
         except Exception:
             self._set_error("中继注册失败，请检查网络或服务器状态")
@@ -539,11 +546,11 @@ class RelayClient:
             response = httpx.post(
                 f"{server_url}/api/v1/device/poll",
                 headers=headers,
-                json={"max_wait_seconds": 25},
-                timeout=35.0,
+                json={"max_wait_seconds": RELAY_POLL_MAX_WAIT_SECONDS},
+                timeout=RELAY_POLL_TIMEOUT_SECONDS,
             )
         except Exception:
-            self._set_error("中继轮询失败，请稍后重试")
+            self._set_error("中继轮询超时，请检查网络延迟或中继服务状态")
             return False
 
         if response.status_code in {401, 403}:
@@ -589,7 +596,7 @@ class RelayClient:
                 f"{server_url}/api/v1/device/respond",
                 headers=headers,
                 json=response_payload,
-                timeout=15.0,
+                timeout=RELAY_RESPOND_TIMEOUT_SECONDS,
             )
         except Exception:
             self._set_error("中继回传失败，请稍后重试")
