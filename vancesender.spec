@@ -12,6 +12,7 @@ project_root = Path(SPECPATH).resolve()
 datas = [
     (str(project_root / "app" / "web"), "app/web"),
     (str(project_root / "config.yaml.example"), "."),
+    (str(project_root / "icon.ico"), "."),
 ]
 
 hiddenimports = collect_submodules("uvicorn") + [
@@ -47,6 +48,7 @@ exe = EXE(
     upx=True,
     console=False,
     disable_windowed_traceback=False,
+    icon="icon.ico",
 )
 
 coll = COLLECT(

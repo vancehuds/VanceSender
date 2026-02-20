@@ -344,9 +344,14 @@ def is_desktop_window_active() -> bool:
 
 
 def _create_tray_icon_image() -> object | None:
-    """Create simple in-memory tray icon image."""
+    """Create simple in-memory tray icon image or load from bundled icon."""
     try:
         image_module = importlib.import_module("PIL.Image")
+        from app.core.runtime_paths import get_bundle_root
+        icon_path = get_bundle_root() / "icon.ico"
+        if icon_path.exists():
+            return image_module.open(str(icon_path))
+            
         draw_module = importlib.import_module("PIL.ImageDraw")
     except Exception:
         return None
