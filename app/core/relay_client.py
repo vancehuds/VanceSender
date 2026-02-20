@@ -284,26 +284,20 @@ class RelayClient:
                 ),
             }
 
-        if not path.startswith("/api/v1/"):
+        allowed_path = (
+            path == "/"
+            or path.startswith("/api/v1/")
+            or path.startswith("/static/")
+            or path in {"/docs", "/redoc", "/openapi.json", "/favicon.ico"}
+        )
+
+        if not allowed_path:
             return {
                 "request_id": request_id,
                 "status": 400,
                 "headers": {"content-type": "application/json"},
                 "body_base64": _encode_base64_url(
                     json.dumps({"detail": "invalid path"}).encode("utf-8")
-                ),
-            }
-
-        # 防止中继调用自身管理接口形成递归。
-        if path.startswith("/api/v1/relay/"):
-            return {
-                "request_id": request_id,
-                "status": 403,
-                "headers": {"content-type": "application/json"},
-                "body_base64": _encode_base64_url(
-                    json.dumps({"detail": "relay routes are not proxyable"}).encode(
-                        "utf-8"
-                    )
                 ),
             }
 
@@ -326,7 +320,13 @@ class RelayClient:
         if isinstance(req_headers, dict):
             for key, value in req_headers.items():
                 key_text = str(key).strip().lower()
-                if key_text in {"content-type", "accept"}:
+                if key_text in {
+                    "content-type",
+                    "accept",
+                    "if-none-match",
+                    "if-modified-since",
+                    "range",
+                }:
                     forward_headers[key_text] = str(value)
 
         local_token_raw = config.get("server", {}).get("token", "")
@@ -348,11 +348,20 @@ class RelayClient:
                 content=body_bytes if body_bytes else None,
                 timeout=35.0,
             )
-            content_type = response.headers.get("content-type", "application/json")
+            relay_headers: dict[str, str] = {
+                "content-type": response.headers.get(
+                    "content-type", "application/octet-stream"
+                )
+            }
+            for key in ("cache-control", "etag", "last-modified"):
+                value = response.headers.get(key)
+                if value:
+                    relay_headers[key] = value
+
             return {
                 "request_id": request_id,
                 "status": int(response.status_code),
-                "headers": {"content-type": content_type},
+                "headers": relay_headers,
                 "body_base64": _encode_base64_url(response.content or b""),
             }
         except Exception as exc:
