@@ -185,18 +185,61 @@
                     </div>
 
                     <div class="glass-card home-card">
-                        <h2>局域网访问</h2>
-                        <p id="home-lan-status" class="desc">局域网访问状态检测中...</p>
+                        <h2>远程中继（公网访问）</h2>
+                        <p class="desc">通过中继服务器实现局域网外访问。中继服务器地址与卡密请在设置中填写。</p>
 
-                        <div id="home-lan-enabled" class="hidden">
-                            <div class="home-code-block">
-                                <span id="home-lan-urls" class="code">http://192.168.x.x:8730</span>
+                        <div class="setting-item-toggle" style="margin-top: 10px;">
+                            <div class="setting-info">
+                                <label>启用中继</label>
+                                <p class="desc">开启后会自动连接中继服务器并轮询公网请求。</p>
                             </div>
-                            <p class="desc">局域网访问开启后可用同一局域网(WIFI)下的设备进行远程控制。建议设置 Token 保护局域网访问安全。</p>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-relay-enabled">
+                                <span class="slider round"></span>
+                            </label>
                         </div>
 
-                        <div id="home-lan-disabled" class="home-inline-tip hidden">
-                            <p>当前未开启局域网访问，可在 <strong>设置 → 网络设置</strong> 中开启。</p>
+                        <p class="desc" style="margin-top:10px;">中继状态</p>
+                        <p id="relay-status-text" class="desc">未启用</p>
+                        <p id="relay-last-error" class="desc" style="color:var(--accent-danger);">无</p>
+
+                        <div class="form-row" style="margin-top:8px;">
+                            <div class="form-group" style="flex:1.3">
+                                <label>扫码配对地址</label>
+                                <div class="home-code-block">
+                                    <span id="relay-pairing-url" class="code">-</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>8位配对码</label>
+                                <div class="home-code-block">
+                                    <span id="relay-pairing-code" class="code">-</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>有效期</label>
+                                <div class="home-code-block">
+                                    <span id="relay-pairing-expiry" class="code">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row" style="margin-top:8px;">
+                            <div class="form-group">
+                                <label>二维码</label>
+                                <div class="relay-qr-wrap">
+                                    <img id="relay-qr-image" alt="中继配对二维码">
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex:1.7">
+                                <label>中继操作</label>
+                                <div class="input-actions">
+                                    <button id="save-relay-settings-btn" class="btn btn-outline"
+                                        type="button">保存中继设置</button>
+                                    <button id="refresh-relay-pairing-btn" class="btn btn-ghost"
+                                        type="button">刷新配对码</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -234,7 +277,7 @@
                             rel="noopener noreferrer" target="_blank">查看详情</a>
                     </div>
 
-                    <div class="glass-card home-card home-card-security">
+                    <div id="home-security-card" class="glass-card home-card home-card-security">
                         <h2>安全提示</h2>
                         <div id="home-security-warning" class="risk-warning hidden"></div>
                         <p id="home-token-status" class="desc">Token 状态检测中...</p>
@@ -552,6 +595,25 @@
                         </div>
                     </div>
 
+                    <div class="glass-card settings-section">
+                        <h2>远程中继（公网访问）</h2>
+                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">
+                            仅配置中继接入信息。中继开关、状态与配对信息已移动到首页卡片。
+                        </p>
+
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1.5">
+                                <label>中继服务器地址</label>
+                                <input type="text" id="setting-relay-server-url"
+                                    placeholder="https://relay.example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>卡密（可选）</label>
+                                <input type="password" id="setting-relay-card-key" placeholder="服务器启用卡密时填写">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Network Settings -->
                     <div class="glass-card settings-section">
                         <h2>网络设置</h2>
@@ -580,77 +642,6 @@
                             </div>
                             <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">设置后所有 API
                                 请求需携带此 Token</p>
-                        </div>
-                    </div>
-
-                    <div class="glass-card settings-section">
-                        <h2>远程中继（公网访问）</h2>
-                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">
-                            通过中继服务器实现局域网外访问。连接流程采用“二维码 + 8位数字字母配对码”交叉验证。
-                        </p>
-
-                        <div class="setting-item-toggle">
-                            <div class="setting-info">
-                                <label>启用中继</label>
-                                <p class="desc">开启后会自动连接中继服务器并轮询公网请求。</p>
-                            </div>
-                            <label class="switch">
-                                <input type="checkbox" id="setting-relay-enabled">
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group" style="flex:1.5">
-                                <label>中继服务器地址</label>
-                                <input type="text" id="setting-relay-server-url"
-                                    placeholder="https://relay.example.com">
-                            </div>
-                            <div class="form-group">
-                                <label>卡密（可选）</label>
-                                <input type="password" id="setting-relay-card-key" placeholder="服务器启用卡密时填写">
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group" style="flex:1.3">
-                                <label>扫码配对地址</label>
-                                <div class="home-code-block">
-                                    <span id="relay-pairing-url" class="code">-</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>8位配对码</label>
-                                <div class="home-code-block">
-                                    <span id="relay-pairing-code" class="code">-</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>有效期</label>
-                                <div class="home-code-block">
-                                    <span id="relay-pairing-expiry" class="code">-</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>二维码</label>
-                                <div class="relay-qr-wrap">
-                                    <img id="relay-qr-image" alt="中继配对二维码">
-                                </div>
-                            </div>
-                            <div class="form-group" style="flex:1.7">
-                                <label>中继状态</label>
-                                <p id="relay-status-text" class="desc">未启用</p>
-                                <p id="relay-last-error" class="desc" style="color:var(--accent-danger);">无</p>
-                                <div class="input-actions">
-                                    <button id="save-relay-settings-btn" class="btn btn-outline"
-                                        type="button">保存中继设置</button>
-                                    <button id="refresh-relay-pairing-btn" class="btn btn-ghost"
-                                        type="button">刷新配对码</button>
-                                </div>
-                            </div>
                         </div>
                     </div>
 

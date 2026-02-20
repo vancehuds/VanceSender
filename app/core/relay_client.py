@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import random
 import socket
 import threading
 import time
@@ -168,6 +169,11 @@ class RelayClient:
                 if hasattr(self._state, key):
                     setattr(self._state, key, value)
 
+    def _backoff_with_jitter(self, failure_streak: int) -> float:
+        level = max(failure_streak, 1)
+        cap = min(30.0, float(2 ** min(level, 6)))
+        return random.uniform(0.5, cap)
+
     def _build_qr_image_base64(self, content: str) -> str:
         if not content:
             return ""
@@ -216,8 +222,8 @@ class RelayClient:
                 json=payload,
                 timeout=20.0,
             )
-        except Exception as exc:
-            self._set_error(f"中继注册失败: {exc}")
+        except Exception:
+            self._set_error("中继注册失败，请检查网络或服务器状态")
             return False
 
         try:
@@ -374,10 +380,10 @@ class RelayClient:
                 "headers": relay_headers,
                 "body_base64": _encode_base64_url(response.content or b""),
             }
-        except Exception as exc:
-            error_payload = json.dumps(
-                {"detail": f"local request failed: {exc}"}
-            ).encode("utf-8")
+        except Exception:
+            error_payload = json.dumps({"detail": "local request failed"}).encode(
+                "utf-8"
+            )
             return {
                 "request_id": request_id,
                 "status": 502,
@@ -400,8 +406,8 @@ class RelayClient:
                 json={"max_wait_seconds": 25},
                 timeout=35.0,
             )
-        except Exception as exc:
-            self._set_error(f"中继轮询失败: {exc}")
+        except Exception:
+            self._set_error("中继轮询失败，请稍后重试")
             return False
 
         if response.status_code in {401, 403}:
@@ -435,8 +441,8 @@ class RelayClient:
                 json=response_payload,
                 timeout=15.0,
             )
-        except Exception as exc:
-            self._set_error(f"中继回传失败: {exc}")
+        except Exception:
+            self._set_error("中继回传失败，请稍后重试")
             return False
 
         if write_response.status_code in {401, 403}:
@@ -461,6 +467,7 @@ class RelayClient:
         return True
 
     def _run_loop(self) -> None:
+        failure_streak = 0
         while not self._stop_event.is_set():
             try:
                 cfg = load_config()
@@ -473,12 +480,14 @@ class RelayClient:
 
                 if not enabled:
                     self._set_state(connected=False, last_error="")
+                    failure_streak = 0
                     time.sleep(1.0)
                     continue
 
                 if not server_url:
                     self._set_error("请先配置中继服务器地址")
-                    time.sleep(2.0)
+                    failure_streak = min(failure_streak + 1, 8)
+                    time.sleep(self._backoff_with_jitter(failure_streak))
                     continue
 
                 device_token_raw = relay_cfg.get("device_token", "")
@@ -490,15 +499,24 @@ class RelayClient:
 
                 if not device_token:
                     registered = self._register_session(server_url, relay_cfg)
-                    time.sleep(0.2 if registered else 2.0)
+                    if registered:
+                        failure_streak = 0
+                        time.sleep(0.2)
+                    else:
+                        failure_streak = min(failure_streak + 1, 8)
+                        time.sleep(self._backoff_with_jitter(failure_streak))
                     continue
 
                 polled = self._poll_once(server_url, device_token, cfg)
                 if not polled:
-                    time.sleep(1.5)
-            except Exception as exc:
-                self._set_error(f"中继异常: {exc}")
-                time.sleep(2.0)
+                    failure_streak = min(failure_streak + 1, 8)
+                    time.sleep(self._backoff_with_jitter(failure_streak))
+                else:
+                    failure_streak = 0
+            except Exception:
+                self._set_error("中继异常，请稍后重试")
+                failure_streak = min(failure_streak + 1, 8)
+                time.sleep(self._backoff_with_jitter(failure_streak))
 
 
 relay_client = RelayClient()

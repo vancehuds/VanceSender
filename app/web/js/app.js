@@ -382,10 +382,7 @@ const dom = {
     // Home
     homeLocalUrl: document.getElementById('home-local-url'),
     homeDocsUrl: document.getElementById('home-docs-url'),
-    homeLanStatus: document.getElementById('home-lan-status'),
-    homeLanEnabled: document.getElementById('home-lan-enabled'),
-    homeLanDisabled: document.getElementById('home-lan-disabled'),
-    homeLanUrls: document.getElementById('home-lan-urls'),
+    homeSecurityCard: document.getElementById('home-security-card'),
     homeTokenStatus: document.getElementById('home-token-status'),
     homeSecurityWarning: document.getElementById('home-security-warning'),
     homeOpenBrowserBtn: document.getElementById('home-open-browser-btn'),
@@ -953,26 +950,8 @@ function renderHomePanel(serverSettings) {
     }
 
     const lanEnabled = Boolean(serverSettings?.lan_access);
-    const lanPort = Number.parseInt(String(serverSettings?.port || ''), 10) || 8730;
-    const lanUrlList = pickLanList(serverSettings, 'lan_urls', 'lan_url');
-    const displayLanList = lanUrlList.length > 0 ? lanUrlList : [`http://<your-ip>:${lanPort}`];
-
-    if (dom.homeLanStatus) {
-        dom.homeLanStatus.textContent = lanEnabled
-            ? '局域网访问已开启，下列地址可供同网络设备访问。'
-            : '局域网访问未开启，仅本机可访问。';
-    }
-
-    if (dom.homeLanEnabled) {
-        dom.homeLanEnabled.classList.toggle('hidden', !lanEnabled);
-    }
-
-    if (dom.homeLanDisabled) {
-        dom.homeLanDisabled.classList.toggle('hidden', lanEnabled);
-    }
-
-    if (dom.homeLanUrls) {
-        dom.homeLanUrls.textContent = displayLanList.join(' | ');
+    if (dom.homeSecurityCard) {
+        dom.homeSecurityCard.classList.toggle('hidden', !lanEnabled);
     }
 
     const tokenSet = Boolean(serverSettings?.token_set);
@@ -983,10 +962,7 @@ function renderHomePanel(serverSettings) {
     }
 
     const securityWarning = String(serverSettings?.security_warning || '').trim();
-    const hasRisk = Boolean(
-        serverSettings?.risk_no_token_with_lan
-        || (serverSettings?.lan_access && !serverSettings?.token_set)
-    );
+    const hasRisk = lanEnabled && Boolean(serverSettings?.risk_no_token_with_lan || !tokenSet);
     if (dom.homeSecurityWarning) {
         dom.homeSecurityWarning.classList.toggle('hidden', !hasRisk);
         dom.homeSecurityWarning.textContent = hasRisk

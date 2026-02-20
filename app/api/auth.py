@@ -23,8 +23,11 @@ async def verify_token(
         cfg = load_config()
         token = cfg.get("server", {}).get("token", "")
     except Exception:
-        # Config unreadable — fail open rather than blocking all API access
-        return
+        # Config unreadable — fail closed to avoid accidental auth bypass
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="认证配置读取失败，请稍后重试",
+        )
 
     # No token configured → auth disabled
     if not token:
