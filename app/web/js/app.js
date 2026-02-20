@@ -3616,10 +3616,9 @@ async function refreshRelayPairing() {
     dom.refreshRelayPairingBtn.textContent = '刷新中...';
     try {
         const preStatus = await fetchRelayStatus({ silent: true });
-
-        if (preStatus && !preStatus.enabled) {
-            showToast('中继未启用，无法刷新配对码', 'info');
-            return;
+        const relayDisabledBeforeRefresh = Boolean(preStatus && !preStatus.enabled);
+        if (relayDisabledBeforeRefresh) {
+            showToast('中继未启用，已发送刷新请求；启用中继后将生成配对码', 'info');
         }
 
         const prePairingSignature = `${String(preStatus?.pairing_url || '').trim()}|${String(preStatus?.pairing_code || '').trim()}|${Number.parseInt(String(preStatus?.pairing_expires_at || 0), 10) || 0}`;
@@ -3630,6 +3629,11 @@ async function refreshRelayPairing() {
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.success === false) {
             showToast(`刷新配对码失败: ${formatApiErrorDetail(result.detail || result.message, response.status)}`, 'error');
+            return;
+        }
+
+        if (relayDisabledBeforeRefresh) {
+            await fetchRelayStatus({ silent: true });
             return;
         }
 
