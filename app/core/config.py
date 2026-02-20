@@ -17,6 +17,7 @@ RUNTIME_ROOT = get_runtime_root()
 CONFIG_PATH = RUNTIME_ROOT / "config.yaml"
 DATA_DIR = RUNTIME_ROOT / "data"
 PRESETS_DIR = DATA_DIR / "presets"
+DEFAULT_RELAY_SERVER_URL = "https://senderelay.vhuds.com"
 
 
 def _ensure_dirs() -> None:
@@ -40,6 +41,10 @@ def load_config() -> dict[str, Any]:
     if not isinstance(cfg, dict):
         push_notification("config.yaml 内容不是有效的配置字典，已回退到默认配置。")
         return _default_config()
+
+    if _migrate_relay_server_url(cfg):
+        save_config(cfg)
+
     return _merge_defaults(cfg)
 
 
@@ -127,7 +132,7 @@ def _default_config() -> dict[str, Any]:
         },
         "relay": {
             "enabled": False,
-            "server_url": "",
+            "server_url": DEFAULT_RELAY_SERVER_URL,
             "card_key": "",
             "session_public_id": "",
             "device_token": "",
@@ -156,6 +161,25 @@ def _default_config() -> dict[str, Any]:
             },
         },
     }
+
+
+def _migrate_relay_server_url(cfg: dict[str, Any]) -> bool:
+    relay_raw = cfg.get("relay")
+    if not isinstance(relay_raw, dict):
+        return False
+
+    server_url_raw = relay_raw.get("server_url")
+    server_url = ""
+    if isinstance(server_url_raw, str):
+        server_url = server_url_raw.strip()
+    elif server_url_raw is not None:
+        server_url = str(server_url_raw).strip()
+
+    if server_url:
+        return False
+
+    relay_raw["server_url"] = DEFAULT_RELAY_SERVER_URL
+    return True
 
 
 def _merge_defaults(cfg: dict[str, Any]) -> dict[str, Any]:

@@ -34,7 +34,7 @@ quick_overlay:
 
 relay:
   enabled: false
-  server_url: ''
+  server_url: 'https://senderelay.vhuds.com'
   card_key: ''
   session_public_id: ''
   device_token: ''

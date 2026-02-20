@@ -184,7 +184,7 @@
                         </div>
                     </div>
 
-                    <div class="glass-card home-card">
+                    <div class="glass-card home-card home-card-relay">
                         <h2>远程中继（公网访问）</h2>
                         <p class="desc">通过中继服务器实现局域网外访问。中继服务器地址与卡密请在设置中填写。</p>
 
@@ -234,11 +234,10 @@
                             <div class="form-group" style="flex:1.7">
                                 <label>中继操作</label>
                                 <div class="input-actions">
-                                    <button id="save-relay-settings-btn" class="btn btn-outline"
-                                        type="button">保存中继设置</button>
                                     <button id="refresh-relay-pairing-btn" class="btn btn-ghost"
                                         type="button">刷新配对码</button>
                                 </div>
+                                <p class="desc" style="margin-top:6px;">中继服务器地址与卡密请在“设置 → 远程中继”中保存。</p>
                             </div>
                         </div>
                     </div>
@@ -605,7 +604,7 @@
                             <div class="form-group" style="flex:1.5">
                                 <label>中继服务器地址</label>
                                 <input type="text" id="setting-relay-server-url"
-                                    placeholder="https://relay.example.com">
+                                    placeholder="https://senderelay.vhuds.com">
                             </div>
                             <div class="form-group">
                                 <label>卡密（可选）</label>

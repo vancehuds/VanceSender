@@ -599,6 +599,7 @@ body.quick-panel-mode .toast-container {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
+    align-items: start;
 }
 
 .home-card {
@@ -617,6 +618,10 @@ body.quick-panel-mode .toast-container {
 }
 
 .home-card-announcement {
+    grid-column: 1 / -1;
+}
+
+.home-card-relay {
     grid-column: 1 / -1;
 }
 
@@ -1523,6 +1528,10 @@ input:checked+.slider:before {
     }
 
     .home-card-announcement {
+        grid-column: auto;
+    }
+
+    .home-card-relay {
         grid-column: auto;
     }
 
