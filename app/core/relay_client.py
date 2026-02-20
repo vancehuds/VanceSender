@@ -9,7 +9,7 @@ import random
 import socket
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import httpx
@@ -54,6 +54,35 @@ def _safe_int(value: object, fallback: int) -> int:
     return fallback
 
 
+def _normalize_connected_viewers(raw: object) -> list[dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+
+    normalized: list[dict[str, Any]] = []
+    for index, item in enumerate(raw):
+        if not isinstance(item, dict):
+            continue
+
+        viewer_id_raw = str(item.get("id", "")).strip()
+        viewer_id = viewer_id_raw or f"viewer-{index + 1}"
+        label = str(item.get("label", "")).strip() or "远程查看端"
+        connected_at = _safe_int(item.get("connected_at"), 0)
+        expires_at = _safe_int(item.get("expires_at"), 0)
+        if expires_at <= 0:
+            continue
+
+        normalized.append(
+            {
+                "id": viewer_id,
+                "label": label,
+                "connected_at": connected_at,
+                "expires_at": expires_at,
+            }
+        )
+
+    return normalized
+
+
 @dataclass
 class RelayRuntimeState:
     enabled: bool = False
@@ -66,6 +95,9 @@ class RelayRuntimeState:
     pairing_expires_at: int = 0
     remote_webui_url: str = ""
     qr_image_base64: str = ""
+    pairing_code_used: bool = False
+    pairing_code_status_text: str = ""
+    connected_viewers: list[dict[str, Any]] = field(default_factory=list)
     card_key_required_prompt_text: str = ""
     last_error: str = ""
     last_seen_at: int = 0
@@ -132,6 +164,16 @@ class RelayClient:
             payload["remote_webui_url"]
             or str(relay_cfg.get("remote_webui_url", "")).strip()
         )
+        payload["pairing_code_used"] = bool(payload.get("pairing_code_used", False))
+        payload["pairing_code_status_text"] = str(
+            payload.get("pairing_code_status_text", "")
+        ).strip()
+        payload["connected_viewers"] = _normalize_connected_viewers(
+            payload.get("connected_viewers")
+        )
+
+        if payload["pairing_code_used"] and not payload["pairing_code_status_text"]:
+            payload["pairing_code_status_text"] = "配对码已被使用，请重新生成"
 
         if not payload["pairing_url"]:
             payload["qr_image_base64"] = ""
@@ -168,7 +210,64 @@ class RelayClient:
             self._state.pairing_expires_at = 0
             self._state.remote_webui_url = ""
             self._state.qr_image_base64 = ""
+            self._state.pairing_code_used = False
+            self._state.pairing_code_status_text = ""
+            self._state.connected_viewers = []
             self._state.card_key_required_prompt_text = ""
+
+    def disconnect_connected_viewer(self, viewer_id: str = "") -> tuple[bool, str]:
+        cfg = load_config()
+        relay_raw = cfg.get("relay")
+        relay_cfg = relay_raw if isinstance(relay_raw, dict) else {}
+        enabled = bool(relay_cfg.get("enabled", False))
+        server_url = _normalize_server_url(relay_cfg.get("server_url", ""))
+        device_token = str(relay_cfg.get("device_token", "")).strip()
+
+        if not enabled:
+            return False, "中继未启用"
+
+        if not server_url or not device_token:
+            return False, "中继会话未建立，请先连接中继"
+
+        payload: dict[str, str] = {}
+        normalized_viewer_id = str(viewer_id or "").strip()
+        if normalized_viewer_id:
+            payload["viewer_id"] = normalized_viewer_id
+
+        headers = {
+            "Authorization": f"Bearer {device_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            response = httpx.post(
+                f"{server_url}/api/v1/device/viewers/disconnect",
+                headers=headers,
+                json=payload,
+                timeout=15.0,
+            )
+        except Exception:
+            return False, "断开失败，请检查网络或中继服务状态"
+
+        if response.status_code in {401, 403}:
+            self._clear_session()
+            self._set_error("中继会话失效，请重新配对")
+            return False, "中继会话失效，请重新配对"
+
+        try:
+            payload_json = response.json() if response.content else {}
+        except ValueError:
+            payload_json = {}
+
+        if response.status_code >= 400 or not payload_json.get("success", False):
+            message = str(payload_json.get("message", "断开失败"))
+            return False, message
+
+        disconnected_count = _safe_int(payload_json.get("disconnected_count"), 0)
+        self._set_state(connected_viewers=[])
+        if disconnected_count > 0:
+            return True, "已断开已连接查看端"
+        return True, "当前没有可断开的查看端"
 
     def _set_error(self, message: str) -> None:
         with self._lock:
@@ -237,6 +336,9 @@ class RelayClient:
             pairing_expires_at=0,
             remote_webui_url="",
             qr_image_base64="",
+            pairing_code_used=False,
+            pairing_code_status_text="",
+            connected_viewers=[],
             card_key_required_prompt_text="",
         )
 
@@ -307,6 +409,9 @@ class RelayClient:
             pairing_expires_at=pairing_expires_at,
             remote_webui_url=remote_webui_url,
             qr_image_base64=qr_base64,
+            pairing_code_used=False,
+            pairing_code_status_text="",
+            connected_viewers=[],
             card_key_required_prompt_text="",
             last_seen_at=_now_ts(),
         )
@@ -454,11 +559,25 @@ class RelayClient:
             self._set_error(str(payload.get("message", "中继轮询失败")))
             return False
 
+        pairing_code_used = bool(payload.get("pairing_code_used", False))
+        pairing_code_status_text = str(
+            payload.get("pairing_code_status_text", "")
+        ).strip()
+        if pairing_code_used and not pairing_code_status_text:
+            pairing_code_status_text = "配对码已被使用，请重新生成"
+
+        connected_viewers = _normalize_connected_viewers(
+            payload.get("connected_viewers")
+        )
+
         request_data = payload.get("request")
         if not isinstance(request_data, dict):
             self._set_state(
                 connected=True,
                 last_error="",
+                pairing_code_used=pairing_code_used,
+                pairing_code_status_text=pairing_code_status_text,
+                connected_viewers=connected_viewers,
                 card_key_required_prompt_text="",
                 last_seen_at=_now_ts(),
             )
@@ -492,6 +611,9 @@ class RelayClient:
         self._set_state(
             connected=True,
             last_error="",
+            pairing_code_used=pairing_code_used,
+            pairing_code_status_text=pairing_code_status_text,
+            connected_viewers=connected_viewers,
             card_key_required_prompt_text="",
             last_seen_at=_now_ts(),
         )

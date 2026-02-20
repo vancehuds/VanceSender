@@ -318,6 +318,8 @@ const state = {
     startupUpdateChecked: false,
     updateCheckInProgress: false,
     homeUpdateBannerDismissed: false,
+    relayStatusAutoRefreshStarted: false,
+    relayDisconnectInProgress: false,
     desktopShell: {
         active: false,
         maximized: false,
@@ -439,6 +441,9 @@ const dom = {
     relayQrImage: document.getElementById('relay-qr-image'),
     relayStatusText: document.getElementById('relay-status-text'),
     relayLastError: document.getElementById('relay-last-error'),
+    relayPairingStatusHint: document.getElementById('relay-pairing-status-hint'),
+    relayConnectedDevicesList: document.getElementById('relay-connected-devices-list'),
+    relayConnectedDevicesEmpty: document.getElementById('relay-connected-devices-empty'),
     refreshRelayPairingBtn: document.getElementById('refresh-relay-pairing-btn'),
     settingCustomHeaders: document.getElementById('setting-custom-headers'),
     saveSettingsBtn: document.getElementById('save-settings-btn'),
@@ -540,6 +545,7 @@ async function loadInitialData() {
 
         state.settingsSnapshot = getSettingsFormSnapshot();
         setSettingsDirtyState(false);
+        ensureRelayStatusAutoRefresh();
         showToast('系统已就绪', 'success');
 
         if (!state.startupUpdateChecked) {
@@ -3176,6 +3182,8 @@ function formatUnixTimestamp(seconds) {
 }
 
 const RELAY_CARD_REQUIRED_DEFAULT_PROMPT_TEXT = '当前中继服务要求输入卡密，请在“设置 → 远程中继”填写后保存。';
+const RELAY_PAIRING_USED_DEFAULT_TEXT = '配对码已被使用，请重新生成';
+const RELAY_STATUS_AUTO_REFRESH_INTERVAL_MS = 12000;
 
 function openSettingsPanelAndFocusRelayCardKey() {
     const settingsNavItem = Array.from(dom.navItems).find((item) => item.dataset?.target === 'panel-settings');
@@ -3205,6 +3213,240 @@ function maybeShowRelayCardRequiredModal(promptText) {
     }
 
     openModal('modal-relay-card-required');
+}
+
+function pickRelayField(source, keys) {
+    if (!source || typeof source !== 'object' || !Array.isArray(keys)) {
+        return undefined;
+    }
+
+    for (const key of keys) {
+        if (!key) continue;
+        if (Object.prototype.hasOwnProperty.call(source, key)) {
+            const value = source[key];
+            if (value !== undefined && value !== null) {
+                return value;
+            }
+        }
+    }
+
+    return undefined;
+}
+
+function normalizeRelayStatusPayload(rawPayload) {
+    const root = (rawPayload && typeof rawPayload === 'object') ? rawPayload : null;
+    if (!root) {
+        return null;
+    }
+
+    const nestedData = (root.data && typeof root.data === 'object') ? root.data : null;
+    const source = nestedData || root;
+    if (!source || typeof source !== 'object') {
+        return null;
+    }
+
+    const hasKnownRelayShape = [
+        'enabled',
+        'connected',
+        'running',
+        'server_url',
+        'serverUrl',
+        'session_public_id',
+        'sessionPublicId',
+        'pairing_url',
+        'pairingUrl',
+        'pairing_code',
+        'pairingCode',
+        'pairing_expires_at',
+        'pairingExpiresAt',
+        'pair_expires_at',
+        'pairExpiresAt',
+        'qr_image_base64',
+        'qrImageBase64',
+        'connected_viewers',
+        'connectedViewers'
+    ].some((key) => Object.prototype.hasOwnProperty.call(source, key));
+
+    if (!hasKnownRelayShape) {
+        return null;
+    }
+
+    const pairingExpiresAt = Number.parseInt(String(
+        pickRelayField(source, ['pairing_expires_at', 'pairingExpiresAt', 'pair_expires_at', 'pairExpiresAt']) || 0
+    ), 10) || 0;
+
+    const lastSeenAt = Number.parseInt(String(
+        pickRelayField(source, ['last_seen_at', 'lastSeenAt']) || 0
+    ), 10) || 0;
+
+    const connectedViewers = pickRelayField(source, ['connected_viewers', 'connectedViewers']);
+
+    return {
+        ...source,
+        enabled: Boolean(pickRelayField(source, ['enabled'])),
+        connected: Boolean(pickRelayField(source, ['connected'])),
+        running: Boolean(pickRelayField(source, ['running'])),
+        server_url: String(pickRelayField(source, ['server_url', 'serverUrl']) || '').trim(),
+        session_public_id: String(pickRelayField(source, ['session_public_id', 'sessionPublicId']) || '').trim(),
+        pairing_url: String(pickRelayField(source, ['pairing_url', 'pairingUrl']) || '').trim(),
+        pairing_code: String(pickRelayField(source, ['pairing_code', 'pairingCode']) || '').trim(),
+        pairing_expires_at: pairingExpiresAt,
+        remote_webui_url: String(pickRelayField(source, ['remote_webui_url', 'remoteWebuiUrl']) || '').trim(),
+        qr_image_base64: String(pickRelayField(source, ['qr_image_base64', 'qrImageBase64']) || '').trim(),
+        card_key_required_prompt_text: String(
+            pickRelayField(source, ['card_key_required_prompt_text', 'cardKeyRequiredPromptText', 'popup_text', 'popupText']) || ''
+        ).trim(),
+        last_error: String(pickRelayField(source, ['last_error', 'lastError']) || '').trim(),
+        last_seen_at: lastSeenAt,
+        card_key_set: Boolean(pickRelayField(source, ['card_key_set', 'cardKeySet'])),
+        pairing_code_used: Boolean(pickRelayField(source, ['pairing_code_used', 'pairingCodeUsed'])),
+        pairing_code_status_text: String(
+            pickRelayField(source, ['pairing_code_status_text', 'pairingCodeStatusText']) || ''
+        ).trim(),
+        connected_viewers: Array.isArray(connectedViewers) ? connectedViewers : []
+    };
+}
+
+function normalizeRelayConnectedViewers(raw) {
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+
+    return raw
+        .map((item, index) => {
+            const source = (item && typeof item === 'object') ? item : {};
+            const id = String(
+                pickRelayField(source, ['id', 'viewer_id', 'viewerId']) || `viewer-${index + 1}`
+            ).trim();
+            const label = String(
+                pickRelayField(source, ['label', 'device_name', 'deviceName']) || '远程查看端'
+            ).trim() || '远程查看端';
+            const connectedAt = Number.parseInt(String(
+                pickRelayField(source, ['connected_at', 'connectedAt']) || 0
+            ), 10);
+            const expiresAt = Number.parseInt(String(
+                pickRelayField(source, ['expires_at', 'expiresAt']) || 0
+            ), 10);
+
+            if (!id || !Number.isFinite(expiresAt) || expiresAt <= 0) {
+                return null;
+            }
+
+            return {
+                id,
+                label,
+                connectedAt: Number.isFinite(connectedAt) ? connectedAt : 0,
+                expiresAt
+            };
+        })
+        .filter(Boolean);
+}
+
+function setRelayDisconnectButtonsDisabled(disabled) {
+    document.querySelectorAll('[data-relay-disconnect-viewer-id]').forEach((button) => {
+        if (button instanceof HTMLButtonElement) {
+            button.disabled = Boolean(disabled);
+        }
+    });
+}
+
+async function disconnectRelayViewer(viewerId) {
+    const normalizedViewerId = String(viewerId || '').trim();
+    if (!normalizedViewerId || state.relayDisconnectInProgress) {
+        return;
+    }
+
+    if (!confirm(`确认断开设备 ${normalizedViewerId} ？`)) {
+        return;
+    }
+
+    state.relayDisconnectInProgress = true;
+    setRelayDisconnectButtonsDisabled(true);
+    try {
+        const response = await apiFetch('/api/v1/relay/disconnect-viewer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ viewer_id: normalizedViewerId })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+            showToast(`断开失败: ${formatApiErrorDetail(payload.detail || payload.message, response.status)}`, 'error');
+            return;
+        }
+
+        showToast(String(payload.message || '已断开已连接查看端'), 'success');
+        await fetchRelayStatus({ silent: true });
+    } catch (error) {
+        if (error.message !== 'AUTH_REQUIRED') {
+            showToast('断开已连接设备失败', 'error');
+        }
+    } finally {
+        state.relayDisconnectInProgress = false;
+        setRelayDisconnectButtonsDisabled(false);
+    }
+}
+
+function renderRelayConnectedDevices(data) {
+    if (!dom.relayConnectedDevicesList || !dom.relayConnectedDevicesEmpty) {
+        return;
+    }
+
+    dom.relayConnectedDevicesList.innerHTML = '';
+    const viewers = normalizeRelayConnectedViewers(data?.connected_viewers);
+    if (viewers.length === 0) {
+        dom.relayConnectedDevicesEmpty.classList.remove('hidden');
+        return;
+    }
+
+    dom.relayConnectedDevicesEmpty.classList.add('hidden');
+    viewers.forEach((viewer) => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'relay-device-item';
+
+        const metaEl = document.createElement('div');
+        metaEl.className = 'relay-device-meta';
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'relay-device-title';
+        titleEl.textContent = `${viewer.label} · ${viewer.id}`;
+
+        const subEl = document.createElement('div');
+        subEl.className = 'relay-device-sub';
+        const connectedAtText = formatUnixTimestamp(viewer.connectedAt);
+        const expiresAtText = formatUnixTimestamp(viewer.expiresAt);
+        subEl.textContent = `连接时间：${connectedAtText} · 到期：${expiresAtText}`;
+
+        metaEl.appendChild(titleEl);
+        metaEl.appendChild(subEl);
+
+        const disconnectBtn = document.createElement('button');
+        disconnectBtn.type = 'button';
+        disconnectBtn.className = 'btn btn-sm btn-ghost';
+        disconnectBtn.dataset.relayDisconnectViewerId = viewer.id;
+        disconnectBtn.textContent = '断开';
+        disconnectBtn.disabled = state.relayDisconnectInProgress;
+        disconnectBtn.addEventListener('click', () => {
+            disconnectRelayViewer(viewer.id);
+        });
+
+        itemEl.appendChild(metaEl);
+        itemEl.appendChild(disconnectBtn);
+        dom.relayConnectedDevicesList.appendChild(itemEl);
+    });
+}
+
+function ensureRelayStatusAutoRefresh() {
+    if (state.relayStatusAutoRefreshStarted) {
+        return;
+    }
+
+    state.relayStatusAutoRefreshStarted = true;
+    window.setInterval(() => {
+        if (document.hidden) {
+            return;
+        }
+        fetchRelayStatus({ silent: true });
+    }, RELAY_STATUS_AUTO_REFRESH_INTERVAL_MS);
 }
 
 function renderRelayStatus(data) {
@@ -3239,6 +3481,18 @@ function renderRelayStatus(data) {
         dom.relayPairingExpiry.textContent = formatUnixTimestamp(data.pairing_expires_at);
     }
 
+    if (dom.relayPairingStatusHint) {
+        const pairingCodeUsed = Boolean(data.pairing_code_used);
+        const statusText = String(data.pairing_code_status_text || '').trim() || RELAY_PAIRING_USED_DEFAULT_TEXT;
+        if (pairingCodeUsed) {
+            dom.relayPairingStatusHint.textContent = statusText;
+            dom.relayPairingStatusHint.classList.remove('hidden');
+        } else {
+            dom.relayPairingStatusHint.textContent = '';
+            dom.relayPairingStatusHint.classList.add('hidden');
+        }
+    }
+
     if (dom.relayQrImage) {
         const qrBase64 = String(data.qr_image_base64 || '').trim();
         if (qrBase64) {
@@ -3265,6 +3519,8 @@ function renderRelayStatus(data) {
         dom.relayLastError.textContent = err ? `错误：${err}` : '无';
     }
 
+    renderRelayConnectedDevices(data);
+
     const relayCardPromptText = String(data.card_key_required_prompt_text || '').trim();
     if (relayCardPromptText) {
         maybeShowRelayCardRequiredModal(relayCardPromptText);
@@ -3284,8 +3540,17 @@ async function fetchRelayStatus(options = {}) {
             }
             return null;
         }
-        renderRelayStatus(payload);
-        return payload;
+
+        const relayStatusPayload = normalizeRelayStatusPayload(payload);
+        if (!relayStatusPayload) {
+            if (!silent) {
+                showToast('读取中继状态失败: 响应格式不兼容', 'error');
+            }
+            return null;
+        }
+
+        renderRelayStatus(relayStatusPayload);
+        return relayStatusPayload;
     } catch (error) {
         if (error.message !== 'AUTH_REQUIRED' && !silent) {
             showToast('读取中继状态失败', 'error');
@@ -3357,19 +3622,29 @@ async function refreshRelayPairing() {
             return;
         }
 
-        const preSessionId = (preStatus && preStatus.session_public_id) || null;
+        const prePairingSignature = `${String(preStatus?.pairing_url || '').trim()}|${String(preStatus?.pairing_code || '').trim()}|${Number.parseInt(String(preStatus?.pairing_expires_at || 0), 10) || 0}`;
 
         const response = await apiFetch('/api/v1/relay/refresh-pairing', {
             method: 'POST'
         });
         const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result.success) {
+        if (!response.ok || result.success === false) {
             showToast(`刷新配对码失败: ${formatApiErrorDetail(result.detail || result.message, response.status)}`, 'error');
             return;
         }
 
+        const directStatusPayload = normalizeRelayStatusPayload(result);
+        if (directStatusPayload && directStatusPayload.pairing_url && directStatusPayload.pairing_code) {
+            renderRelayStatus({
+                ...(preStatus || {}),
+                ...directStatusPayload
+            });
+            showToast('配对码已刷新', 'success');
+            return;
+        }
+
         const POLL_INTERVAL = 700;
-        const POLL_MAX = 12;
+        const POLL_MAX = 30;
         let lastStatus = null;
         let refreshed = false;
 
@@ -3378,9 +3653,14 @@ async function refreshRelayPairing() {
             lastStatus = await fetchRelayStatus({ silent: true });
             if (!lastStatus) continue;
 
-            const hasNewPairing = lastStatus.pairing_url && lastStatus.pairing_code;
-            const sessionChanged = !preSessionId || lastStatus.session_public_id !== preSessionId;
-            if (hasNewPairing && sessionChanged) {
+            const pairingUrl = String(lastStatus.pairing_url || '').trim();
+            const pairingCode = String(lastStatus.pairing_code || '').trim();
+            const pairingExpiry = Number.parseInt(String(lastStatus.pairing_expires_at || 0), 10) || 0;
+            const hasPairing = pairingUrl && pairingCode;
+            if (!hasPairing) continue;
+
+            const currentSignature = `${pairingUrl}|${pairingCode}|${pairingExpiry}`;
+            if (!prePairingSignature || currentSignature !== prePairingSignature) {
                 refreshed = true;
                 break;
             }
@@ -3388,6 +3668,8 @@ async function refreshRelayPairing() {
 
         if (refreshed) {
             showToast('配对码已刷新', 'success');
+        } else if (lastStatus && lastStatus.pairing_url && lastStatus.pairing_code) {
+            showToast('配对信息已同步', 'info');
         } else {
             const errMsg = (lastStatus && lastStatus.last_error)
                 ? `刷新未完成：${lastStatus.last_error}`

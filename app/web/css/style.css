@@ -2305,6 +2305,59 @@ input:checked+.slider:before {
     border-radius: 8px;
 }
 
+.relay-pairing-status-hint {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(250, 204, 21, 0.38);
+    background: rgba(250, 204, 21, 0.12);
+    color: #ffe8b0;
+}
+
+.relay-device-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.relay-device-item {
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.5);
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+}
+
+.relay-device-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.relay-device-title {
+    font-size: 0.9rem;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+.relay-device-sub {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    word-break: break-word;
+}
+
+@media (max-width: 768px) {
+    .relay-device-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 .risk-warning {
     margin-top: 10px;
     padding: 10px 12px;

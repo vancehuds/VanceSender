@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.api.schemas import (
     MessageResponse,
+    RelayViewerDisconnectRequest,
     RelaySettingsUpdateRequest,
     RelayStatusResponse,
 )
@@ -64,3 +65,13 @@ async def refresh_relay_pairing():
     """手动刷新二维码与配对码。"""
     relay_client.refresh_pairing()
     return MessageResponse(message="已触发配对信息刷新")
+
+
+@router.post("/disconnect-viewer", response_model=MessageResponse)
+async def disconnect_relay_viewer(body: RelayViewerDisconnectRequest):
+    """断开当前通过中继连接的查看端。"""
+    viewer_id = str(body.viewer_id or "").strip()
+    success, message = relay_client.disconnect_connected_viewer(viewer_id=viewer_id)
+    if not success:
+        raise HTTPException(status_code=502, detail=message)
+    return MessageResponse(message=message)

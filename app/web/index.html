@@ -235,6 +235,9 @@
                                 </div>
                             </div>
                         </div>
+                        <p id="relay-pairing-status-hint" class="desc relay-pairing-status-hint hidden">
+                            配对码已被使用，请重新生成
+                        </p>
 
                         <div class="form-row" style="margin-top:8px;">
                             <div class="form-group">
@@ -250,6 +253,9 @@
                                         type="button">刷新配对码</button>
                                 </div>
                                 <p class="desc" style="margin-top:6px;">中继服务器地址与卡密请在“设置 → 远程中继”中保存。</p>
+                                <p class="desc" style="margin-top:10px;">当前已通过中继连接的设备</p>
+                                <div id="relay-connected-devices-list" class="relay-device-list"></div>
+                                <p id="relay-connected-devices-empty" class="desc" style="margin-top:6px;">暂无已连接设备</p>
                             </div>
                         </div>
                     </div>

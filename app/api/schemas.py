@@ -212,6 +212,17 @@ class RelaySettingsUpdateRequest(BaseModel):
     clear_card_key: bool | None = None
 
 
+class RelayViewerDisconnectRequest(BaseModel):
+    viewer_id: str | None = Field(None, max_length=120)
+
+
+class RelayConnectedViewer(BaseModel):
+    id: str
+    label: str
+    connected_at: int
+    expires_at: int
+
+
 class RelayStatusResponse(BaseModel):
     enabled: bool
     connected: bool
@@ -221,6 +232,9 @@ class RelayStatusResponse(BaseModel):
     pairing_url: str
     pairing_code: str
     pairing_expires_at: int
+    pairing_code_used: bool = False
+    pairing_code_status_text: str = ""
+    connected_viewers: list[RelayConnectedViewer] = Field(default_factory=list)
     remote_webui_url: str
     qr_image_base64: str
     card_key_required_prompt_text: str
