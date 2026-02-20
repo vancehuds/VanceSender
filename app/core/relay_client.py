@@ -64,6 +64,7 @@ class RelayRuntimeState:
     pairing_expires_at: int = 0
     remote_webui_url: str = ""
     qr_image_base64: str = ""
+    card_key_required_prompt_text: str = ""
     last_error: str = ""
     last_seen_at: int = 0
 
@@ -154,6 +155,7 @@ class RelayClient:
             self._state.pairing_expires_at = 0
             self._state.remote_webui_url = ""
             self._state.qr_image_base64 = ""
+            self._state.card_key_required_prompt_text = ""
 
     def _set_error(self, message: str) -> None:
         with self._lock:
@@ -198,6 +200,7 @@ class RelayClient:
             pairing_expires_at=0,
             remote_webui_url="",
             qr_image_base64="",
+            card_key_required_prompt_text="",
         )
 
     def _register_session(self, server_url: str, relay_cfg: dict[str, Any]) -> bool:
@@ -223,6 +226,12 @@ class RelayClient:
             payload_json = {}
         if response.status_code >= 400 or not payload_json.get("success", False):
             message = str(payload_json.get("message", "中继注册被拒绝"))
+            code = str(payload_json.get("code", "")).strip().upper()
+            popup_text = str(payload_json.get("popup_text", "")).strip()
+            if code == "CARD_KEY_REQUIRED" and popup_text:
+                self._set_state(card_key_required_prompt_text=popup_text)
+            else:
+                self._set_state(card_key_required_prompt_text="")
             self._set_error(message)
             return False
 
@@ -261,6 +270,7 @@ class RelayClient:
             pairing_expires_at=pairing_expires_at,
             remote_webui_url=remote_webui_url,
             qr_image_base64=qr_base64,
+            card_key_required_prompt_text="",
             last_seen_at=_now_ts(),
         )
         return True
@@ -409,7 +419,12 @@ class RelayClient:
 
         request_data = payload.get("request")
         if not isinstance(request_data, dict):
-            self._set_state(connected=True, last_error="", last_seen_at=_now_ts())
+            self._set_state(
+                connected=True,
+                last_error="",
+                card_key_required_prompt_text="",
+                last_seen_at=_now_ts(),
+            )
             return True
 
         response_payload = self._execute_local_request(request_data, cfg)
@@ -437,7 +452,12 @@ class RelayClient:
             self._set_error(str(write_payload.get("message", "中继回传失败")))
             return False
 
-        self._set_state(connected=True, last_error="", last_seen_at=_now_ts())
+        self._set_state(
+            connected=True,
+            last_error="",
+            card_key_required_prompt_text="",
+            last_seen_at=_now_ts(),
+        )
         return True
 
     def _run_loop(self) -> None:

@@ -223,6 +223,7 @@ class RelayStatusResponse(BaseModel):
     pairing_expires_at: int
     remote_webui_url: str
     qr_image_base64: str
+    card_key_required_prompt_text: str
     last_error: str
     last_seen_at: int
     card_key_set: bool

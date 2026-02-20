@@ -2001,6 +2001,45 @@ input:checked+.slider:before {
     flex-shrink: 0;
 }
 
+.relay-card-required-modal {
+    max-width: 560px;
+    border: 1px solid rgba(79, 209, 255, 0.34);
+    background:
+        radial-gradient(circle at 12% -8%, rgba(79, 209, 255, 0.2), transparent 52%),
+        radial-gradient(circle at 96% 18%, rgba(139, 123, 255, 0.2), transparent 46%),
+        linear-gradient(145deg, rgba(9, 15, 30, 0.98), rgba(7, 12, 24, 0.96));
+    box-shadow:
+        0 26px 56px rgba(2, 8, 23, 0.6),
+        0 0 0 1px rgba(79, 209, 255, 0.14) inset;
+}
+
+.relay-card-required-modal h3 {
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: #ecf7ff;
+}
+
+.relay-card-required-modal #relay-card-required-text {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.52);
+    line-height: 1.65;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+.relay-card-required-modal .modal-actions {
+    margin-top: 18px;
+    gap: 12px;
+}
+
+.relay-card-required-modal .modal-actions .btn {
+    min-width: 128px;
+}
+
 /* Empty State */
 .empty-state {
     text-align: center;

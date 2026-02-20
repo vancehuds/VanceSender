@@ -313,6 +313,7 @@ const state = {
     aiRewriteTarget: null,
     pendingRewrite: null, // { target, original, rewritten, presetId? }
     lastModalTrigger: null,
+    lastRelayCardRequiredPromptText: null,
     lanRiskToastShown: false,
     startupUpdateChecked: false,
     updateCheckInProgress: false,
@@ -467,6 +468,7 @@ const dom = {
     modalAIRewrite: document.getElementById('modal-ai-rewrite'),
     modalProvider: document.getElementById('modal-provider'),
     modalDesktopCloseConfirm: document.getElementById('modal-desktop-close-confirm'),
+    modalRelayCardRequired: document.getElementById('modal-relay-card-required'),
     presetNameInput: document.getElementById('preset-name-input'),
     confirmSavePreset: document.getElementById('confirm-save-preset'),
     confirmImportText: document.getElementById('confirm-import-text'),
@@ -488,6 +490,8 @@ const dom = {
     desktopCloseConfirmRemember: document.getElementById('desktop-close-confirm-remember'),
     desktopCloseConfirmTray: document.getElementById('desktop-close-confirm-tray'),
     desktopCloseConfirmExit: document.getElementById('desktop-close-confirm-exit'),
+    relayCardRequiredText: document.getElementById('relay-card-required-text'),
+    relayCardRequiredFillBtn: document.getElementById('relay-card-required-fill-btn'),
 
     // Toast
     toastContainer: document.getElementById('toast-container')
@@ -2739,6 +2743,13 @@ function initSettingsPanel() {
         });
     }
 
+    if (dom.relayCardRequiredFillBtn) {
+        dom.relayCardRequiredFillBtn.addEventListener('click', () => {
+            closeModal();
+            openSettingsPanelAndFocusRelayCardKey();
+        });
+    }
+
     bindSettingsDirtyTracking();
 
     if (dom.settingOverlayCaptureHotkeyBtn) {
@@ -3169,6 +3180,38 @@ function formatUnixTimestamp(seconds) {
     return date.toLocaleString();
 }
 
+const RELAY_CARD_REQUIRED_DEFAULT_PROMPT_TEXT = '当前中继服务要求输入卡密，请在“设置 → 远程中继”填写后保存。';
+
+function openSettingsPanelAndFocusRelayCardKey() {
+    const settingsNavItem = Array.from(dom.navItems).find((item) => item.dataset?.target === 'panel-settings');
+    if (settingsNavItem instanceof HTMLElement && !settingsNavItem.classList.contains('active')) {
+        settingsNavItem.click();
+    }
+
+    if (!(dom.settingRelayCardKey instanceof HTMLElement)) {
+        return;
+    }
+
+    window.setTimeout(() => {
+        dom.settingRelayCardKey.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        dom.settingRelayCardKey.focus({ preventScroll: true });
+    }, 80);
+}
+
+function maybeShowRelayCardRequiredModal(promptText) {
+    const normalizedPrompt = String(promptText || '').trim() || RELAY_CARD_REQUIRED_DEFAULT_PROMPT_TEXT;
+    if (state.lastRelayCardRequiredPromptText === normalizedPrompt) {
+        return;
+    }
+
+    state.lastRelayCardRequiredPromptText = normalizedPrompt;
+    if (dom.relayCardRequiredText) {
+        dom.relayCardRequiredText.textContent = normalizedPrompt;
+    }
+
+    openModal('modal-relay-card-required');
+}
+
 function renderRelayStatus(data) {
     if (!data) return;
 
@@ -3223,6 +3266,13 @@ function renderRelayStatus(data) {
     if (dom.relayLastError) {
         const err = String(data.last_error || '').trim();
         dom.relayLastError.textContent = err ? `错误：${err}` : '无';
+    }
+
+    const relayCardPromptText = String(data.card_key_required_prompt_text || '').trim();
+    if (relayCardPromptText) {
+        maybeShowRelayCardRequiredModal(relayCardPromptText);
+    } else {
+        state.lastRelayCardRequiredPromptText = null;
     }
 }
 
