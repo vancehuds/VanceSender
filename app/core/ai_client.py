@@ -130,7 +130,7 @@ async def generate_texts(
         max_tokens=2048,
     )
 
-    raw = response.choices[0].message.content or ""
+    raw = (response.choices[0].message.content or "") if response.choices else ""
     return _parse_lines(raw)
 
 
@@ -168,6 +168,8 @@ async def generate_texts_stream(
     )
 
     async for chunk in stream:
+        if not chunk.choices:
+            continue
         delta = chunk.choices[0].delta
         if delta.content:
             yield delta.content
@@ -254,6 +256,8 @@ async def rewrite_texts(
         max_tokens=2048,
     )
 
+    if not response.choices:
+        raise RuntimeError("AI重写返回格式异常，无有效响应。")
     raw = response.choices[0].message.content or ""
     parsed = _parse_rewrite_payload(raw, expected_count=len(source_lines))
 

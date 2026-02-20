@@ -255,3 +255,17 @@ class ProviderTestResponse(BaseModel):
     status_code: int | None = None
     request_id: str | None = None
     body: Any | None = None
+
+
+# ── Notifications ──────────────────────────────────────────────────────────
+
+
+class NotificationItem(BaseModel):
+    level: str
+    message: str
+    timestamp: float
+
+
+class NotificationsResponse(BaseModel):
+    notifications: list[NotificationItem]
+

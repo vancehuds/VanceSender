@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import uuid
 from typing import Any
 
 import yaml
 
+from app.core.notifications import push_notification
 from app.core.runtime_paths import get_runtime_root
 
 
@@ -25,15 +28,46 @@ def load_config() -> dict[str, Any]:
     _ensure_dirs()
     if not CONFIG_PATH.exists():
         return _default_config()
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f) or {}
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        push_notification("config.yaml 格式错误，已回退到默认配置。")
+        return _default_config()
+    except OSError:
+        push_notification("config.yaml 读取失败，已回退到默认配置。")
+        return _default_config()
+    if not isinstance(cfg, dict):
+        push_notification("config.yaml 内容不是有效的配置字典，已回退到默认配置。")
+        return _default_config()
     return _merge_defaults(cfg)
 
 
 def save_config(cfg: dict[str, Any]) -> None:
-    """Save configuration to YAML file."""
-    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-        yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    """Save configuration to YAML file (atomic write via temp + rename)."""
+    _ensure_dirs()
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            suffix=".tmp",
+            prefix="config_",
+            dir=str(CONFIG_PATH.parent),
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                yaml.dump(
+                    cfg, f, default_flow_style=False,
+                    allow_unicode=True, sort_keys=False,
+                )
+            os.replace(tmp_path, str(CONFIG_PATH))
+        except BaseException:
+            # Clean up temp file on any write/rename failure
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+    except OSError as exc:
+        push_notification(f"配置保存失败: {exc}", level="error")
 
 
 def update_config(patch: dict[str, Any]) -> dict[str, Any]:

@@ -19,8 +19,12 @@ async def verify_token(
     ``Authorization: Bearer <token>``.  If the header is missing or the
     token does not match, a 401 is returned.
     """
-    cfg = load_config()
-    token = cfg.get("server", {}).get("token", "")
+    try:
+        cfg = load_config()
+        token = cfg.get("server", {}).get("token", "")
+    except Exception:
+        # Config unreadable — fail open rather than blocking all API access
+        return
 
     # No token configured → auth disabled
     if not token:

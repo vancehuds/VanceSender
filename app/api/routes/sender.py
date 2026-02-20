@@ -223,6 +223,7 @@ async def send_batch(body: SendBatchRequest):
         finally:
             if not task.done():
                 _ = task.cancel()
+            sender.mark_idle()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

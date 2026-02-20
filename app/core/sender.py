@@ -430,7 +430,10 @@ class KeyboardSender:
         if method == "typing":
             _type_text(text, typing_char_delay)
         else:
-            pyperclip.copy(text)
+            try:
+                pyperclip.copy(text)
+            except Exception as exc:
+                raise OSError(f"剪贴板访问失败: {exc}") from exc
             _ctrl_v()
 
         time.sleep(max(0, int(delay_paste)) / 1000)
@@ -531,7 +534,7 @@ class KeyboardSender:
 
     async def send_single_async(self, text: str, **kwargs: Any) -> dict[str, Any]:
         """Async wrapper for send_single."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None, lambda: self.send_single(text, **kwargs)
         )
@@ -543,7 +546,7 @@ class KeyboardSender:
         **kwargs: Any,
     ) -> list[dict[str, Any]]:
         """Async wrapper for send_batch_sync."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.send_batch_sync(texts, on_progress=on_progress, **kwargs),

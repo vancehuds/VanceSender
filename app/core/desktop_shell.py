@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import importlib
 import importlib.util
+import sys
 import threading
 from collections.abc import Callable
 from typing import Any, Literal
@@ -30,7 +31,14 @@ _window_maximized = False
 _exit_requested = False
 _tray_controller: _TrayController | None = None
 _tray_title = "VanceSender"
-_user32 = ctypes.WinDLL("user32", use_last_error=True)
+
+try:
+    if sys.platform == "win32":
+        _user32 = ctypes.WinDLL("user32", use_last_error=True)
+    else:
+        _user32 = None  # type: ignore[assignment]
+except OSError:
+    _user32 = None  # type: ignore[assignment]
 
 
 class _TrayController:

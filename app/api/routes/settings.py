@@ -10,6 +10,7 @@ from app.api.schemas import (
     DesktopWindowStateResponse,
     LaunchSettings,
     MessageResponse,
+    NotificationsResponse,
     PublicConfigResponse,
     ProviderCreate,
     ProviderResponse,
@@ -40,6 +41,7 @@ from app.core.desktop_shell import (
     perform_window_action,
 )
 from app.core.network import get_lan_ipv4_addresses
+from app.core.notifications import get_notifications
 from app.core.public_config import fetch_github_public_config
 from app.core.update_checker import check_github_update
 
@@ -403,3 +405,13 @@ async def delete_provider_route(provider_id: str):
     if delete_provider(provider_id):
         return MessageResponse(message=f"服务商 '{provider_id}' 已删除")
     raise HTTPException(status_code=404, detail=f"服务商 '{provider_id}' 不存在")
+
+
+# ── Notifications ─────────────────────────────────────────────────────────
+
+
+@router.get("/notifications", response_model=NotificationsResponse)
+async def get_notifications_route(clear: bool = False):
+    """获取系统通知（警告/错误）。传 clear=true 读取后清空。"""
+    items = get_notifications(clear=clear)
+    return NotificationsResponse(notifications=items)

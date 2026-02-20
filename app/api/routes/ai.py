@@ -120,9 +120,9 @@ async def ai_generate(body: AIGenerateRequest):
 @router.post("/generate/stream")
 async def ai_generate_stream(body: AIGenerateRequest):
     """流式生成AI文本（SSE）。"""
-    try:
 
-        async def event_gen():
+    async def event_gen():
+        try:
             async for chunk in generate_texts_stream(
                 scenario=body.scenario,
                 provider_id=body.provider_id,
@@ -132,10 +132,14 @@ async def ai_generate_stream(body: AIGenerateRequest):
             ):
                 yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
+        except ValueError as exc:
+            import json as _json
+            yield f"data: {_json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            import json as _json
+            yield f"data: {_json.dumps({'error': f'AI服务请求失败: {exc}'}, ensure_ascii=False)}\n\n"
 
-        return StreamingResponse(event_gen(), media_type="text/event-stream")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
 @router.post("/rewrite", response_model=AIRewriteResponse)

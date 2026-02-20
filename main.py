@@ -339,7 +339,15 @@ def main() -> None:
     server_cfg = cfg.get("server", {})
     launch_section = cfg.get("launch")
     launch_cfg = launch_section if isinstance(launch_section, dict) else {}
-    public_config_result = fetch_github_public_config_sync(cfg)
+
+    try:
+        public_config_result = fetch_github_public_config_sync(cfg)
+    except Exception:
+        from app.core.public_config import GitHubPublicConfigResult
+        public_config_result = GitHubPublicConfigResult(
+            success=False, visible=False, source_url=None,
+            title=None, content=None, message="远程配置获取异常",
+        )
 
     lan_access = bool(server_cfg.get("lan_access"))
     if args.lan:
