@@ -372,8 +372,8 @@ class RelayClient:
     def _rewrite_html_for_proxy(content: bytes) -> bytes:
         """Rewrite HTML absolute paths to relative for proxy iframe compatibility.
 
-        Converts /static/... and /api/... paths to relative paths and injects
-        a script to monkey-patch fetch/XHR so JS API calls also route through proxy.
+        Injects a <base> tag and a monkey-patch script so that all resource
+        loads and JS API calls (fetch / XHR) are routed through the proxy.
         """
         import re
 
@@ -382,40 +382,43 @@ class RelayClient:
         except UnicodeDecodeError:
             return content
 
-        # Rewrite href="/static/..." and src="/static/..." to relative paths
+        # Rewrite href="/static/..." src="/static/..." and /api/ in attributes
         html = re.sub(
-            r'((?:href|src|action)\s*=\s*["\'])/static/',
-            r'\1static/',
+            r'((?:href|src|action)\s*=\s*["\'])/(static|api)/',
+            r'\1\2/',
             html,
         )
 
-        # Inject a script that monkey-patches fetch and XHR to rewrite absolute
-        # /api/ and /static/ URLs to be relative (resolved via proxy base path).
-        # Must be injected BEFORE any other <script> tags.
+        # --- Inject <base href="./"> so all relative paths resolve via proxy ---
+        base_tag = '<base href="./">\n'
+        if "<head>" in html:
+            html = html.replace("<head>", "<head>\n" + base_tag, 1)
+        elif "<HEAD>" in html:
+            html = html.replace("<HEAD>", "<HEAD>\n" + base_tag, 1)
+
+        # --- Inject monkey-patch script for fetch / XHR ---
+        # Rewrites ANY absolute-path URL (starts with "/") to be relative to
+        # the current proxy path so it passes through the server proxy handler.
         patch_script = """<script>
 (function(){
-  var base = document.currentScript
-    ? document.currentScript.baseURI.replace(/\\/[^/]*$/, '/')
-    : window.location.href.replace(/\\/[^/]*$/, '/');
-  function rewrite(u){
-    if(typeof u==='string' && (u.startsWith('/api/') || u.startsWith('/static/'))){
-      return base + u.substring(1);
+  var p=window.location.pathname;
+  if(p.charAt(p.length-1)!=='/') p=p.substring(0,p.lastIndexOf('/')+1);
+  function rw(u){
+    if(typeof u==='string'&&u.length>1&&u.charAt(0)==='/'&&u.charAt(1)!=='/'){
+      return p+u.substring(1);
     }
     return u;
   }
-  var _fetch=window.fetch;
+  var _f=window.fetch;
   window.fetch=function(r,o){
-    if(typeof r==='string') r=rewrite(r);
-    else if(r instanceof Request){
-      var newUrl=rewrite(r.url);
-      if(newUrl!==r.url) r=new Request(newUrl,r);
-    }
-    return _fetch.call(this,r,o);
+    if(typeof r==='string') r=rw(r);
+    else if(r instanceof Request){var n=rw(r.url);if(n!==r.url)r=new Request(n,r);}
+    return _f.call(this,r,o);
   };
-  var _open=XMLHttpRequest.prototype.open;
+  var _o=XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open=function(m,u){
-    arguments[1]=rewrite(u);
-    return _open.apply(this,arguments);
+    arguments[1]=rw(u);
+    return _o.apply(this,arguments);
   };
 })();
 </script>
