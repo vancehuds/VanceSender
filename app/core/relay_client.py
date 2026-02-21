@@ -150,7 +150,13 @@ class RelayClient:
         normalized = str(client_name or "").strip()
         if normalized:
             return normalized
-        return f"Client-{license_key[:4] if license_key else 'unknown'}"
+        import uuid
+        suffix = uuid.uuid4().hex[:6].upper()
+        if license_key and len(license_key) >= 4:
+            prefix = license_key[:4]
+        else:
+            prefix = "UNK"
+        return f"Client-{prefix}-{suffix}"
 
     @staticmethod
     def _normalize_interval(value: Any, *, default: int, minimum: int) -> int:
@@ -314,12 +320,19 @@ class RelayClient:
                 kwargs: dict[str, Any] = {"method": method, "url": url, "headers": headers}
 
                 if body is not None:
-                    if isinstance(body, dict):
-                        kwargs["json"] = body
-                    elif isinstance(body, str):
-                        kwargs["content"] = body
+                    if headers.get("X-Relay-Base64") == "true" or headers.get("x-relay-base64") == "true":
+                        import base64
+                        if isinstance(body, str):
+                            kwargs["content"] = base64.b64decode(body)
+                        else:
+                            kwargs["content"] = body
                     else:
-                        kwargs["content"] = json.dumps(body)
+                        if isinstance(body, dict):
+                            kwargs["json"] = body
+                        elif isinstance(body, str):
+                            kwargs["content"] = body
+                        else:
+                            kwargs["content"] = json.dumps(body)
 
                 resp = await client.request(**kwargs)
 
@@ -332,14 +345,33 @@ class RelayClient:
                 # Regular response
                 resp_headers = dict(resp.headers)
                 resp_body = resp.content
+                
+                content_type = resp_headers.get("content-type", "")
+                is_json = content_type.startswith("application/json")
+                
+                body_out = None
+                headers_out = {k: v for k, v in resp_headers.items() 
+                              if k.lower() not in ("connection", "transfer-encoding", "content-encoding")}
+                
+                if resp_body:
+                    if is_json:
+                        try:
+                            body_out = json.loads(resp_body)
+                        except json.JSONDecodeError:
+                            import base64
+                            body_out = base64.b64encode(resp_body).decode("ascii")
+                            headers_out["X-Relay-Base64"] = "true"
+                    else:
+                        import base64
+                        body_out = base64.b64encode(resp_body).decode("ascii")
+                        headers_out["X-Relay-Base64"] = "true"
 
                 await ws.send(json.dumps({
                     "type": "response",
                     "id": req_id,
                     "status": resp.status_code,
-                    "headers": {k: v for k, v in resp_headers.items()
-                                if k.lower() in ("content-type", "x-request-id")},
-                    "body": json.loads(resp_body) if resp_body else None,
+                    "headers": headers_out,
+                    "body": body_out,
                 }, ensure_ascii=False))
 
         except Exception as exc:
