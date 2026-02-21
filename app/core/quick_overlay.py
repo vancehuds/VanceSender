@@ -280,6 +280,24 @@ class QuickOverlayModule:
 
     def stop(self) -> None:
         self._stop_event.set()
+        register_overlay_status_handler(None)
+
+        root = self._root
+        if root is not None:
+            try:
+                root.after(0, root.quit)
+            except Exception:
+                pass
+
+        thread = self._thread
+        if thread is None or thread is threading.current_thread():
+            return
+
+        if thread.is_alive():
+            thread.join(timeout=2.5)
+
+        if not thread.is_alive():
+            self._thread = None
 
     def _run(self) -> None:
         try:

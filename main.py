@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib
 import multiprocessing
 import os
 import sys
@@ -267,6 +268,7 @@ def _start_uvicorn_in_background(
         port=port,
         reload=False,
         log_level="info",
+        timeout_graceful_shutdown=15,
     )
     server = uvicorn.Server(config)
     thread = threading.Thread(
@@ -296,6 +298,10 @@ def _stop_uvicorn_background(server: uvicorn.Server, thread: threading.Thread) -
     if thread.is_alive():
         thread.join(timeout=5)
 
+    if thread.is_alive():
+        setattr(server, "force_exit", True)
+        thread.join(timeout=2)
+
 
 def _open_urls_in_browser(urls: list[str], delay_seconds: float = 0.9) -> None:
     """Open startup pages in default browser after a short delay."""
@@ -316,6 +322,15 @@ def _open_urls_in_browser(urls: list[str], delay_seconds: float = 0.9) -> None:
         daemon=True,
         name="startup-browser-opener",
     ).start()
+
+
+def _ensure_startup_port_available(host: str, port: int) -> bool:
+    """Load and run startup port guard from core module."""
+    port_guard_module = importlib.import_module("app.core.port_guard")
+    checker = getattr(port_guard_module, "ensure_startup_port_available", None)
+    if not callable(checker):
+        return True
+    return bool(checker(host, port))
 
 
 def main() -> None:
@@ -344,9 +359,14 @@ def main() -> None:
         public_config_result = fetch_github_public_config_sync(cfg)
     except Exception:
         from app.core.public_config import GitHubPublicConfigResult
+
         public_config_result = GitHubPublicConfigResult(
-            success=False, visible=False, source_url=None,
-            title=None, content=None, message="远程配置获取异常",
+            success=False,
+            visible=False,
+            source_url=None,
+            title=None,
+            content=None,
+            message="远程配置获取异常",
         )
 
     lan_access = bool(server_cfg.get("lan_access"))
@@ -358,6 +378,9 @@ def main() -> None:
         port = int(args.port or server_cfg.get("port", 8730))
     except (TypeError, ValueError):
         port = 8730
+
+    if not _ensure_startup_port_available(host, port):
+        return
 
     runtime_lan_access = host == "0.0.0.0"
     lan_ipv4_list = get_lan_ipv4_addresses() if runtime_lan_access else []
@@ -507,6 +530,7 @@ def main() -> None:
             port=port,
             reload=False,
             log_level="info",
+            timeout_graceful_shutdown=15,
         )
     finally:
         if quick_overlay_module is not None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from typing import Any
 
 from fastapi import APIRouter
@@ -181,9 +182,16 @@ async def send_batch(body: SendBatchRequest):
 
     progress_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     loop = asyncio.get_running_loop()
+    stream_closed = threading.Event()
 
     def on_progress(p: dict[str, Any]) -> None:
-        _ = loop.call_soon_threadsafe(progress_queue.put_nowait, p)
+        if stream_closed.is_set():
+            return
+
+        try:
+            _ = loop.call_soon_threadsafe(progress_queue.put_nowait, p)
+        except RuntimeError:
+            return
 
     async def run_batch() -> None:
         try:
@@ -193,8 +201,13 @@ async def send_batch(body: SendBatchRequest):
                 delay_between=delay_between,
                 **sender_options,
             )
+        except asyncio.CancelledError:
+            sender.cancel()
+            raise
         except Exception as exc:
-            sender.mark_idle()
+            if stream_closed.is_set():
+                return
+
             _ = loop.call_soon_threadsafe(
                 progress_queue.put_nowait,
                 {"status": "error", "error": str(exc)},
@@ -221,9 +234,10 @@ async def send_batch(body: SendBatchRequest):
                 except asyncio.TimeoutError:
                     continue
         finally:
+            stream_closed.set()
             if not task.done():
+                sender.cancel()
                 _ = task.cancel()
-            sender.mark_idle()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
