@@ -385,7 +385,6 @@ const dom = {
     homeLanEnabled: document.getElementById('home-lan-enabled'),
     homeLanDisabled: document.getElementById('home-lan-disabled'),
     homeLanUrls: document.getElementById('home-lan-urls'),
-    homeTokenStatus: document.getElementById('home-token-status'),
     homeSecurityWarning: document.getElementById('home-security-warning'),
     homeOpenBrowserBtn: document.getElementById('home-open-browser-btn'),
     homeCopyLocalBtn: document.getElementById('home-copy-local-btn'),
@@ -969,21 +968,12 @@ function renderHomePanel(serverSettings) {
     }
 
     const tokenSet = Boolean(serverSettings?.token_set);
-    if (dom.homeTokenStatus) {
-        dom.homeTokenStatus.textContent = tokenSet
-            ? '当前已设置 Token 认证。'
-            : '当前未设置 Token，建议立即设置。';
-    }
-
     const securityWarning = String(serverSettings?.security_warning || '').trim();
-    const hasRisk = Boolean(
-        serverSettings?.risk_no_token_with_lan
-        || (serverSettings?.lan_access && !serverSettings?.token_set)
-    );
+    const hasRisk = lanEnabled && !tokenSet;
     if (dom.homeSecurityWarning) {
         dom.homeSecurityWarning.classList.toggle('hidden', !hasRisk);
         dom.homeSecurityWarning.textContent = hasRisk
-            ? (securityWarning || '已开启局域网访问且未设置 Token，存在访问风险。')
+            ? (securityWarning || '⚠ 安全风险：已开启局域网访问且未设置 Token，局域网内设备可直接访问，请立即设置 Token。')
             : '';
     }
 }

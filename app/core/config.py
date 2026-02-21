@@ -17,6 +17,7 @@ RUNTIME_ROOT = get_runtime_root()
 CONFIG_PATH = RUNTIME_ROOT / "config.yaml"
 DATA_DIR = RUNTIME_ROOT / "data"
 PRESETS_DIR = DATA_DIR / "presets"
+DEFAULT_RELAY_SERVER_URL = "wss://senderelay.vhuds.com/ws/client"
 
 
 def _ensure_dirs() -> None:
@@ -143,7 +144,7 @@ def _default_config() -> dict[str, Any]:
         },
         "relay": {
             "enabled": False,
-            "server_url": "",
+            "server_url": DEFAULT_RELAY_SERVER_URL,
             "license_key": "",
             "client_name": "",
             "auto_reconnect": True,
@@ -170,6 +171,14 @@ def _merge_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
                 launch_raw.get("start_minimized_to_tray")
             )
         launch_section.pop("start_minimized_to_tray", None)
+
+    relay_raw = cfg.get("relay", {})
+    relay_section = result.get("relay", {})
+    if isinstance(relay_section, dict):
+        if isinstance(relay_raw, dict):
+            server_url = relay_raw.get("server_url")
+            if not isinstance(server_url, str) or not server_url.strip():
+                relay_section["server_url"] = DEFAULT_RELAY_SERVER_URL
 
     return result
 

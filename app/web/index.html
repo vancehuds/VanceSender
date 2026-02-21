@@ -168,6 +168,9 @@
                     </div>
                 </div>
 
+                <div id="home-security-warning" class="home-security-warning hidden" role="alert" aria-live="assertive">
+                </div>
+
                 <div class="home-grid">
                     <div class="glass-card home-card">
                         <h2>WebUI 地址</h2>
@@ -240,13 +243,6 @@
                         <div id="home-public-config-content" class="public-config-content"></div>
                         <a id="home-public-config-link" class="btn btn-sm btn-ghost hidden section-inline-link" href="#"
                             rel="noopener noreferrer" target="_blank">查看详情</a>
-                    </div>
-
-                    <div class="glass-card home-card home-card-security">
-                        <h2>安全提示</h2>
-                        <div id="home-security-warning" class="risk-warning hidden"></div>
-                        <p id="home-token-status" class="desc">Token 状态检测中...</p>
-                        <p class="desc">若需手机/平板访问，请先设置 Token，再开启局域网访问。</p>
                     </div>
 
                     <div class="glass-card home-card home-card-relay">
@@ -708,7 +704,7 @@
                         <div class="form-group">
                             <label>服务器地址</label>
                             <input type="text" id="setting-relay-server-url"
-                                placeholder="wss://your-server.com/ws/client">
+                                placeholder="wss://senderelay.vhuds.com/ws/client">
                         </div>
                         <div class="form-group">
                             <label>卡密 (License Key)</label>

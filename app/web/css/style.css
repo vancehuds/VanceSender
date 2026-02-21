@@ -612,8 +612,7 @@ body.quick-panel-mode .toast-container {
     color: var(--text-main);
 }
 
-.home-card-update,
-.home-card-security {
+.home-card-update {
     grid-column: 1 / -1;
 }
 
@@ -1594,8 +1593,7 @@ input:checked+.slider:before {
         align-items: stretch;
     }
 
-    .home-card-update,
-    .home-card-security {
+    .home-card-update {
         grid-column: auto;
     }
 
@@ -2323,6 +2321,19 @@ input:checked+.slider:before {
     color: #ffc4cd;
     font-size: 0.85rem;
     line-height: 1.45;
+}
+
+.home-security-warning {
+    margin-bottom: 14px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.72);
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.28), rgba(190, 24, 93, 0.24));
+    color: #ffe4e6;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
+    box-shadow: 0 10px 24px rgba(239, 68, 68, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .public-config-content {
