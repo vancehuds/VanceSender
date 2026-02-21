@@ -349,7 +349,13 @@ class RelayClient:
                 else:
                     # Non-JSON (HTML/CSS/JS/images/etc.) — base64 encode
                     import base64
-                    raw = base64.b64encode(resp.content).decode("ascii")
+                    content = resp.content
+
+                    # Rewrite HTML to make absolute paths relative for proxy iframe
+                    if "text/html" in content_type and content:
+                        content = self._rewrite_html_for_proxy(content)
+
+                    raw = base64.b64encode(content).decode("ascii")
                     await ws.send(json.dumps({
                         "type": "response",
                         "id": req_id,
@@ -361,6 +367,68 @@ class RelayClient:
         except Exception as exc:
             log.error("转发请求失败 [%s %s]: %s", method, path, exc)
             await self._send_error_response(ws, req_id, 502, f"本地 API 调用失败: {exc}")
+
+    @staticmethod
+    def _rewrite_html_for_proxy(content: bytes) -> bytes:
+        """Rewrite HTML absolute paths to relative for proxy iframe compatibility.
+
+        Converts /static/... and /api/... paths to relative paths and injects
+        a script to monkey-patch fetch/XHR so JS API calls also route through proxy.
+        """
+        import re
+
+        try:
+            html = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return content
+
+        # Rewrite href="/static/..." and src="/static/..." to relative paths
+        html = re.sub(
+            r'((?:href|src|action)\s*=\s*["\'])/static/',
+            r'\1static/',
+            html,
+        )
+
+        # Inject a script that monkey-patches fetch and XHR to rewrite absolute
+        # /api/ and /static/ URLs to be relative (resolved via proxy base path).
+        # Must be injected BEFORE any other <script> tags.
+        patch_script = """<script>
+(function(){
+  var base = document.currentScript
+    ? document.currentScript.baseURI.replace(/\\/[^/]*$/, '/')
+    : window.location.href.replace(/\\/[^/]*$/, '/');
+  function rewrite(u){
+    if(typeof u==='string' && (u.startsWith('/api/') || u.startsWith('/static/'))){
+      return base + u.substring(1);
+    }
+    return u;
+  }
+  var _fetch=window.fetch;
+  window.fetch=function(r,o){
+    if(typeof r==='string') r=rewrite(r);
+    else if(r instanceof Request){
+      var newUrl=rewrite(r.url);
+      if(newUrl!==r.url) r=new Request(newUrl,r);
+    }
+    return _fetch.call(this,r,o);
+  };
+  var _open=XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open=function(m,u){
+    arguments[1]=rewrite(u);
+    return _open.apply(this,arguments);
+  };
+})();
+</script>
+"""
+        # Insert before first <script> or before </head>
+        if "<script" in html:
+            html = html.replace("<script", patch_script + "<script", 1)
+        elif "</head>" in html:
+            html = html.replace("</head>", patch_script + "</head>", 1)
+        else:
+            html = patch_script + html
+
+        return html.encode("utf-8")
 
     async def _handle_sse_response(
         self, ws: Any, req_id: str, method: str, url: str,
