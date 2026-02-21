@@ -10,6 +10,7 @@ from app.api.schemas import (
     DesktopWindowStateResponse,
     LaunchSettings,
     MessageResponse,
+    NotificationItem,
     NotificationsResponse,
     PublicConfigResponse,
     ProviderCreate,
@@ -421,7 +422,8 @@ async def delete_provider_route(provider_id: str):
 @router.get("/notifications", response_model=NotificationsResponse)
 async def get_notifications_route(clear: bool = False):
     """获取系统通知（警告/错误）。传 clear=true 读取后清空。"""
-    items = get_notifications(clear=clear)
+    raw_items = get_notifications(clear=clear)
+    items = [NotificationItem(**item) for item in raw_items]
     return NotificationsResponse(notifications=items)
 
 
@@ -447,13 +449,50 @@ async def get_relay_status():
 
 
 @router.put("/relay", response_model=MessageResponse)
-async def update_relay_settings(body: RelaySettings):
-    """更新中转设置。需重启生效。"""
+async def update_relay_settings(body: RelaySettings, request: Request):
+    """更新中转设置并尝试立即应用。"""
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
     if not patch:
         return MessageResponse(message="没有需要更新的设置", success=False)
-    update_config({"relay": patch})
-    return MessageResponse(message="中转设置已更新，重启后生效")
+
+    cfg = update_config({"relay": patch})
+    relay_cfg = cfg.get("relay", {})
+    server_cfg = cfg.get("server", {})
+
+    server_token_raw = server_cfg.get("token", "")
+    server_token = server_token_raw.strip() if isinstance(server_token_raw, str) else ""
+
+    runtime_port_raw = getattr(request.app.state, "runtime_port", server_cfg.get("port", 8730))
+    try:
+        runtime_port = int(runtime_port_raw)
+    except (TypeError, ValueError):
+        runtime_port = 8730
+
+    from app.core.relay_client import RelayClient, get_relay_client, set_relay_client
+
+    client = get_relay_client()
+    relay_enabled = bool(relay_cfg.get("enabled"))
+    relay_server_url = relay_cfg.get("server_url")
+    relay_license_key = relay_cfg.get("license_key")
+    has_connection_config = bool(relay_server_url and relay_license_key)
+
+    if not relay_enabled or not has_connection_config:
+        if client is not None:
+            client.stop()
+            set_relay_client(None)
+        return MessageResponse(message="中转设置已更新")
+
+    relay_runtime_cfg = dict(relay_cfg)
+    relay_runtime_cfg["_local_token"] = server_token
+
+    if client is None:
+        client = RelayClient(config=relay_runtime_cfg, local_port=runtime_port)
+        client.start()
+        set_relay_client(client)
+        return MessageResponse(message="中转设置已更新并已启动连接")
+
+    client.update_runtime_config(relay_runtime_cfg)
+    return MessageResponse(message="中转设置已更新并已应用")
 
 
 @router.post("/relay/reconnect", response_model=MessageResponse)

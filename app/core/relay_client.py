@@ -21,14 +21,25 @@ class RelayClient:
     """WebSocket relay client that runs in a background thread."""
 
     def __init__(self, config: dict[str, Any], local_port: int) -> None:
-        self.server_url: str = config.get("server_url", "")
-        self.license_key: str = config.get("license_key", "")
-        self.client_name: str = config.get("client_name", "") or f"Client-{self.license_key[:4] if self.license_key else 'unknown'}"
-        self.auto_reconnect: bool = config.get("auto_reconnect", True)
-        self.reconnect_interval: int = config.get("reconnect_interval", 5)
-        self.heartbeat_interval: int = config.get("heartbeat_interval", 25)
+        self.server_url: str = str(config.get("server_url", "") or "").strip()
+        self.license_key: str = str(config.get("license_key", "") or "").strip()
+        self.client_name: str = self._resolve_client_name(
+            client_name=config.get("client_name", ""),
+            license_key=self.license_key,
+        )
+        self.auto_reconnect: bool = bool(config.get("auto_reconnect", True))
+        self.reconnect_interval: int = self._normalize_interval(
+            config.get("reconnect_interval"),
+            default=5,
+            minimum=1,
+        )
+        self.heartbeat_interval: int = self._normalize_interval(
+            config.get("heartbeat_interval"),
+            default=25,
+            minimum=5,
+        )
         self.local_base: str = f"http://127.0.0.1:{local_port}"
-        self.local_token: str = config.get("_local_token", "")
+        self.local_token: str = str(config.get("_local_token", "") or "").strip()
 
         self._running = False
         self._connected = False
@@ -43,11 +54,16 @@ class RelayClient:
 
     def start(self) -> None:
         """Start the relay client in a background daemon thread."""
-        if self._running:
+        if self._running and self._thread is not None and self._thread.is_alive():
             return
+
         self._running = True
         self._disconnected_by_user = False
-        self._thread = threading.Thread(target=self._run_event_loop, daemon=True, name="relay-client")
+        self._thread = threading.Thread(
+            target=self._run_event_loop,
+            daemon=True,
+            name="relay-client",
+        )
         self._thread.start()
         log.info("中转客户端线程已启动")
 
@@ -80,12 +96,69 @@ class RelayClient:
     def reconnect(self) -> None:
         """Trigger a reconnection attempt by closing current WS (loop auto-reconnects)."""
         self._disconnected_by_user = False
+
+        worker_alive = self._thread is not None and self._thread.is_alive()
+        if not self._running or not worker_alive:
+            self.start()
+            return
+
         self._close_ws_sync()
 
     def disconnect(self) -> None:
         """Disconnect from the server (but keep the thread alive)."""
         self._disconnected_by_user = True
         self._close_ws_sync()
+
+    def update_runtime_config(self, config: dict[str, Any]) -> None:
+        """Apply latest relay config without restarting the whole process."""
+        next_server_url = str(config.get("server_url", "") or "").strip()
+        next_license_key = str(config.get("license_key", "") or "").strip()
+        next_client_name = self._resolve_client_name(
+            client_name=config.get("client_name", ""),
+            license_key=next_license_key,
+        )
+
+        reconnect_required = (
+            self.server_url != next_server_url
+            or self.license_key != next_license_key
+            or self.client_name != next_client_name
+        )
+
+        self.server_url = next_server_url
+        self.license_key = next_license_key
+        self.client_name = next_client_name
+        self.auto_reconnect = bool(config.get("auto_reconnect", True))
+        self.reconnect_interval = self._normalize_interval(
+            config.get("reconnect_interval"),
+            default=self.reconnect_interval,
+            minimum=1,
+        )
+        self.heartbeat_interval = self._normalize_interval(
+            config.get("heartbeat_interval"),
+            default=self.heartbeat_interval,
+            minimum=5,
+        )
+        self.local_token = str(config.get("_local_token", "") or "").strip()
+        self._last_error = None
+        self._disconnected_by_user = False
+
+        if reconnect_required:
+            self.reconnect()
+
+    @staticmethod
+    def _resolve_client_name(client_name: Any, license_key: str) -> str:
+        normalized = str(client_name or "").strip()
+        if normalized:
+            return normalized
+        return f"Client-{license_key[:4] if license_key else 'unknown'}"
+
+    @staticmethod
+    def _normalize_interval(value: Any, *, default: int, minimum: int) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            return max(minimum, default)
+        return max(minimum, parsed)
 
     # --- Internal ---
 
@@ -112,7 +185,13 @@ class RelayClient:
         except Exception as exc:
             log.error("中转客户端事件循环异常: %s", exc)
         finally:
-            self._loop.close()
+            if self._loop is not None:
+                self._loop.close()
+            self._running = False
+            self._connected = False
+            self._connected_since = None
+            self._ws = None
+            self._loop = None
 
     async def _connect_loop(self) -> None:
         """Main connection loop with auto-reconnect."""

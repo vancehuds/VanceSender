@@ -200,6 +200,22 @@
                         </div>
                     </div>
 
+                    <div class="glass-card home-card home-card-relay">
+                        <h2>服务器中转</h2>
+                        <div id="relay-status-indicator" class="relay-status">
+                            <span id="relay-dot" class="relay-dot offline"></span>
+                            <span id="relay-status-text">检测中...</span>
+                        </div>
+                        <p id="relay-server-url" class="desc"></p>
+                        <p id="relay-error-msg" class="desc text-danger hidden"></p>
+                        <div class="home-link-actions" id="relay-actions" style="margin-top:8px">
+                            <button id="relay-reconnect-btn" class="btn btn-sm btn-outline hidden"
+                                type="button">重新连接</button>
+                            <button id="relay-disconnect-btn" class="btn btn-sm btn-ghost hidden"
+                                type="button">断开连接</button>
+                        </div>
+                    </div>
+
                     <div class="glass-card home-card">
                         <h2>帮助与资源</h2>
                         <p class="desc">快速访问文档、官网与项目仓库</p>
@@ -245,21 +261,6 @@
                             rel="noopener noreferrer" target="_blank">查看详情</a>
                     </div>
 
-                    <div class="glass-card home-card home-card-relay">
-                        <h2>服务器中转</h2>
-                        <div id="relay-status-indicator" class="relay-status">
-                            <span id="relay-dot" class="relay-dot offline"></span>
-                            <span id="relay-status-text">检测中...</span>
-                        </div>
-                        <p id="relay-server-url" class="desc"></p>
-                        <p id="relay-error-msg" class="desc text-danger hidden"></p>
-                        <div class="home-link-actions" id="relay-actions" style="margin-top:8px">
-                            <button id="relay-reconnect-btn" class="btn btn-sm btn-outline hidden"
-                                type="button">重新连接</button>
-                            <button id="relay-disconnect-btn" class="btn btn-sm btn-ghost hidden"
-                                type="button">断开连接</button>
-                        </div>
-                    </div>
                 </div>
             </section>
 

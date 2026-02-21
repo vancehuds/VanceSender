@@ -3416,6 +3416,7 @@ async function saveAllSettings() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(relayPayload)
         });
+        pollRelayStatus();
 
         showToast('设置已保存', 'success');
         await fetchSettings(); // Reload to reflect changes (e.g. LAN IP)
