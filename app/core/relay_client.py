@@ -329,18 +329,34 @@ class RelayClient:
                     await self._handle_sse_response(ws, req_id, method, url, headers, body)
                     return
 
-                # Regular response
-                resp_headers = dict(resp.headers)
-                resp_body = resp.content
+                # Collect response headers to forward
+                forward_header_names = (
+                    "content-type", "x-request-id", "cache-control",
+                    "etag", "last-modified", "content-length",
+                )
+                resp_headers = {k: v for k, v in resp.headers.items()
+                                if k.lower() in forward_header_names}
 
-                await ws.send(json.dumps({
-                    "type": "response",
-                    "id": req_id,
-                    "status": resp.status_code,
-                    "headers": {k: v for k, v in resp_headers.items()
-                                if k.lower() in ("content-type", "x-request-id")},
-                    "body": json.loads(resp_body) if resp_body else None,
-                }, ensure_ascii=False))
+                if "application/json" in content_type:
+                    # JSON response — use existing body field
+                    await ws.send(json.dumps({
+                        "type": "response",
+                        "id": req_id,
+                        "status": resp.status_code,
+                        "headers": resp_headers,
+                        "body": json.loads(resp.content) if resp.content else None,
+                    }, ensure_ascii=False))
+                else:
+                    # Non-JSON (HTML/CSS/JS/images/etc.) — base64 encode
+                    import base64
+                    raw = base64.b64encode(resp.content).decode("ascii")
+                    await ws.send(json.dumps({
+                        "type": "response",
+                        "id": req_id,
+                        "status": resp.status_code,
+                        "headers": resp_headers,
+                        "raw_body": raw,
+                    }, ensure_ascii=False))
 
         except Exception as exc:
             log.error("转发请求失败 [%s %s]: %s", method, path, exc)
