@@ -878,6 +878,40 @@ def perform_quick_panel_window_action(
     return True
 
 
+def _patch_pywebview_edgechromium_bug() -> None:
+    """Apply runtime monkeypatch for pywebview EdgeChromium NoneType bug on FormClosed."""
+    if sys.platform != "win32":
+        return
+        
+    try:
+        from webview.platforms.edgechromium import EdgeChrome
+        
+        original_on_closed = getattr(EdgeChrome, "on_closed", None)
+        if not callable(original_on_closed) or getattr(original_on_closed, "_vancesender_patched", False):
+            return
+
+        def safe_on_closed(self: object, sender: object, args: object) -> None:
+            try:
+                core_wv2 = getattr(self, "core_webview2", None)
+                if core_wv2 is None:
+                    dummy = type("DummyCore", (), {"BrowserProcessId": 0})()
+                    setattr(self, "core_webview2", dummy)
+                
+                original_on_closed(self, sender, args)
+            except Exception:
+                pass
+            finally:
+                try:
+                    setattr(self, "core_webview2", None)
+                except Exception:
+                    pass
+
+        safe_on_closed._vancesender_patched = True  # type: ignore[attr-defined]
+        EdgeChrome.on_closed = safe_on_closed
+    except Exception:
+        pass
+
+
 def open_desktop_window(
     start_url: str,
     title: str,
@@ -888,6 +922,8 @@ def open_desktop_window(
         webview = importlib.import_module("webview")
     except Exception:
         return False
+
+    _patch_pywebview_edgechromium_bug()
 
     start_tray_on_launch, _ = _resolve_launch_tray_preferences(launch_options)
     _set_tray_title(title)
