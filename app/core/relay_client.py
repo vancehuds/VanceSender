@@ -351,7 +351,7 @@ class RelayClient:
                 
                 body_out = None
                 headers_out = {k: v for k, v in resp_headers.items() 
-                              if k.lower() not in ("connection", "transfer-encoding", "content-encoding")}
+                              if k.lower() not in ("connection", "transfer-encoding", "content-encoding", "content-length")}
                 
                 if resp_body:
                     if is_json:
