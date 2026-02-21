@@ -20,6 +20,7 @@ hiddenimports = collect_submodules("uvicorn") + [
     *collect_submodules("pystray"),
     *collect_submodules("PIL"),
     "multipart",
+    "app.core.port_guard",
 ]
 
 a = Analysis(

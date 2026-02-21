@@ -326,7 +326,14 @@ def _open_urls_in_browser(urls: list[str], delay_seconds: float = 0.9) -> None:
 
 def _ensure_startup_port_available(host: str, port: int) -> bool:
     """Load and run startup port guard from core module."""
-    port_guard_module = importlib.import_module("app.core.port_guard")
+    try:
+        port_guard_module = importlib.import_module("app.core.port_guard")
+    except ModuleNotFoundError as exc:
+        if exc.name == "app.core.port_guard":
+            print("⚠ 端口占用检测模块缺失，已跳过启动前端口检查。")
+            return True
+        raise
+
     checker = getattr(port_guard_module, "ensure_startup_port_available", None)
     if not callable(checker):
         return True
