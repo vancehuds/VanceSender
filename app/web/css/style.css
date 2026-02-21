@@ -716,9 +716,7 @@ body.quick-panel-mode .toast-container {
     color: var(--accent-purple);
 }
 
-.home-card-update {
-    grid-column: 1 / -1;
-}
+/* Removed grid-column span for .home-card-update so it flows next to Help & Resources */
 
 .home-card-announcement {
     grid-column: 1 / -1;
