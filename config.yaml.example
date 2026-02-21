@@ -72,3 +72,13 @@ ai:
     X-Stainless-Arch: ''
     X-Stainless-Runtime: ''
     X-Stainless-Runtime-Version: ''
+
+# 服务器中转 (连接到 VanceSenderServer 实现公网远程访问)
+relay:
+  enabled: false
+  server_url: ''                  # 中转服务器地址，如 wss://your-server.com/ws/client
+  license_key: ''                 # 卡密 (XXXX-XXXX-XXXX-XXXX)
+  client_name: ''                 # 客户端显示名称，留空自动生成
+  auto_reconnect: true            # 断线自动重连
+  reconnect_interval: 5           # 重连间隔（秒）
+  heartbeat_interval: 25          # 心跳间隔（秒）

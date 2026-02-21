@@ -141,6 +141,15 @@ def _default_config() -> dict[str, Any]:
                 "X-Stainless-Runtime-Version": "",
             },
         },
+        "relay": {
+            "enabled": False,
+            "server_url": "",
+            "license_key": "",
+            "client_name": "",
+            "auto_reconnect": True,
+            "reconnect_interval": 5,
+            "heartbeat_interval": 25,
+        },
     }
 
 

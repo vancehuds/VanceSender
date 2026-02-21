@@ -205,12 +205,32 @@ class QuickOverlaySettings(BaseModel):
     poll_interval_ms: int | None = Field(None, ge=20, le=200)
 
 
+class RelaySettings(BaseModel):
+    enabled: bool | None = None
+    server_url: str | None = None
+    license_key: str | None = None
+    client_name: str | None = None
+    auto_reconnect: bool | None = None
+    reconnect_interval: int | None = Field(None, ge=1, le=60)
+    heartbeat_interval: int | None = Field(None, ge=5, le=120)
+
+
+class RelayStatusResponse(BaseModel):
+    enabled: bool
+    connected: bool
+    server_url: str
+    client_name: str
+    last_error: str | None = None
+    connected_since: str | None = None
+
+
 class SettingsResponse(BaseModel):
     server: dict[str, Any]
     launch: dict[str, Any]
     sender: dict[str, Any]
     ai: dict[str, Any]
     quick_overlay: dict[str, Any]
+    relay: dict[str, Any]
 
 
 class UpdateCheckResponse(BaseModel):

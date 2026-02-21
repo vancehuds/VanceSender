@@ -237,6 +237,22 @@
                         <p id="home-token-status" class="desc">Token 状态检测中...</p>
                         <p class="desc">若需手机/平板访问，请先设置 Token，再开启局域网访问。</p>
                     </div>
+
+                    <div class="glass-card home-card home-card-relay">
+                        <h2>服务器中转</h2>
+                        <div id="relay-status-indicator" class="relay-status">
+                            <span id="relay-dot" class="relay-dot offline"></span>
+                            <span id="relay-status-text">检测中...</span>
+                        </div>
+                        <p id="relay-server-url" class="desc"></p>
+                        <p id="relay-error-msg" class="desc text-danger hidden"></p>
+                        <div class="home-link-actions" id="relay-actions" style="margin-top:8px">
+                            <button id="relay-reconnect-btn" class="btn btn-sm btn-outline hidden"
+                                type="button">重新连接</button>
+                            <button id="relay-disconnect-btn" class="btn btn-sm btn-ghost hidden"
+                                type="button">断开连接</button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -696,6 +712,37 @@
                                     max="200">
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Server Relay -->
+                    <div class="glass-card settings-section">
+                        <h2>服务器中转</h2>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启用中转</label>
+                                <p class="desc">连接到公网服务器，允许远程访问 WebUI（需配置卡密）</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-relay-enabled">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>服务器地址</label>
+                            <input type="text" id="setting-relay-server-url"
+                                placeholder="wss://your-server.com/ws/client">
+                        </div>
+                        <div class="form-group">
+                            <label>卡密 (License Key)</label>
+                            <input type="password" id="setting-relay-license-key" placeholder="XXXX-XXXX-XXXX-XXXX">
+                        </div>
+                        <div class="form-group">
+                            <label>客户端名称</label>
+                            <input type="text" id="setting-relay-client-name" placeholder="留空自动生成">
+                        </div>
+                        <p class="desc" style="color:var(--text-muted);font-size:0.8rem;margin-top:4px">
+                            修改中转设置后需重启 VanceSender 生效。
+                        </p>
                     </div>
 
                     <!-- AI Providers -->

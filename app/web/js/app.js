@@ -448,6 +448,18 @@ const dom = {
     providersList: document.getElementById('providers-list'),
     addProviderBtn: document.getElementById('add-provider-btn'),
 
+    // Relay
+    relayDot: document.getElementById('relay-dot'),
+    relayStatusText: document.getElementById('relay-status-text'),
+    relayServerUrl: document.getElementById('relay-server-url'),
+    relayErrorMsg: document.getElementById('relay-error-msg'),
+    relayReconnectBtn: document.getElementById('relay-reconnect-btn'),
+    relayDisconnectBtn: document.getElementById('relay-disconnect-btn'),
+    settingRelayEnabled: document.getElementById('setting-relay-enabled'),
+    settingRelayServerUrl: document.getElementById('setting-relay-server-url'),
+    settingRelayLicenseKey: document.getElementById('setting-relay-license-key'),
+    settingRelayClientName: document.getElementById('setting-relay-client-name'),
+
     // Modals
     modalBackdrop: document.getElementById('modal-backdrop'),
     modalSavePreset: document.getElementById('modal-save-preset'),
@@ -2633,7 +2645,11 @@ function getSettingsFormSnapshot() {
         systemPrompt: dom.settingSystemPrompt?.value || '',
         token: dom.settingToken?.value || '',
         defaultProvider: dom.aiProvider?.value || '',
-        customHeaders: dom.settingCustomHeaders?.value || ''
+        customHeaders: dom.settingCustomHeaders?.value || '',
+        relayEnabled: Boolean(dom.settingRelayEnabled?.checked),
+        relayServerUrl: dom.settingRelayServerUrl?.value || '',
+        relayLicenseKey: dom.settingRelayLicenseKey?.value || '',
+        relayClientName: dom.settingRelayClientName?.value || ''
     };
 }
 
@@ -3233,9 +3249,20 @@ async function fetchSettings() {
         }
     }
 
+    // Relay settings
+    const relaySection = data.relay || {};
+    if (dom.settingRelayEnabled) dom.settingRelayEnabled.checked = relaySection.enabled ?? false;
+    if (dom.settingRelayServerUrl) dom.settingRelayServerUrl.value = relaySection.server_url || '';
+    if (dom.settingRelayLicenseKey) {
+        dom.settingRelayLicenseKey.value = '';
+        dom.settingRelayLicenseKey.placeholder = relaySection.license_key_set ? '已设置 (输入新值可更新)' : 'XXXX-XXXX-XXXX-XXXX';
+    }
+    if (dom.settingRelayClientName) dom.settingRelayClientName.value = relaySection.client_name || '';
+
     applyDesktopShellState(data.server);
     renderHomePanel(data.server);
     updateLanSecurityRisk(data.server);
+    pollRelayStatus();
 
     await fetchProviders();
 
@@ -3422,6 +3449,20 @@ async function saveAllSettings() {
             })
         });
 
+        // Relay Settings
+        const relayPayload = {
+            enabled: Boolean(dom.settingRelayEnabled?.checked),
+            server_url: (dom.settingRelayServerUrl?.value || '').trim(),
+            client_name: (dom.settingRelayClientName?.value || '').trim()
+        };
+        const newLicenseKey = (dom.settingRelayLicenseKey?.value || '').trim();
+        if (newLicenseKey) relayPayload.license_key = newLicenseKey;
+        await apiFetch('/api/v1/settings/relay', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(relayPayload)
+        });
+
         showToast('设置已保存', 'success');
         await fetchSettings(); // Reload to reflect changes (e.g. LAN IP)
         await fetchPublicConfig({ silent: true });
@@ -3562,6 +3603,72 @@ function closeModal() {
     if (trigger instanceof HTMLElement && document.contains(trigger)) {
         trigger.focus({ preventScroll: true });
     }
+}
+
+// --- Relay Status Polling ---
+let relayPollingTimer = null;
+
+async function pollRelayStatus() {
+    try {
+        const res = await apiFetch('/api/v1/settings/relay/status');
+        const data = await res.json();
+
+        if (dom.relayDot) {
+            dom.relayDot.className = 'relay-dot ' + (data.connected ? 'online' : 'offline');
+        }
+        if (dom.relayStatusText) {
+            if (!data.enabled) {
+                dom.relayStatusText.textContent = '未启用';
+            } else if (data.connected) {
+                dom.relayStatusText.textContent = '已连接 (' + (data.client_name || '未命名') + ')';
+            } else {
+                dom.relayStatusText.textContent = '已断开';
+            }
+        }
+        if (dom.relayServerUrl) {
+            dom.relayServerUrl.textContent = data.server_url || '';
+        }
+        if (dom.relayErrorMsg) {
+            if (data.last_error) {
+                dom.relayErrorMsg.textContent = data.last_error;
+                dom.relayErrorMsg.classList.remove('hidden');
+            } else {
+                dom.relayErrorMsg.classList.add('hidden');
+            }
+        }
+        if (dom.relayReconnectBtn) {
+            dom.relayReconnectBtn.classList.toggle('hidden', !data.enabled || data.connected);
+        }
+        if (dom.relayDisconnectBtn) {
+            dom.relayDisconnectBtn.classList.toggle('hidden', !data.connected);
+        }
+
+        // Auto-poll every 15s when relay is enabled
+        if (relayPollingTimer) clearTimeout(relayPollingTimer);
+        if (data.enabled) {
+            relayPollingTimer = setTimeout(pollRelayStatus, 15000);
+        }
+    } catch (e) { /* handled */ }
+}
+
+if (document.getElementById('relay-reconnect-btn')) {
+    document.getElementById('relay-reconnect-btn').addEventListener('click', async () => {
+        try {
+            await apiFetch('/api/v1/settings/relay/reconnect', { method: 'POST' });
+            showToast('正在重连...', 'info');
+            setTimeout(pollRelayStatus, 3000);
+        } catch (e) { showToast('重连失败', 'error'); }
+    });
+}
+
+if (document.getElementById('relay-disconnect-btn')) {
+    document.getElementById('relay-disconnect-btn').addEventListener('click', async () => {
+        try {
+            await apiFetch('/api/v1/settings/relay/disconnect', { method: 'POST' });
+            showToast('已断开中转连接', 'info');
+            setTimeout(pollRelayStatus, 1000);
+        } catch (e) { showToast('断开失败', 'error'); }
+    });
 }
 
 // Close modal triggers

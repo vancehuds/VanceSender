@@ -17,6 +17,8 @@ from app.api.schemas import (
     ProviderUpdate,
     QuickPanelWindowActionRequest,
     QuickOverlaySettings,
+    RelaySettings,
+    RelayStatusResponse,
     SenderSettings,
     ServerSettings,
     SettingsResponse,
@@ -155,12 +157,18 @@ async def get_settings(request: Request):
     else:
         server_section["security_warning"] = ""
     server_section.pop("token", None)
+    # Relay section (hide license_key)
+    relay_section = dict(cfg.get("relay", {}))
+    relay_section["license_key_set"] = bool(relay_section.get("license_key"))
+    relay_section.pop("license_key", None)
+
     return SettingsResponse(
         server=server_section,
         launch=launch_section,
         sender=cfg.get("sender", {}),
         ai=ai_section,
         quick_overlay=cfg.get("quick_overlay", {}),
+        relay=relay_section,
     )
 
 
@@ -415,3 +423,58 @@ async def get_notifications_route(clear: bool = False):
     """获取系统通知（警告/错误）。传 clear=true 读取后清空。"""
     items = get_notifications(clear=clear)
     return NotificationsResponse(notifications=items)
+
+
+# ── Relay ─────────────────────────────────────────────────────────────────
+
+
+@router.get("/relay/status", response_model=RelayStatusResponse)
+async def get_relay_status():
+    """获取中转连接状态。"""
+    from app.core.relay_client import get_relay_client
+
+    client = get_relay_client()
+    if client is None:
+        cfg = load_config()
+        relay_cfg = cfg.get("relay", {})
+        return RelayStatusResponse(
+            enabled=bool(relay_cfg.get("enabled")),
+            connected=False,
+            server_url=relay_cfg.get("server_url", ""),
+            client_name=relay_cfg.get("client_name", ""),
+        )
+    return RelayStatusResponse(**client.status)
+
+
+@router.put("/relay", response_model=MessageResponse)
+async def update_relay_settings(body: RelaySettings):
+    """更新中转设置。需重启生效。"""
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not patch:
+        return MessageResponse(message="没有需要更新的设置", success=False)
+    update_config({"relay": patch})
+    return MessageResponse(message="中转设置已更新，重启后生效")
+
+
+@router.post("/relay/reconnect", response_model=MessageResponse)
+async def relay_reconnect():
+    """手动触发中转重连。"""
+    from app.core.relay_client import get_relay_client
+
+    client = get_relay_client()
+    if client is None:
+        raise HTTPException(status_code=400, detail="中转模块未启用")
+    client.reconnect()
+    return MessageResponse(message="正在重连...")
+
+
+@router.post("/relay/disconnect", response_model=MessageResponse)
+async def relay_disconnect():
+    """手动断开中转连接。"""
+    from app.core.relay_client import get_relay_client
+
+    client = get_relay_client()
+    if client is None:
+        raise HTTPException(status_code=400, detail="中转模块未启用")
+    client.disconnect()
+    return MessageResponse(message="已断开中转连接")

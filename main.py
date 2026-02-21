@@ -413,6 +413,24 @@ def main() -> None:
     except Exception as exc:
         print(f"⚠ 快捷悬浮窗模块启动失败: {exc}")
 
+    relay_client = None
+    relay_cfg = cfg.get("relay", {})
+    if (
+        relay_cfg.get("enabled")
+        and relay_cfg.get("server_url")
+        and relay_cfg.get("license_key")
+    ):
+        try:
+            from app.core.relay_client import RelayClient, set_relay_client
+
+            relay_cfg_copy = dict(relay_cfg)
+            relay_cfg_copy["_local_token"] = server_token
+            relay_client = RelayClient(config=relay_cfg_copy, local_port=port)
+            relay_client.start()
+            set_relay_client(relay_client)
+        except Exception as exc:
+            print(f"⚠ 中转连接模块启动失败: {exc}")
+
     if use_desktop_shell:
         desktop_launch_params: dict[str, str] = {"vs_desktop": "1"}
         if server_token:
@@ -476,6 +494,11 @@ def main() -> None:
         print(f"║  提示:     未检测到 pywebview，已回退浏览器模式")
     if enable_tray_on_start and not tray_supported:
         print("║  提示:     未检测到系统托盘依赖，将禁用托盘驻留")
+    if relay_cfg.get("enabled"):
+        relay_server = relay_cfg.get("server_url", "未配置")
+        print(f"║  中转服务:  {relay_server}")
+    else:
+        print(f"║  中转服务:  未启用")
     print(f"║  GitHub:   {github_repository_url}")
     print(f"╚══════════════════════════════════════════════╝")
     print()
@@ -533,6 +556,8 @@ def main() -> None:
             timeout_graceful_shutdown=15,
         )
     finally:
+        if relay_client is not None:
+            relay_client.stop()
         if quick_overlay_module is not None:
             quick_overlay_module.stop()
 
