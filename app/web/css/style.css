@@ -612,6 +612,7 @@ body.quick-panel-mode .toast-container {
     color: var(--text-main);
 }
 
+.home-card-update,
 .home-card-security {
     grid-column: 1 / -1;
 }
@@ -622,6 +623,38 @@ body.quick-panel-mode .toast-container {
 
 .home-card-relay {
     grid-column: 1 / -1;
+}
+
+.home-update-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.home-version-item {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(8, 14, 28, 0.42);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.home-version-label {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
+.home-version-value {
+    color: var(--text-main);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.home-update-actions {
+    margin-top: 2px;
 }
 
 .relay-status {
@@ -1561,12 +1594,17 @@ input:checked+.slider:before {
         align-items: stretch;
     }
 
+    .home-card-update,
     .home-card-security {
         grid-column: auto;
     }
 
     .home-card-announcement {
         grid-column: auto;
+    }
+
+    .home-update-meta {
+        grid-template-columns: 1fr;
     }
 
     .home-link-actions {
@@ -1970,12 +2008,6 @@ input:checked+.slider:before {
         gap: 8px;
     }
 
-    #panel-settings .btn-ghost[href*="github.com"] {
-        width: 100%;
-        justify-content: flex-start;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-    }
 }
 
 /* Modal */

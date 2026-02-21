@@ -394,6 +394,8 @@ const dom = {
     homeUpdateBannerDismissBtn: document.getElementById('home-update-banner-dismiss-btn'),
     homeUpdateBannerLink: document.getElementById('home-update-banner-link'),
     homeUpdateStatus: document.getElementById('home-update-status'),
+    homeCurrentVersion: document.getElementById('home-current-version'),
+    homeLatestVersion: document.getElementById('home-latest-version'),
     homeUpdateTip: document.getElementById('home-update-tip'),
     homeUpdateReleaseLink: document.getElementById('home-update-release-link'),
     homeCheckUpdateBtn: document.getElementById('home-check-update-btn'),
@@ -436,11 +438,6 @@ const dom = {
     saveSettingsBtn: document.getElementById('save-settings-btn'),
     settingsUnsavedBar: document.getElementById('settings-unsaved-bar'),
     settingsUnsavedSaveBtn: document.getElementById('settings-unsaved-save-btn'),
-    checkUpdateBtn: document.getElementById('check-update-btn'),
-    appCurrentVersion: document.getElementById('app-current-version'),
-    appLatestVersion: document.getElementById('app-latest-version'),
-    appUpdateStatus: document.getElementById('app-update-status'),
-    appUpdateReleaseLink: document.getElementById('app-update-release-link'),
     publicConfigCard: document.getElementById('public-config-card'),
     publicConfigTitle: document.getElementById('public-config-title'),
     publicConfigContent: document.getElementById('public-config-content'),
@@ -2837,30 +2834,26 @@ function initSettingsPanel() {
 }
 
 function renderUpdateCheckResult(data) {
-    if (dom.appCurrentVersion) {
-        dom.appCurrentVersion.value = data.current_version || dom.appCurrentVersion.value || '-';
+    const currentVersionText = String(data.current_version || '').trim();
+    const latestVersionText = String(data.latest_version || '').trim();
+
+    if (dom.homeCurrentVersion) {
+        dom.homeCurrentVersion.textContent = currentVersionText || dom.homeCurrentVersion.textContent || '-';
     }
 
-    if (dom.appLatestVersion) {
-        dom.appLatestVersion.value = data.latest_version || '-';
+    if (dom.homeLatestVersion) {
+        dom.homeLatestVersion.textContent = latestVersionText || '-';
     }
 
     const message = data.message || '检查完成';
-    const hasUpdate = Boolean(data.success && data.update_available && data.latest_version);
-    const latestVersionText = String(data.latest_version || '').trim();
+    const hasUpdate = Boolean(data.success && data.update_available && latestVersionText);
     if (!hasUpdate) {
         state.homeUpdateBannerDismissed = false;
     }
     const shouldShowBanner = hasUpdate && !state.homeUpdateBannerDismissed;
     const updateStatusText = hasUpdate
-        ? `发现新版本 v${latestVersionText}`
+        ? `发现新版本 v${latestVersionText}，可前往发布页下载更新`
         : message;
-
-    if (dom.appUpdateStatus) {
-        dom.appUpdateStatus.textContent = hasUpdate
-            ? `${updateStatusText}。${UPDATE_GUIDE_TEXT}`
-            : message;
-    }
 
     if (dom.homeUpdateStatus) {
         dom.homeUpdateStatus.textContent = updateStatusText;
@@ -2884,16 +2877,6 @@ function renderUpdateCheckResult(data) {
         dom.homeUpdateBannerText.textContent = hasUpdate
             ? `发现新版本 v${latestVersionText}，建议尽快更新。`
             : '';
-    }
-
-    if (dom.appUpdateReleaseLink) {
-        if (data.release_url) {
-            dom.appUpdateReleaseLink.href = data.release_url;
-            dom.appUpdateReleaseLink.classList.remove('hidden');
-        } else {
-            dom.appUpdateReleaseLink.classList.add('hidden');
-            dom.appUpdateReleaseLink.removeAttribute('href');
-        }
     }
 
     if (dom.homeUpdateReleaseLink) {
@@ -3009,7 +2992,7 @@ const UPDATE_GUIDE_TEXT = '更新方法：点击“查看发布页”下载最�
 async function checkGitHubUpdate(options = {}) {
     const silent = Boolean(options.silent);
 
-    if (!dom.checkUpdateBtn && !dom.homeCheckUpdateBtn) return;
+    if (!dom.homeCheckUpdateBtn) return;
     if (state.updateCheckInProgress) {
         if (!silent) {
             showToast('正在检查更新，请稍候', 'info');
@@ -3018,25 +3001,11 @@ async function checkGitHubUpdate(options = {}) {
     }
 
     state.updateCheckInProgress = true;
-    const previousLabel = dom.checkUpdateBtn?.textContent || '检查更新';
-    const previousHomeLabel = dom.homeCheckUpdateBtn?.textContent || '立即检查';
+    const previousHomeLabel = dom.homeCheckUpdateBtn.textContent || '立即检查更新';
 
-    if (dom.checkUpdateBtn) {
-        dom.checkUpdateBtn.disabled = true;
-        if (!silent) {
-            dom.checkUpdateBtn.textContent = '检查中...';
-        }
-    }
-
-    if (dom.homeCheckUpdateBtn) {
-        dom.homeCheckUpdateBtn.disabled = true;
-        if (!silent) {
-            dom.homeCheckUpdateBtn.textContent = '检查中...';
-        }
-    }
-
-    if (dom.appUpdateStatus) {
-        dom.appUpdateStatus.textContent = '正在检查更新...';
+    dom.homeCheckUpdateBtn.disabled = true;
+    if (!silent) {
+        dom.homeCheckUpdateBtn.textContent = '检查中...';
     }
 
     if (dom.homeUpdateStatus) {
@@ -3046,6 +3015,11 @@ async function checkGitHubUpdate(options = {}) {
     if (dom.homeUpdateTip) {
         dom.homeUpdateTip.classList.add('hidden');
         dom.homeUpdateTip.textContent = '';
+    }
+
+    if (dom.homeUpdateReleaseLink) {
+        dom.homeUpdateReleaseLink.classList.add('hidden');
+        dom.homeUpdateReleaseLink.removeAttribute('href');
     }
 
     if (dom.homeUpdateBanner) {
@@ -3107,8 +3081,8 @@ async function checkGitHubUpdate(options = {}) {
         } else {
             renderUpdateCheckResult({
                 success: false,
-                current_version: dom.appCurrentVersion?.value || '',
-                latest_version: dom.appLatestVersion?.value || '',
+                current_version: dom.homeCurrentVersion?.textContent || '',
+                latest_version: dom.homeLatestVersion?.textContent || '',
                 update_available: false,
                 release_url: null,
                 message: '检查更新失败，请稍后重试'
@@ -3119,19 +3093,9 @@ async function checkGitHubUpdate(options = {}) {
         }
     } finally {
         state.updateCheckInProgress = false;
-
-        if (dom.checkUpdateBtn) {
-            dom.checkUpdateBtn.disabled = false;
-            if (!silent) {
-                dom.checkUpdateBtn.textContent = previousLabel;
-            }
-        }
-
-        if (dom.homeCheckUpdateBtn) {
-            dom.homeCheckUpdateBtn.disabled = false;
-            if (!silent) {
-                dom.homeCheckUpdateBtn.textContent = previousHomeLabel;
-            }
+        dom.homeCheckUpdateBtn.disabled = false;
+        if (!silent) {
+            dom.homeCheckUpdateBtn.textContent = previousHomeLabel;
         }
     }
 }
@@ -3215,8 +3179,8 @@ async function fetchSettings() {
     dom.settingToken.value = '';
     dom.settingToken.placeholder = data.server.token_set ? '已设置 (输入新值可更新)' : '留空则不启用认证';
 
-    if (dom.appCurrentVersion) {
-        dom.appCurrentVersion.value = data.server.app_version || '-';
+    if (dom.homeCurrentVersion) {
+        dom.homeCurrentVersion.textContent = data.server.app_version || '-';
     }
 
     // Update LAN info

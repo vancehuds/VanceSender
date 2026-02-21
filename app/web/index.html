@@ -214,13 +214,24 @@
 
                     <div class="glass-card home-card home-card-update">
                         <h2>版本更新</h2>
+                        <p class="desc">快速检查新版本并查看发布页下载安装包。</p>
                         <p id="home-update-status" class="desc">正在检查更新...</p>
+                        <div class="home-update-meta">
+                            <div class="home-version-item">
+                                <span class="home-version-label">当前版本</span>
+                                <span id="home-current-version" class="home-version-value">-</span>
+                            </div>
+                            <div class="home-version-item">
+                                <span class="home-version-label">最新版本</span>
+                                <span id="home-latest-version" class="home-version-value">-</span>
+                            </div>
+                        </div>
                         <div id="home-update-tip" class="home-inline-tip hidden"></div>
-                        <div class="home-link-actions">
+                        <div class="home-link-actions home-update-actions">
+                            <button id="home-check-update-btn" class="btn btn-sm btn-outline"
+                                type="button">立即检查更新</button>
                             <a id="home-update-release-link" class="btn btn-sm btn-ghost hidden" href="#"
                                 rel="noopener noreferrer" target="_blank">查看发布页</a>
-                            <button id="home-check-update-btn" class="btn btn-sm btn-outline"
-                                type="button">立即检查</button>
                         </div>
                     </div>
 
@@ -468,44 +479,11 @@
                 </header>
 
                 <div class="settings-container">
-                    <div class="glass-card settings-section">
-                        <h2>项目仓库</h2>
-                        <p style="margin-bottom:8px;color:var(--text-muted);font-size:0.9rem;">VanceSender GitHub 仓库地址：
-                        </p>
-                        <a class="btn btn-sm btn-ghost" href="https://github.com/vancehuds/VanceSender"
-                            rel="noopener noreferrer" target="_blank">https://github.com/vancehuds/VanceSender</a>
-                    </div>
-
                     <div id="public-config-card" class="glass-card settings-section hidden">
                         <h2 id="public-config-title">远程公告</h2>
                         <div id="public-config-content" class="public-config-content"></div>
                         <a id="public-config-link" class="btn btn-sm btn-ghost hidden section-inline-link" href="#"
                             rel="noopener noreferrer" target="_blank">查看详情</a>
-                    </div>
-
-                    <!-- Update Check -->
-                    <div class="glass-card settings-section">
-                        <h2>版本更新</h2>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>当前版本</label>
-                                <input id="app-current-version" type="text" value="-" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>最新版本</label>
-                                <input id="app-latest-version" type="text" value="-" readonly>
-                            </div>
-                            <div class="form-group" style="display:flex;align-items:flex-end;">
-                                <button id="check-update-btn" class="btn btn-outline" type="button"
-                                    onclick="checkGitHubUpdate()">检查更新</button>
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin-top:8px;">
-                            <label>检查结果</label>
-                            <div id="app-update-status" class="desc">未检查</div>
-                            <a id="app-update-release-link" class="btn btn-sm btn-ghost hidden section-inline-link"
-                                href="#" rel="noopener noreferrer" target="_blank">查看发布页</a>
-                        </div>
                     </div>
 
                     <!-- Sender Settings -->
