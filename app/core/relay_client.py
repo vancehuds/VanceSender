@@ -339,6 +339,17 @@ class RelayClient:
                 # Check if it's an SSE response
                 content_type = resp.headers.get("content-type", "")
                 if "text/event-stream" in content_type:
+                    resp_headers = dict(resp.headers)
+                    headers_out = {k: v for k, v in resp_headers.items() 
+                                   if k.lower() not in ("connection", "transfer-encoding", "content-encoding", "content-length")}
+                    await ws.send(json.dumps({
+                        "type": "response",
+                        "id": req_id,
+                        "status": resp.status_code,
+                        "headers": headers_out,
+                        "body": None,
+                        "sse": True
+                    }, ensure_ascii=False))
                     await self._handle_sse_response(ws, req_id, method, url, headers, body)
                     return
 
