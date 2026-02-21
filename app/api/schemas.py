@@ -205,44 +205,6 @@ class QuickOverlaySettings(BaseModel):
     poll_interval_ms: int | None = Field(None, ge=20, le=200)
 
 
-class RelaySettingsUpdateRequest(BaseModel):
-    enabled: bool | None = None
-    server_url: str | None = Field(None, max_length=200)
-    card_key: str | None = Field(None, min_length=1, max_length=120)
-    clear_card_key: bool | None = None
-
-
-class RelayViewerDisconnectRequest(BaseModel):
-    viewer_id: str | None = Field(None, max_length=120)
-
-
-class RelayConnectedViewer(BaseModel):
-    id: str
-    label: str
-    connected_at: int
-    expires_at: int
-
-
-class RelayStatusResponse(BaseModel):
-    enabled: bool
-    connected: bool
-    running: bool
-    server_url: str
-    session_public_id: str
-    pairing_url: str
-    pairing_code: str
-    pairing_expires_at: int
-    pairing_code_used: bool = False
-    pairing_code_status_text: str = ""
-    connected_viewers: list[RelayConnectedViewer] = Field(default_factory=list)
-    remote_webui_url: str
-    qr_image_base64: str
-    card_key_required_prompt_text: str
-    last_error: str
-    last_seen_at: int
-    card_key_set: bool
-
-
 class SettingsResponse(BaseModel):
     server: dict[str, Any]
     launch: dict[str, Any]
@@ -306,3 +268,4 @@ class NotificationItem(BaseModel):
 
 class NotificationsResponse(BaseModel):
     notifications: list[NotificationItem]
+

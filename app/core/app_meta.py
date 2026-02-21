@@ -3,5 +3,5 @@
 from __future__ import annotations
 
 APP_NAME = "VanceSender"
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.2.6"
 GITHUB_REPOSITORY = "vancehuds/VanceSender"

@@ -348,7 +348,7 @@ def normalize_close_action(value: object) -> str:
 
 def is_desktop_window_active() -> bool:
     """Return whether a desktop embedded window is currently active."""
-    return _get_desktop_window() is not None and not _is_exit_requested()
+    return _get_desktop_window() is not None
 
 
 def _create_tray_icon_image() -> object | None:
@@ -356,11 +356,10 @@ def _create_tray_icon_image() -> object | None:
     try:
         image_module = importlib.import_module("PIL.Image")
         from app.core.runtime_paths import get_bundle_root
-
         icon_path = get_bundle_root() / "icon.ico"
         if icon_path.exists():
             return image_module.open(str(icon_path))
-
+            
         draw_module = importlib.import_module("PIL.ImageDraw")
     except Exception:
         return None
@@ -460,15 +459,9 @@ def _close_desktop_window(force_exit: bool = True) -> bool:
 
 
 def _destroy_quick_panel_for_shutdown() -> None:
-    """Destroy quick panel window before desktop shell shutdown.
-
-    Hidden preloaded quick-panel windows may still be in early native init
-    state. Destroying them during WinForms teardown can surface dependency
-    backend errors, so only visible quick-panel windows are explicitly
-    destroyed here.
-    """
+    """Destroy quick panel window before desktop shell shutdown."""
     quick_panel_window = _get_quick_panel_window()
-    if quick_panel_window is not None and is_quick_panel_window_visible():
+    if quick_panel_window is not None:
         quick_panel_destroy = getattr(quick_panel_window, "destroy", None)
         if callable(quick_panel_destroy):
             try:
@@ -567,8 +560,8 @@ def _on_desktop_window_closing() -> bool:
     if action == _CLOSE_ACTION_MINIMIZE_TO_TRAY and _hide_desktop_window_to_tray():
         return False
 
-    _set_exit_requested(True)
     _destroy_quick_panel_for_shutdown()
+    _set_exit_requested(True)
     _stop_tray_controller()
     return True
 

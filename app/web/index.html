@@ -18,7 +18,6 @@
             <div class="desktop-titlebar-brand">
                 <div class="desktop-titlebar-logo">
                     <svg viewBox="0 0 256 256" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-                        <title>VanceSender 标志</title>
                         <polygon points="180,76 76,128 116,140" fill="currentColor" />
                         <polygon points="180,76 116,140 128,180" fill="currentColor" />
                         <polygon points="116,140 128,180 110,160" fill="currentColor" />
@@ -45,7 +44,6 @@
             <div class="quick-panel-titlebar-brand">
                 <div class="quick-panel-titlebar-logo">
                     <svg viewBox="0 0 256 256" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-                        <title>快捷面板标志</title>
                         <polygon points="180,76 76,128 116,140" fill="currentColor" />
                         <polygon points="180,76 116,140 128,180" fill="currentColor" />
                         <polygon points="116,140 128,180 110,160" fill="currentColor" />
@@ -69,7 +67,6 @@
             <div class="brand">
                 <div class="logo-icon">
                     <svg viewBox="0 0 256 256" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-                        <title>应用标志</title>
                         <polygon points="180,76 76,128 116,140" fill="currentColor" />
                         <polygon points="180,76 116,140 128,180" fill="currentColor" />
                         <polygon points="116,140 128,180 110,160" fill="currentColor" />
@@ -184,79 +181,19 @@
                         </div>
                     </div>
 
-                    <div class="glass-card home-card home-card-update">
-                        <h2>版本更新</h2>
-                        <p id="home-update-status" class="desc">正在检查更新...</p>
-                        <div id="home-update-tip" class="home-inline-tip hidden"></div>
-                        <div class="home-link-actions">
-                            <a id="home-update-release-link" class="btn btn-sm btn-ghost hidden" href="#"
-                                rel="noopener noreferrer" target="_blank">查看发布页</a>
-                            <button id="home-check-update-btn" class="btn btn-sm btn-outline"
-                                type="button">立即检查</button>
-                        </div>
-                    </div>
+                    <div class="glass-card home-card">
+                        <h2>局域网访问</h2>
+                        <p id="home-lan-status" class="desc">局域网访问状态检测中...</p>
 
-                    <div class="glass-card home-card home-card-relay">
-                        <h2>远程中继（公网访问）</h2>
-                        <p class="desc">通过中继服务器实现局域网外访问。中继服务器地址与卡密请在设置中填写。</p>
-
-                        <div class="setting-item-toggle" style="margin-top: 10px;">
-                            <div class="setting-info">
-                                <label>启用中继</label>
-                                <p class="desc">开启后会自动连接中继服务器并轮询公网请求。</p>
+                        <div id="home-lan-enabled" class="hidden">
+                            <div class="home-code-block">
+                                <span id="home-lan-urls" class="code">http://192.168.x.x:8730</span>
                             </div>
-                            <label class="switch">
-                                <input type="checkbox" id="setting-relay-enabled">
-                                <span class="slider round"></span>
-                            </label>
+                            <p class="desc">局域网访问开启后可用同一局域网(WIFI)下的设备进行远程控制。建议设置 Token 保护局域网访问安全。</p>
                         </div>
 
-                        <p class="desc" style="margin-top:10px;">中继状态</p>
-                        <p id="relay-status-text" class="desc">未启用</p>
-                        <p id="relay-last-error" class="desc" style="color:var(--accent-danger);">无</p>
-
-                        <div class="form-row" style="margin-top:8px;">
-                            <div class="form-group" style="flex:1.3">
-                                <label>扫码配对地址</label>
-                                <div class="home-code-block">
-                                    <span id="relay-pairing-url" class="code">-</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>8位配对码</label>
-                                <div class="home-code-block">
-                                    <span id="relay-pairing-code" class="code">-</span>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>有效期</label>
-                                <div class="home-code-block">
-                                    <span id="relay-pairing-expiry" class="code">-</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p id="relay-pairing-status-hint" class="desc relay-pairing-status-hint hidden">
-                            配对码已被使用，请重新生成
-                        </p>
-
-                        <div class="form-row" style="margin-top:8px;">
-                            <div class="form-group">
-                                <label>二维码</label>
-                                <div class="relay-qr-wrap">
-                                    <img id="relay-qr-image" alt="中继配对二维码">
-                                </div>
-                            </div>
-                            <div class="form-group" style="flex:1.7">
-                                <label>中继操作</label>
-                                <div class="input-actions">
-                                    <button id="refresh-relay-pairing-btn" class="btn btn-ghost"
-                                        type="button">刷新配对码</button>
-                                </div>
-                                <p class="desc" style="margin-top:6px;">中继服务器地址与卡密请在“设置 → 远程中继”中保存。</p>
-                                <p class="desc" style="margin-top:10px;">当前已通过中继连接的设备</p>
-                                <div id="relay-connected-devices-list" class="relay-device-list"></div>
-                                <p id="relay-connected-devices-empty" class="desc" style="margin-top:6px;">暂无已连接设备</p>
-                            </div>
+                        <div id="home-lan-disabled" class="home-inline-tip hidden">
+                            <p>当前未开启局域网访问，可在 <strong>设置 → 网络设置</strong> 中开启。</p>
                         </div>
                     </div>
 
@@ -275,6 +212,18 @@
                         </div>
                     </div>
 
+                    <div class="glass-card home-card home-card-update">
+                        <h2>版本更新</h2>
+                        <p id="home-update-status" class="desc">正在检查更新...</p>
+                        <div id="home-update-tip" class="home-inline-tip hidden"></div>
+                        <div class="home-link-actions">
+                            <a id="home-update-release-link" class="btn btn-sm btn-ghost hidden" href="#"
+                                rel="noopener noreferrer" target="_blank">查看发布页</a>
+                            <button id="home-check-update-btn" class="btn btn-sm btn-outline"
+                                type="button">立即检查</button>
+                        </div>
+                    </div>
+
                     <div id="home-public-config-card" class="glass-card home-card home-card-announcement hidden">
                         <h2 id="home-public-config-title">远程公告</h2>
                         <div id="home-public-config-content" class="public-config-content"></div>
@@ -282,7 +231,7 @@
                             rel="noopener noreferrer" target="_blank">查看详情</a>
                     </div>
 
-                    <div id="home-security-card" class="glass-card home-card home-card-security">
+                    <div class="glass-card home-card home-card-security">
                         <h2>安全提示</h2>
                         <div id="home-security-warning" class="risk-warning hidden"></div>
                         <p id="home-token-status" class="desc">Token 状态检测中...</p>
@@ -600,25 +549,6 @@
                         </div>
                     </div>
 
-                    <div class="glass-card settings-section">
-                        <h2>远程中继（公网访问）</h2>
-                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">
-                            仅配置中继接入信息。中继开关、状态与配对信息已移动到首页卡片。
-                        </p>
-
-                        <div class="form-row">
-                            <div class="form-group" style="flex:1.5">
-                                <label>中继服务器地址</label>
-                                <input type="text" id="setting-relay-server-url"
-                                    placeholder="https://senderelay.vhuds.com">
-                            </div>
-                            <div class="form-group">
-                                <label>卡密（可选）</label>
-                                <input type="password" id="setting-relay-card-key" placeholder="服务器启用卡密时填写">
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Network Settings -->
                     <div class="glass-card settings-section">
                         <h2>网络设置</h2>
@@ -835,18 +765,6 @@
             <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
             <button id="desktop-close-confirm-tray" class="btn btn-secondary" type="button">最小化到托盘</button>
             <button id="desktop-close-confirm-exit" class="btn btn-danger" type="button">彻底关闭</button>
-        </div>
-    </div>
-
-    <!-- Relay Card Required Modal -->
-    <div id="modal-relay-card-required" class="modal glass-card hidden relay-card-required-modal">
-        <h3>需要卡密才能继续连接</h3>
-        <p id="relay-card-required-text" class="desc">
-            当前中继服务要求输入卡密，请在“设置 → 远程中继”填写后保存。
-        </p>
-        <div class="modal-actions">
-            <button class="btn btn-ghost" data-action="close-modal" type="button">稍后处理</button>
-            <button id="relay-card-required-fill-btn" class="btn btn-primary" type="button">前往填写卡密</button>
         </div>
     </div>
 

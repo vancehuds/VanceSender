@@ -599,7 +599,6 @@ body.quick-panel-mode .toast-container {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 18px;
-    align-items: start;
 }
 
 .home-card {
@@ -618,10 +617,6 @@ body.quick-panel-mode .toast-container {
 }
 
 .home-card-announcement {
-    grid-column: 1 / -1;
-}
-
-.home-card-relay {
     grid-column: 1 / -1;
 }
 
@@ -1531,10 +1526,6 @@ input:checked+.slider:before {
         grid-column: auto;
     }
 
-    .home-card-relay {
-        grid-column: auto;
-    }
-
     .home-link-actions {
         flex-direction: column;
         align-items: stretch;
@@ -2010,45 +2001,6 @@ input:checked+.slider:before {
     flex-shrink: 0;
 }
 
-.relay-card-required-modal {
-    max-width: 560px;
-    border: 1px solid rgba(79, 209, 255, 0.34);
-    background:
-        radial-gradient(circle at 12% -8%, rgba(79, 209, 255, 0.2), transparent 52%),
-        radial-gradient(circle at 96% 18%, rgba(139, 123, 255, 0.2), transparent 46%),
-        linear-gradient(145deg, rgba(9, 15, 30, 0.98), rgba(7, 12, 24, 0.96));
-    box-shadow:
-        0 26px 56px rgba(2, 8, 23, 0.6),
-        0 0 0 1px rgba(79, 209, 255, 0.14) inset;
-}
-
-.relay-card-required-modal h3 {
-    font-size: 1.15rem;
-    font-weight: 650;
-    letter-spacing: 0.01em;
-    color: #ecf7ff;
-}
-
-.relay-card-required-modal #relay-card-required-text {
-    margin-top: 12px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(15, 23, 42, 0.52);
-    line-height: 1.65;
-    color: var(--text-secondary);
-    word-break: break-word;
-}
-
-.relay-card-required-modal .modal-actions {
-    margin-top: 18px;
-    gap: 12px;
-}
-
-.relay-card-required-modal .modal-actions .btn {
-    min-width: 128px;
-}
-
 /* Empty State */
 .empty-state {
     text-align: center;
@@ -2285,77 +2237,6 @@ input:checked+.slider:before {
 
 .lan-info p+p {
     margin-top: 6px;
-}
-
-.relay-qr-wrap {
-    width: min(220px, 100%);
-    min-height: 160px;
-    border-radius: 10px;
-    border: 1px dashed rgba(148, 163, 184, 0.35);
-    background: rgba(2, 8, 23, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-}
-
-.relay-qr-wrap img {
-    max-width: 100%;
-    max-height: 100%;
-    border-radius: 8px;
-}
-
-.relay-pairing-status-hint {
-    margin-top: 6px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(250, 204, 21, 0.38);
-    background: rgba(250, 204, 21, 0.12);
-    color: #ffe8b0;
-}
-
-.relay-device-list {
-    margin-top: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.relay-device-item {
-    border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(15, 23, 42, 0.5);
-    padding: 10px 12px;
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    align-items: center;
-}
-
-.relay-device-meta {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.relay-device-title {
-    font-size: 0.9rem;
-    color: var(--text-main);
-    word-break: break-word;
-}
-
-.relay-device-sub {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    word-break: break-word;
-}
-
-@media (max-width: 768px) {
-    .relay-device-item {
-        flex-direction: column;
-        align-items: stretch;
-    }
 }
 
 .risk-warning {
