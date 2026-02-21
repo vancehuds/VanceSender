@@ -341,6 +341,8 @@ def _ensure_startup_port_available(host: str, port: int) -> bool:
 
 
 def main() -> None:
+    _configure_console_encoding()
+    
     parser = argparse.ArgumentParser(description="VanceSender Server")
     parser.add_argument("--lan", action="store_true", help="启用局域网访问 (0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="服务端口")
@@ -353,8 +355,7 @@ def main() -> None:
 
     cfg = load_config()
     _prepare_runtime_console(cfg)
-    _configure_console_encoding()
-
+    
     server_token_raw = cfg.get("server", {}).get("token", "")
     server_token = server_token_raw.strip() if isinstance(server_token_raw, str) else ""
 
