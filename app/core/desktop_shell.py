@@ -356,10 +356,11 @@ def _create_tray_icon_image() -> object | None:
     try:
         image_module = importlib.import_module("PIL.Image")
         from app.core.runtime_paths import get_bundle_root
+
         icon_path = get_bundle_root() / "icon.ico"
         if icon_path.exists():
             return image_module.open(str(icon_path))
-            
+
         draw_module = importlib.import_module("PIL.ImageDraw")
     except Exception:
         return None
@@ -879,37 +880,40 @@ def perform_quick_panel_window_action(
 
 
 def _patch_pywebview_edgechromium_bug() -> None:
-    """Apply runtime monkeypatch for pywebview EdgeChromium NoneType bug on FormClosed."""
+    """Apply runtime monkeypatch for pywebview EdgeChromium close-time NoneType bug."""
     if sys.platform != "win32":
         return
-        
+
     try:
-        from webview.platforms.edgechromium import EdgeChrome
-        
-        original_on_closed = getattr(EdgeChrome, "on_closed", None)
-        if not callable(original_on_closed) or getattr(original_on_closed, "_vancesender_patched", False):
+        edgechromium_module = importlib.import_module("webview.platforms.edgechromium")
+    except Exception:
+        return
+
+    edgechrome_cls = getattr(edgechromium_module, "EdgeChrome", None)
+    if edgechrome_cls is None:
+        return
+
+    if getattr(edgechrome_cls, "_vancesender_clear_user_data_patched", False):
+        return
+
+    original_clear_user_data = getattr(edgechrome_cls, "clear_user_data", None)
+    if not callable(original_clear_user_data):
+        return
+
+    def safe_clear_user_data(self: object) -> None:
+        webview_control = getattr(self, "webview", None)
+        core_webview2 = getattr(webview_control, "CoreWebView2", None)
+
+        if core_webview2 is None:
             return
 
-        def safe_on_closed(self: object, sender: object, args: object) -> None:
-            try:
-                core_wv2 = getattr(self, "core_webview2", None)
-                if core_wv2 is None:
-                    dummy = type("DummyCore", (), {"BrowserProcessId": 0})()
-                    setattr(self, "core_webview2", dummy)
-                
-                original_on_closed(self, sender, args)
-            except Exception:
-                pass
-            finally:
-                try:
-                    setattr(self, "core_webview2", None)
-                except Exception:
-                    pass
+        try:
+            original_clear_user_data(self)
+        except Exception:
+            return
 
-        safe_on_closed._vancesender_patched = True  # type: ignore[attr-defined]
-        EdgeChrome.on_closed = safe_on_closed
-    except Exception:
-        pass
+    edgechrome_cls.clear_user_data = safe_clear_user_data
+    setattr(edgechrome_cls, "_vancesender_clear_user_data_patched", True)
 
 
 def open_desktop_window(
