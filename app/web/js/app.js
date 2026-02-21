@@ -2703,7 +2703,11 @@ function bindSettingsDirtyTracking() {
         dom.settingSystemPrompt,
         dom.settingToken,
         dom.aiProvider,
-        dom.settingCustomHeaders
+        dom.settingCustomHeaders,
+        dom.settingRelayEnabled,
+        dom.settingRelayServerUrl,
+        dom.settingRelayLicenseKey,
+        dom.settingRelayClientName
     ].filter(Boolean);
 
     trackedFields.forEach((field) => {
