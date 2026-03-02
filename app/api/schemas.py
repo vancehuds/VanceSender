@@ -164,6 +164,7 @@ class ServerSettings(BaseModel):
 class LaunchSettings(BaseModel):
     open_webui_on_start: bool | None = None
     open_intro_on_first_start: bool | None = None
+    onboarding_done: bool | None = None
     show_console_on_start: bool | None = None
     enable_tray_on_start: bool | None = None
     # Deprecated input key, kept for backward compatibility.
@@ -233,6 +234,7 @@ class LaunchSettingsResponse(BaseModel):
 
     open_webui_on_start: bool = False
     open_intro_on_first_start: bool = True
+    onboarding_done: bool = False
     show_console_on_start: bool = False
     enable_tray_on_start: bool = True
     close_action: str = "ask"

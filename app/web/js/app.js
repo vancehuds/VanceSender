@@ -851,7 +851,19 @@ const dom = {
     desktopCloseConfirmExit: document.getElementById('desktop-close-confirm-exit'),
 
     // Toast
-    toastContainer: document.getElementById('toast-container')
+    toastContainer: document.getElementById('toast-container'),
+
+    // Onboarding
+    onboardingOverlay: document.getElementById('onboarding-overlay'),
+    onboardingHighlight: document.getElementById('onboarding-highlight'),
+    onboardingCard: document.getElementById('onboarding-card'),
+    onboardingStepBadge: document.getElementById('onboarding-step-badge'),
+    onboardingTitle: document.getElementById('onboarding-title'),
+    onboardingDesc: document.getElementById('onboarding-desc'),
+    onboardingDots: document.getElementById('onboarding-dots'),
+    onboardingPrevBtn: document.getElementById('onboarding-prev-btn'),
+    onboardingNextBtn: document.getElementById('onboarding-next-btn'),
+    onboardingSkipBtn: document.getElementById('onboarding-skip-btn')
 };
 
 const SETTINGS_PRIMARY_SAVE_IDLE_TEXT = dom.saveSettingsBtn?.textContent || '保存全部设置';
@@ -903,9 +915,212 @@ async function loadInitialData() {
             state.startupUpdateChecked = true;
             checkGitHubUpdate({ silent: true, startup: true });
         }
+
+        // Trigger onboarding tutorial for first-time users
+        initOnboarding();
     } catch (e) {
         showToast('初始化失败: ' + e.message, 'error');
     }
+}
+
+// --- Onboarding Tutorial ---
+function initOnboarding() {
+    // Skip in quick-panel mode
+    if (isQuickPanelMode()) return;
+
+    // Check if onboarding was already completed (from server config)
+    if (state.settings?.launch?.onboarding_done) return;
+
+    const steps = [
+        {
+            target: '.sidebar',
+            title: '👋 欢迎使用 VanceSender！',
+            desc: '这是主导航栏，通过它可以切换不同的功能面板。让我们快速了解各项功能吧！'
+        },
+        {
+            target: '[data-target="panel-send"]',
+            title: '📨 发送文本',
+            desc: '在「发送」面板中导入或手动编写 RP 文本，支持批量导入与队列发送，精确控制发送间隔。'
+        },
+        {
+            target: '[data-target="panel-ai"]',
+            title: '✨ AI 智能生成',
+            desc: '只需描述场景，AI 即可自动生成 /me 和 /do 文本。还支持对已有文本进行 AI 润色重写。'
+        },
+        {
+            target: '[data-target="panel-presets"]',
+            title: '💾 预设管理',
+            desc: '将常用的角色扮演文本保存为预设，分类管理、快速调用，支持导入导出分享。'
+        },
+        {
+            target: '[data-target="panel-quick-send"]',
+            title: '⚡ 快捷发送',
+            desc: '选择预设后一键发送，配合游戏内悬浮窗热键呼出，无需切屏即可操作。'
+        },
+        {
+            target: '[data-target="panel-settings"]',
+            title: '⚙️ 设置',
+            desc: '配置发送方式与延迟参数、局域网远程控制、AI 服务商、快捷悬浮窗热键等。'
+        }
+    ];
+
+    let currentStep = 0;
+
+    // Build step indicator dots
+    function renderDots() {
+        if (!dom.onboardingDots) return;
+        dom.onboardingDots.innerHTML = '';
+        for (let i = 0; i < steps.length; i++) {
+            const dot = document.createElement('span');
+            dot.className = 'onboarding-dot';
+            if (i === currentStep) dot.classList.add('active');
+            else if (i < currentStep) dot.classList.add('done');
+            dom.onboardingDots.appendChild(dot);
+        }
+    }
+
+    // Position the highlight box over the target element
+    function positionHighlight(targetEl) {
+        if (!dom.onboardingHighlight || !targetEl) return;
+        const rect = targetEl.getBoundingClientRect();
+        const pad = 6;
+        dom.onboardingHighlight.style.top = (rect.top - pad) + 'px';
+        dom.onboardingHighlight.style.left = (rect.left - pad) + 'px';
+        dom.onboardingHighlight.style.width = (rect.width + pad * 2) + 'px';
+        dom.onboardingHighlight.style.height = (rect.height + pad * 2) + 'px';
+    }
+
+    // Position the card next to the highlight
+    function positionCard(targetEl) {
+        if (!dom.onboardingCard || !targetEl) return;
+
+        const rect = targetEl.getBoundingClientRect();
+        const cardWidth = dom.onboardingCard.offsetWidth || 360;
+        const cardHeight = dom.onboardingCard.offsetHeight || 260;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const gap = 16;
+
+        let top, left;
+
+        // Try right of target
+        if (rect.right + gap + cardWidth < vw) {
+            left = rect.right + gap;
+            top = rect.top;
+        }
+        // Try left of target
+        else if (rect.left - gap - cardWidth > 0) {
+            left = rect.left - gap - cardWidth;
+            top = rect.top;
+        }
+        // Fallback: below target
+        else {
+            left = Math.max(16, (vw - cardWidth) / 2);
+            top = rect.bottom + gap;
+        }
+
+        // Clamp to viewport
+        top = Math.max(12, Math.min(top, vh - cardHeight - 12));
+        left = Math.max(12, Math.min(left, vw - cardWidth - 12));
+
+        dom.onboardingCard.style.top = top + 'px';
+        dom.onboardingCard.style.left = left + 'px';
+    }
+
+    function showStep(index) {
+        currentStep = index;
+        const step = steps[currentStep];
+        const targetEl = document.querySelector(step.target);
+
+        if (!targetEl) {
+            completeOnboarding();
+            return;
+        }
+
+        // Update card content
+        dom.onboardingStepBadge.textContent = `${currentStep + 1} / ${steps.length}`;
+        dom.onboardingTitle.textContent = step.title;
+        dom.onboardingDesc.textContent = step.desc;
+
+        // Update buttons
+        dom.onboardingPrevBtn.disabled = currentStep === 0;
+        if (currentStep === steps.length - 1) {
+            dom.onboardingNextBtn.textContent = '🎉 开始使用';
+        } else {
+            dom.onboardingNextBtn.textContent = '下一步';
+        }
+
+        renderDots();
+        positionHighlight(targetEl);
+
+        // Ensure card is visible before measuring its dimensions
+        dom.onboardingOverlay.classList.remove('hidden');
+        dom.onboardingHighlight.classList.remove('hidden');
+        dom.onboardingCard.classList.remove('hidden');
+
+        // Use rAF to position card after it's rendered
+        requestAnimationFrame(() => {
+            positionCard(targetEl);
+        });
+    }
+
+    function completeOnboarding() {
+        dom.onboardingOverlay.classList.add('hidden');
+        dom.onboardingHighlight.classList.add('hidden');
+        dom.onboardingCard.classList.add('hidden');
+        // Persist to server config
+        apiFetch('/api/v1/settings/launch', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ onboarding_done: true })
+        }).catch(() => { /* ignore save failures */ });
+        // Also update local state so re-init won't trigger
+        if (state.settings?.launch) {
+            state.settings.launch.onboarding_done = true;
+        }
+        window.removeEventListener('resize', handleResize);
+    }
+
+    function handleResize() {
+        const step = steps[currentStep];
+        if (!step) return;
+        const targetEl = document.querySelector(step.target);
+        if (!targetEl) return;
+        positionHighlight(targetEl);
+        positionCard(targetEl);
+    }
+
+    // Event listeners
+    if (dom.onboardingNextBtn) {
+        dom.onboardingNextBtn.addEventListener('click', () => {
+            if (currentStep < steps.length - 1) {
+                showStep(currentStep + 1);
+            } else {
+                completeOnboarding();
+            }
+        });
+    }
+
+    if (dom.onboardingPrevBtn) {
+        dom.onboardingPrevBtn.addEventListener('click', () => {
+            if (currentStep > 0) {
+                showStep(currentStep - 1);
+            }
+        });
+    }
+
+    if (dom.onboardingSkipBtn) {
+        dom.onboardingSkipBtn.addEventListener('click', completeOnboarding);
+    }
+
+    if (dom.onboardingOverlay) {
+        dom.onboardingOverlay.addEventListener('click', completeOnboarding);
+    }
+
+    window.addEventListener('resize', handleResize);
+
+    // Start the onboarding after a brief delay so layout is settled
+    setTimeout(() => showStep(0), 400);
 }
 
 // --- Navigation ---

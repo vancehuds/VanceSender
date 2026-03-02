@@ -2750,6 +2750,168 @@ input:checked+.slider:before {
     }
 }
 
+/* ── Onboarding Tutorial ──────────────────────────────────────────────── */
+.onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 8, 23, 0.68);
+    backdrop-filter: blur(4px);
+    z-index: 5000;
+    animation: onboardingFadeIn 0.35s ease;
+    transition: opacity 0.3s ease;
+}
+
+.onboarding-highlight {
+    position: fixed;
+    z-index: 5001;
+    border-radius: 14px;
+    box-shadow:
+        0 0 0 4000px rgba(2, 8, 23, 0.68),
+        0 0 20px rgba(79, 209, 255, 0.45),
+        inset 0 0 12px rgba(79, 209, 255, 0.12);
+    border: 2px solid rgba(79, 209, 255, 0.55);
+    pointer-events: none;
+    transition: top 0.4s cubic-bezier(.4, 0, .2, 1),
+        left 0.4s cubic-bezier(.4, 0, .2, 1),
+        width 0.4s cubic-bezier(.4, 0, .2, 1),
+        height 0.4s cubic-bezier(.4, 0, .2, 1);
+    animation: onboardingHighlightPulse 2s ease-in-out infinite;
+}
+
+.onboarding-card {
+    position: fixed;
+    z-index: 5002;
+    min-width: 320px;
+    max-width: 400px;
+    padding: 20px 24px;
+    border: 1px solid rgba(79, 209, 255, 0.28);
+    background: rgba(10, 17, 35, 0.92);
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+    box-shadow:
+        0 16px 48px rgba(2, 8, 23, 0.65),
+        0 0 24px rgba(79, 209, 255, 0.08);
+    animation: onboardingCardIn 0.35s cubic-bezier(.4, 0, .2, 1);
+    transition: top 0.4s cubic-bezier(.4, 0, .2, 1),
+        left 0.4s cubic-bezier(.4, 0, .2, 1);
+}
+
+.onboarding-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.onboarding-step-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+    background: rgba(79, 209, 255, 0.12);
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+}
+
+.onboarding-skip-btn {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.onboarding-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px;
+    line-height: 1.4;
+}
+
+.onboarding-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 0 0 16px;
+}
+
+.onboarding-dots {
+    display: flex;
+    gap: 7px;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.onboarding-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(148, 163, 184, 0.3);
+    transition: all 0.3s ease;
+}
+
+.onboarding-dot.active {
+    background: var(--accent-cyan);
+    box-shadow: 0 0 8px rgba(79, 209, 255, 0.5);
+    transform: scale(1.25);
+}
+
+.onboarding-dot.done {
+    background: rgba(79, 209, 255, 0.45);
+}
+
+.onboarding-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.onboarding-actions .btn {
+    flex: 1;
+}
+
+@keyframes onboardingFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes onboardingCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes onboardingHighlightPulse {
+    0%, 100% {
+        box-shadow:
+            0 0 0 4000px rgba(2, 8, 23, 0.68),
+            0 0 20px rgba(79, 209, 255, 0.45),
+            inset 0 0 12px rgba(79, 209, 255, 0.12);
+        border-color: rgba(79, 209, 255, 0.55);
+    }
+    50% {
+        box-shadow:
+            0 0 0 4000px rgba(2, 8, 23, 0.68),
+            0 0 32px rgba(79, 209, 255, 0.6),
+            inset 0 0 18px rgba(79, 209, 255, 0.18);
+        border-color: rgba(79, 209, 255, 0.75);
+    }
+}
+
+@media (max-width: 768px) {
+    .onboarding-card {
+        min-width: 0;
+        max-width: calc(100vw - 32px);
+        width: calc(100vw - 32px);
+        left: 16px !important;
+        bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+        top: auto !important;
+    }
+}
+
 /* Keep at file end so it can override component display rules */
 .hidden {
     display: none;

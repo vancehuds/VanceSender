@@ -76,6 +76,7 @@ def _build_launch_section(cfg: dict) -> dict:
         "open_intro_on_first_start": bool(
             launch_section.get("open_intro_on_first_start", True)
         ),
+        "onboarding_done": bool(launch_section.get("onboarding_done", False)),
         "show_console_on_start": bool(
             launch_section.get("show_console_on_start", False)
         ),
