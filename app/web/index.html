@@ -569,6 +569,10 @@
                 <header class="panel-header">
                     <h1>预设管理</h1>
                     <div class="header-actions">
+                        <button id="batch-delete-presets-btn" class="btn btn-danger hidden" type="button">删除选中 (<span
+                                id="batch-delete-count">0</span>)</button>
+                        <button id="cancel-preset-select-btn" class="btn btn-ghost hidden" type="button">取消选择</button>
+                        <button id="toggle-preset-select-btn" class="btn btn-ghost" type="button">多选</button>
                         <button id="import-presets-btn" class="btn btn-secondary" type="button">导入预设</button>
                         <button id="export-all-presets-btn" class="btn btn-ghost" type="button">全部导出</button>
                         <button id="refresh-presets-btn" class="btn btn-icon" type="button">
@@ -748,6 +752,13 @@
                             </select>
                             <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
                                 选择“每次询问”时会弹出单个自定义窗口，可直接选择行为并勾选“记住选择”。
+                            </p>
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <button id="replay-onboarding-btn" class="btn btn-outline btn-sm" type="button">🎓
+                                重看新手教程</button>
+                            <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                重新播放首次使用时的引导教程，快速回顾各功能入口。
                             </p>
                         </div>
                     </div>
@@ -1050,16 +1061,21 @@
     <div id="onboarding-overlay" class="onboarding-overlay hidden"></div>
     <div id="onboarding-highlight" class="onboarding-highlight hidden"></div>
     <div id="onboarding-card" class="onboarding-card glass-card hidden">
+        <div class="onboarding-progress-track">
+            <div class="onboarding-progress-fill"></div>
+        </div>
         <div class="onboarding-card-header">
             <span class="onboarding-step-badge" id="onboarding-step-badge">1 / 6</span>
             <button id="onboarding-skip-btn" class="btn btn-sm btn-ghost onboarding-skip-btn" type="button">跳过</button>
         </div>
-        <h3 id="onboarding-title" class="onboarding-title"></h3>
-        <p id="onboarding-desc" class="onboarding-desc"></p>
+        <div class="onboarding-body">
+            <h3 id="onboarding-title" class="onboarding-title"></h3>
+            <p id="onboarding-desc" class="onboarding-desc"></p>
+        </div>
         <div class="onboarding-dots" id="onboarding-dots"></div>
         <div class="onboarding-actions">
             <button id="onboarding-prev-btn" class="btn btn-ghost btn-sm" type="button" disabled>上一步</button>
-            <button id="onboarding-next-btn" class="btn btn-primary btn-sm glow-effect" type="button">下一步</button>
+            <button id="onboarding-next-btn" class="btn btn-primary btn-sm glow-effect" type="button">下一步 →</button>
         </div>
     </div>
 

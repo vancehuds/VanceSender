@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.schemas import (
     MessageResponse,
+    PresetBatchDeleteResponse,
     PresetCreate,
     PresetImportResponse,
     PresetResponse,
@@ -125,6 +126,37 @@ async def import_presets(request: Request):
         skipped=skipped,
         errors=errors,
         message=f"成功导入 {imported} 个预设" + (f"，跳过 {skipped} 个" if skipped else ""),
+    )
+
+
+# ── Batch Delete (MUST be before /{preset_id} to avoid path conflict) ──
+
+
+@router.post("/batch-delete", response_model=PresetBatchDeleteResponse)
+async def batch_delete_presets(request: Request):
+    """批量删除预设。接收 {ids: ["id1", "id2", ...]}。"""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="无法解析请求数据")
+
+    ids = body.get("ids", [])
+    if not isinstance(ids, list) or len(ids) == 0:
+        raise HTTPException(status_code=400, detail="ids 必须是非空数组")
+
+    deleted = 0
+    failed = 0
+    for preset_id in ids:
+        try:
+            delete_preset_file(str(preset_id))
+            deleted += 1
+        except PresetError:
+            failed += 1
+
+    return PresetBatchDeleteResponse(
+        message=f"成功删除 {deleted} 个预设" + (f"，{failed} 个失败" if failed else ""),
+        deleted=deleted,
+        failed=failed,
     )
 
 

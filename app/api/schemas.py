@@ -325,6 +325,12 @@ class PresetImportResponse(BaseModel):
     message: str
 
 
+class PresetBatchDeleteResponse(BaseModel):
+    message: str
+    deleted: int = Field(description="成功删除的预设数量")
+    failed: int = Field(description="删除失败的预设数量")
+
+
 # ── Generic ────────────────────────────────────────────────────────────────
 
 

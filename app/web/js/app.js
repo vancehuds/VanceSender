@@ -676,6 +676,8 @@ const state = {
     currentPresetId: null,
     presetSnapshot: null,
     presetDirty: false,
+    presetSelectMode: false,
+    selectedPresetIds: new Set(),
     currentQuickPresetId: null,
     editingTextIndex: null,
     draggingTextIndex: null,
@@ -746,6 +748,10 @@ const dom = {
     presetFileInput: document.getElementById('preset-file-input'),
     quickPresetSelect: document.getElementById('quick-preset-select'),
     quickPresetRefreshBtn: document.getElementById('quick-preset-refresh-btn'),
+    togglePresetSelectBtn: document.getElementById('toggle-preset-select-btn'),
+    batchDeletePresetsBtn: document.getElementById('batch-delete-presets-btn'),
+    batchDeleteCount: document.getElementById('batch-delete-count'),
+    cancelPresetSelectBtn: document.getElementById('cancel-preset-select-btn'),
 
     // Quick Send
     quickSendPresetSelect: document.getElementById('quick-send-preset-select'),
@@ -942,6 +948,16 @@ async function loadInitialData() {
 }
 
 // --- Onboarding Tutorial ---
+function switchToPanel(panelTarget) {
+    const navItem = document.querySelector(`.nav-item[data-target="${panelTarget}"]`);
+    if (!navItem) return;
+    dom.navItems.forEach(n => n.classList.remove('active'));
+    navItem.classList.add('active');
+    dom.panels.forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(panelTarget);
+    if (panel) panel.classList.add('active');
+}
+
 function initOnboarding() {
     // Skip in quick-panel mode
     if (isQuickPanelMode()) return;
@@ -951,34 +967,40 @@ function initOnboarding() {
 
     const steps = [
         {
-            target: '.sidebar',
+            target: null, // centered welcome — no highlight target
             title: '👋 欢迎使用 VanceSender！',
-            desc: '这是主导航栏，通过它可以切换不同的功能面板。让我们快速了解各项功能吧！'
+            desc: '这是一款专为 FiveM Roleplay 设计的文本发送工具。接下来让我们快速了解各项核心功能吧！',
+            beforeShow: () => switchToPanel('panel-home')
         },
         {
             target: '[data-target="panel-send"]',
             title: '📨 发送文本',
-            desc: '在「发送」面板中导入或手动编写 RP 文本，支持批量导入与队列发送，精确控制发送间隔。'
+            desc: '在「发送」面板中导入或手动编写 RP 文本，支持批量导入与队列发送，精确控制发送间隔。',
+            beforeShow: () => switchToPanel('panel-send')
         },
         {
             target: '[data-target="panel-ai"]',
             title: '✨ AI 智能生成',
-            desc: '只需描述场景，AI 即可自动生成 /me 和 /do 文本。还支持对已有文本进行 AI 润色重写。'
+            desc: '只需描述场景，AI 即可自动生成 /me 和 /do 文本。还支持对已有文本进行 AI 润色重写。',
+            beforeShow: () => switchToPanel('panel-ai')
         },
         {
             target: '[data-target="panel-presets"]',
             title: '💾 预设管理',
-            desc: '将常用的角色扮演文本保存为预设，分类管理、快速调用，支持导入导出分享。'
+            desc: '将常用的角色扮演文本保存为预设，分类管理、快速调用，支持导入导出分享。',
+            beforeShow: () => switchToPanel('panel-presets')
         },
         {
             target: '[data-target="panel-quick-send"]',
             title: '⚡ 快捷发送',
-            desc: '选择预设后一键发送，配合游戏内悬浮窗热键呼出，无需切屏即可操作。'
+            desc: '选择预设后一键发送，配合游戏内悬浮窗热键呼出，无需切屏即可操作。',
+            beforeShow: () => switchToPanel('panel-quick-send')
         },
         {
             target: '[data-target="panel-settings"]',
             title: '⚙️ 设置',
-            desc: '配置发送方式与延迟参数、局域网远程控制、AI 服务商、快捷悬浮窗热键等。'
+            desc: '配置发送方式与延迟参数、局域网远程控制、AI 服务商、快捷悬浮窗热键等。',
+            beforeShow: () => switchToPanel('panel-settings')
         }
     ];
 
@@ -997,6 +1019,14 @@ function initOnboarding() {
         }
     }
 
+    // Build the progress bar element
+    function renderProgress() {
+        const bar = dom.onboardingCard?.querySelector('.onboarding-progress-fill');
+        if (bar) {
+            bar.style.width = `${((currentStep + 1) / steps.length) * 100}%`;
+        }
+    }
+
     // Position the highlight box over the target element
     function positionHighlight(targetEl) {
         if (!dom.onboardingHighlight || !targetEl) return;
@@ -1008,16 +1038,31 @@ function initOnboarding() {
         dom.onboardingHighlight.style.height = (rect.height + pad * 2) + 'px';
     }
 
+    // Center the card when there is no target (welcome step)
+    function centerCard() {
+        if (!dom.onboardingCard) return;
+        dom.onboardingCard.style.top = '50%';
+        dom.onboardingCard.style.left = '50%';
+        dom.onboardingCard.style.transform = 'translate(-50%, -50%)';
+    }
+
     // Position the card next to the highlight
     function positionCard(targetEl) {
-        if (!dom.onboardingCard || !targetEl) return;
+        if (!dom.onboardingCard) return;
+        // Reset centering transform
+        dom.onboardingCard.style.transform = '';
+
+        if (!targetEl) {
+            centerCard();
+            return;
+        }
 
         const rect = targetEl.getBoundingClientRect();
         const cardWidth = dom.onboardingCard.offsetWidth || 360;
         const cardHeight = dom.onboardingCard.offsetHeight || 260;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        const gap = 16;
+        const gap = 18;
 
         let top, left;
 
@@ -1048,11 +1093,27 @@ function initOnboarding() {
     function showStep(index) {
         currentStep = index;
         const step = steps[currentStep];
-        const targetEl = document.querySelector(step.target);
 
-        if (!targetEl) {
+        // Run beforeShow callback (e.g. switch panel)
+        if (typeof step.beforeShow === 'function') {
+            step.beforeShow();
+        }
+
+        const targetEl = step.target ? document.querySelector(step.target) : null;
+        const isCentered = !step.target;
+
+        if (!isCentered && !targetEl) {
             completeOnboarding();
             return;
+        }
+
+        // Fade-out existing card content, then update
+        const body = dom.onboardingCard?.querySelector('.onboarding-body');
+        if (body) {
+            body.classList.remove('onboarding-body-enter');
+            // Force reflow to restart animation
+            void body.offsetWidth;
+            body.classList.add('onboarding-body-enter');
         }
 
         // Update card content
@@ -1065,16 +1126,24 @@ function initOnboarding() {
         if (currentStep === steps.length - 1) {
             dom.onboardingNextBtn.textContent = '🎉 开始使用';
         } else {
-            dom.onboardingNextBtn.textContent = '下一步';
+            dom.onboardingNextBtn.textContent = '下一步 →';
         }
 
         renderDots();
-        positionHighlight(targetEl);
+        renderProgress();
 
-        // Ensure card is visible before measuring its dimensions
+        // Toggle highlight visibility
+        if (isCentered) {
+            dom.onboardingHighlight.classList.add('hidden');
+        } else {
+            dom.onboardingHighlight.classList.remove('hidden');
+            positionHighlight(targetEl);
+        }
+
+        // Show overlay & card
         dom.onboardingOverlay.classList.remove('hidden');
-        dom.onboardingHighlight.classList.remove('hidden');
         dom.onboardingCard.classList.remove('hidden');
+        dom.onboardingCard.classList.toggle('centered', isCentered);
 
         // Use rAF to position card after it's rendered
         requestAnimationFrame(() => {
@@ -1083,9 +1152,21 @@ function initOnboarding() {
     }
 
     function completeOnboarding() {
-        dom.onboardingOverlay.classList.add('hidden');
+        // Add exit animation
+        dom.onboardingOverlay.classList.add('onboarding-exit');
+        dom.onboardingCard.classList.add('onboarding-exit');
         dom.onboardingHighlight.classList.add('hidden');
-        dom.onboardingCard.classList.add('hidden');
+
+        setTimeout(() => {
+            dom.onboardingOverlay.classList.add('hidden');
+            dom.onboardingCard.classList.add('hidden');
+            dom.onboardingOverlay.classList.remove('onboarding-exit');
+            dom.onboardingCard.classList.remove('onboarding-exit');
+        }, 300);
+
+        // Switch back to home panel
+        switchToPanel('panel-home');
+
         // Persist to server config
         apiFetch('/api/v1/settings/launch', {
             method: 'PUT',
@@ -1102,9 +1183,9 @@ function initOnboarding() {
     function handleResize() {
         const step = steps[currentStep];
         if (!step) return;
-        const targetEl = document.querySelector(step.target);
-        if (!targetEl) return;
-        positionHighlight(targetEl);
+        const targetEl = step.target ? document.querySelector(step.target) : null;
+        if (step.target && !targetEl) return;
+        if (targetEl) positionHighlight(targetEl);
         positionCard(targetEl);
     }
 
@@ -1138,8 +1219,27 @@ function initOnboarding() {
     window.addEventListener('resize', handleResize);
 
     // Start the onboarding after a brief delay so layout is settled
-    setTimeout(() => showStep(0), 400);
+    setTimeout(() => showStep(0), 500);
 }
+
+function replayOnboarding() {
+    // Reset local state so initOnboarding won't early-return
+    if (state.settings?.launch) {
+        state.settings.launch.onboarding_done = false;
+    }
+    // Switch to home first
+    switchToPanel('panel-home');
+    // Re-run the onboarding
+    initOnboarding();
+}
+
+// Wire up replay-onboarding button
+document.addEventListener('DOMContentLoaded', () => {
+    const replayBtn = document.getElementById('replay-onboarding-btn');
+    if (replayBtn) {
+        replayBtn.addEventListener('click', replayOnboarding);
+    }
+});
 
 // --- Navigation ---
 function initNavigation() {
@@ -2931,6 +3031,88 @@ function initPresetsPanel() {
     if (dom.exportAllPresetsBtn) {
         dom.exportAllPresetsBtn.addEventListener('click', exportAllPresets);
     }
+
+    // Multi-select mode
+    if (dom.togglePresetSelectBtn) {
+        dom.togglePresetSelectBtn.addEventListener('click', () => {
+            enterPresetSelectMode();
+        });
+    }
+    if (dom.cancelPresetSelectBtn) {
+        dom.cancelPresetSelectBtn.addEventListener('click', () => {
+            exitPresetSelectMode();
+        });
+    }
+    if (dom.batchDeletePresetsBtn) {
+        dom.batchDeletePresetsBtn.addEventListener('click', () => {
+            batchDeletePresets();
+        });
+    }
+}
+
+function enterPresetSelectMode() {
+    state.presetSelectMode = true;
+    state.selectedPresetIds.clear();
+    dom.togglePresetSelectBtn.classList.add('hidden');
+    dom.cancelPresetSelectBtn.classList.remove('hidden');
+    dom.batchDeletePresetsBtn.classList.add('hidden');
+    dom.presetsGrid.classList.add('preset-select-mode');
+    updateBatchDeleteCount();
+    renderPresets(state.activeTagFilter
+        ? state.presets.filter(p => (p.tags || []).includes(state.activeTagFilter))
+        : state.presets
+    );
+}
+
+function exitPresetSelectMode() {
+    state.presetSelectMode = false;
+    state.selectedPresetIds.clear();
+    dom.togglePresetSelectBtn.classList.remove('hidden');
+    dom.cancelPresetSelectBtn.classList.add('hidden');
+    dom.batchDeletePresetsBtn.classList.add('hidden');
+    dom.presetsGrid.classList.remove('preset-select-mode');
+    renderPresets(state.activeTagFilter
+        ? state.presets.filter(p => (p.tags || []).includes(state.activeTagFilter))
+        : state.presets
+    );
+}
+
+function updateBatchDeleteCount() {
+    const count = state.selectedPresetIds.size;
+    if (dom.batchDeleteCount) dom.batchDeleteCount.textContent = count;
+    if (count > 0) {
+        dom.batchDeletePresetsBtn.classList.remove('hidden');
+    } else {
+        dom.batchDeletePresetsBtn.classList.add('hidden');
+    }
+}
+
+async function batchDeletePresets() {
+    const ids = Array.from(state.selectedPresetIds);
+    if (ids.length === 0) return;
+    if (!confirm(`确定删除选中的 ${ids.length} 个预设吗？此操作不可撤销。`)) return;
+
+    try {
+        const res = await apiFetch('/api/v1/presets/batch-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            // If current preset was among deleted, clear selection
+            if (state.currentPresetId && ids.includes(state.currentPresetId)) {
+                clearCurrentPresetSelection();
+            }
+            showToast(data.message || `已删除 ${data.deleted} 个预设`, 'success');
+            exitPresetSelectMode();
+            await fetchPresets();
+        } else {
+            showToast(data.detail || '批量删除失败', 'error');
+        }
+    } catch (e) {
+        if (e.message !== 'AUTH_REQUIRED') showToast('批量删除失败', 'error');
+    }
 }
 
 async function importPresetsFromFile() {
@@ -3072,24 +3254,43 @@ function renderPresets(presets) {
         return;
     }
 
+    const isSelectMode = state.presetSelectMode;
+
     presets.forEach(p => {
         const el = document.createElement('div');
         el.className = 'preset-card glass-card';
-        el.draggable = true;
         el.dataset.presetId = p.id;
+
+        // In select mode, add selected class if applicable
+        if (isSelectMode && state.selectedPresetIds.has(p.id)) {
+            el.classList.add('selected');
+        }
+
+        // Disable drag in select mode
+        el.draggable = !isSelectMode;
 
         // Build tags HTML
         const tagsHtml = (p.tags && p.tags.length > 0)
             ? `<div class="preset-tags">${p.tags.map(t => `<span class="preset-tag-badge">${t}</span>`).join('')}</div>`
             : '';
 
+        // Build checkbox HTML for select mode
+        const checkboxHtml = isSelectMode
+            ? `<label class="preset-select-checkbox" onclick="event.stopPropagation()">
+                   <input type="checkbox" ${state.selectedPresetIds.has(p.id) ? 'checked' : ''} />
+                   <span class="preset-checkbox-mark"></span>
+               </label>`
+            : '';
+
         el.innerHTML = `
+            ${checkboxHtml}
             <div class="preset-name">${p.name}</div>
             ${tagsHtml}
             <div class="preset-meta">
                 <span>${p.texts.length} 条文本</span>
                 <span>${new Date(p.created_at).toLocaleDateString()}</span>
             </div>
+            ${!isSelectMode ? `
             <div class="preset-card-actions">
                 <button class="export-preset btn btn-sm btn-ghost" data-id="${p.id}" data-name="${p.name}" type="button" title="导出此预设">
                     📥 导出
@@ -3100,73 +3301,101 @@ function renderPresets(presets) {
             </div>
             <button class="delete-preset" data-id="${p.id}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+            </button>` : ''}
         `;
 
-        // Add click listener for loading
-        el.addEventListener('click', (e) => {
-            // Prevent if action button was clicked
-            if (e.target.closest('.delete-preset') || e.target.closest('.rewrite-preset') || e.target.closest('.export-preset')) return;
-            loadPreset(p);
-        });
+        if (isSelectMode) {
+            // Toggle selection on card click
+            el.addEventListener('click', (e) => {
+                if (state.selectedPresetIds.has(p.id)) {
+                    state.selectedPresetIds.delete(p.id);
+                    el.classList.remove('selected');
+                } else {
+                    state.selectedPresetIds.add(p.id);
+                    el.classList.add('selected');
+                }
+                // Sync checkbox
+                const cb = el.querySelector('.preset-select-checkbox input');
+                if (cb) cb.checked = state.selectedPresetIds.has(p.id);
+                updateBatchDeleteCount();
+            });
 
-        const rewriteBtn = el.querySelector('.rewrite-preset');
-        rewriteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            window.openPresetRewrite(p.id);
-        });
+            // Checkbox change
+            const cb = el.querySelector('.preset-select-checkbox input');
+            if (cb) {
+                cb.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        state.selectedPresetIds.add(p.id);
+                        el.classList.add('selected');
+                    } else {
+                        state.selectedPresetIds.delete(p.id);
+                        el.classList.remove('selected');
+                    }
+                    updateBatchDeleteCount();
+                });
+            }
+        } else {
+            // Normal mode: click to load preset
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('.delete-preset') || e.target.closest('.rewrite-preset') || e.target.closest('.export-preset')) return;
+                loadPreset(p);
+            });
 
-        // Add export listener
-        const exportBtn = el.querySelector('.export-preset');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', (e) => {
+            const rewriteBtn = el.querySelector('.rewrite-preset');
+            rewriteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                exportSinglePreset(p.id, p.name);
+                window.openPresetRewrite(p.id);
+            });
+
+            const exportBtn = el.querySelector('.export-preset');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    exportSinglePreset(p.id, p.name);
+                });
+            }
+
+            const deleteBtn = el.querySelector('.delete-preset');
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.deletePreset(p.id, e);
+            });
+
+            // Drag and drop for reordering
+            el.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', p.id);
+                el.classList.add('dragging');
+            });
+            el.addEventListener('dragend', () => el.classList.remove('dragging'));
+            el.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                el.classList.add('drag-over');
+            });
+            el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+            el.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                el.classList.remove('drag-over');
+                const draggedId = e.dataTransfer.getData('text/plain');
+                if (draggedId === p.id) return;
+                const ids = Array.from(dom.presetsGrid.querySelectorAll('.preset-card')).map(c => c.dataset.presetId);
+                const fromIdx = ids.indexOf(draggedId);
+                const toIdx = ids.indexOf(p.id);
+                if (fromIdx === -1 || toIdx === -1) return;
+                ids.splice(fromIdx, 1);
+                ids.splice(toIdx, 0, draggedId);
+                try {
+                    await apiFetch('/api/v1/presets/reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids })
+                    });
+                    await fetchPresets();
+                    showToast('预设顺序已更新', 'success');
+                } catch (err) {
+                    if (err.message !== 'AUTH_REQUIRED') showToast('排序失败', 'error');
+                }
             });
         }
-
-        // Add delete listener
-        const deleteBtn = el.querySelector('.delete-preset');
-        deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            window.deletePreset(p.id, e);
-        });
-
-        // Drag and drop for reordering
-        el.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', p.id);
-            el.classList.add('dragging');
-        });
-        el.addEventListener('dragend', () => el.classList.remove('dragging'));
-        el.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            el.classList.add('drag-over');
-        });
-        el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-        el.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            el.classList.remove('drag-over');
-            const draggedId = e.dataTransfer.getData('text/plain');
-            if (draggedId === p.id) return;
-            // Reorder: moved item goes before dropped target
-            const ids = Array.from(dom.presetsGrid.querySelectorAll('.preset-card')).map(c => c.dataset.presetId);
-            const fromIdx = ids.indexOf(draggedId);
-            const toIdx = ids.indexOf(p.id);
-            if (fromIdx === -1 || toIdx === -1) return;
-            ids.splice(fromIdx, 1);
-            ids.splice(toIdx, 0, draggedId);
-            try {
-                await apiFetch('/api/v1/presets/reorder', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ids })
-                });
-                await fetchPresets();
-                showToast('预设顺序已更新', 'success');
-            } catch (err) {
-                if (err.message !== 'AUTH_REQUIRED') showToast('排序失败', 'error');
-            }
-        });
 
         dom.presetsGrid.appendChild(el);
     });
@@ -3541,7 +3770,7 @@ window.deletePreset = async (id, event) => {
     if (!confirm('确定删除此预设吗？')) return;
 
     try {
-        await apiFetch(`/ api / v1 / presets / ${id} `, { method: 'DELETE' });
+        await apiFetch(`/api/v1/presets/${id}`, { method: 'DELETE' });
         if (state.currentPresetId === id) {
             clearCurrentPresetSelection();
         }
