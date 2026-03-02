@@ -69,7 +69,7 @@ async def ai_generate(body: AIGenerateRequest):
         for item in texts:
             item_type = item.get("type")
             item_content = item.get("content")
-            if item_type in ("me", "do") and isinstance(item_content, str):
+            if item_type in ("me", "do", "e") and isinstance(item_content, str):
                 validated_texts.append(TextLine(type=item_type, content=item_content))
 
         if len(validated_texts) == 0:
@@ -157,7 +157,7 @@ async def ai_rewrite(body: AIRewriteRequest):
         for item in rewritten:
             item_type = item.get("type")
             item_content = item.get("content")
-            if item_type in ("me", "do") and isinstance(item_content, str):
+            if item_type in ("me", "do", "e") and isinstance(item_content, str):
                 validated_texts.append(TextLine(type=item_type, content=item_content))
 
         if len(validated_texts) != len(body.texts):

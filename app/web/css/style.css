@@ -673,6 +673,7 @@ body.quick-panel-mode .toast-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
     gap: 20px;
+    align-items: start;
 }
 
 .home-card {
@@ -764,6 +765,11 @@ body.quick-panel-mode .toast-container {
     border-radius: 10px;
     border: 1px solid rgba(79, 209, 255, 0.24);
     background: rgba(15, 23, 42, 0.52);
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
 }
 
 .home-inline-tip {
@@ -1177,6 +1183,12 @@ input::placeholder {
     background: rgba(251, 191, 36, 0.15);
     color: #fbbf24;
     border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.badge-e {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.35);
 }
 
 .text-content {

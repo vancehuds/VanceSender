@@ -312,6 +312,15 @@ class QuickOverlayModule:
         if thread.is_alive():
             thread.join(timeout=2.5)
 
+        # If thread is still alive, root.quit via after() likely failed
+        # due to cross-thread Tcl issues — forcefully destroy the root
+        if thread.is_alive() and root is not None:
+            try:
+                root.destroy()
+            except Exception:
+                pass
+            thread.join(timeout=1.5)
+
         if not thread.is_alive():
             self._thread = None
 

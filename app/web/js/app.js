@@ -1709,7 +1709,7 @@ function renderHomePanel(serverSettings) {
     }
 
     if (dom.homeLanUrls) {
-        dom.homeLanUrls.textContent = sortedLanUrlList.join(' | ');
+        dom.homeLanUrls.textContent = sortedLanUrlList.join('\n');
     }
 
     // QR Code for LAN access
@@ -1779,7 +1779,7 @@ function initHomePanel() {
             if (dom.homeLanIpSelect && !dom.homeLanIpSelectRow.classList.contains('hidden')) {
                 lanUrl = dom.homeLanIpSelect.value;
             } else {
-                lanUrl = String(dom.homeLanUrls?.textContent || '').split(' | ')[0].trim();
+                lanUrl = String(dom.homeLanUrls?.textContent || '').split('\n')[0].trim();
             }
             if (!lanUrl) {
                 showToast('局域网地址未就绪', 'error');
@@ -1920,7 +1920,7 @@ function buildTextSnapshot(texts) {
     return JSON.stringify(
         (Array.isArray(texts) ? texts : [])
             .map((item) => {
-                if (!item || (item.type !== 'me' && item.type !== 'do' && item.type !== 'b') || typeof item.content !== 'string') {
+                if (!item || (item.type !== 'me' && item.type !== 'do' && item.type !== 'b' && item.type !== 'e') || typeof item.content !== 'string') {
                     return null;
                 }
                 return {
@@ -2011,6 +2011,9 @@ function parseAndImportText(rawText) {
             content = line.substring(4).trim();
         } else if (line.toLowerCase().startsWith('/b ')) {
             type = 'b';
+            content = line.substring(3).trim();
+        } else if (line.toLowerCase().startsWith('/e ')) {
+            type = 'e';
             content = line.substring(3).trim();
         }
 
@@ -2305,7 +2308,7 @@ function confirmEditTextUpdate() {
         return;
     }
 
-    const type = dom.editTextType.value === 'do' ? 'do' : dom.editTextType.value === 'b' ? 'b' : 'me';
+    const type = dom.editTextType.value === 'do' ? 'do' : dom.editTextType.value === 'b' ? 'b' : dom.editTextType.value === 'e' ? 'e' : 'me';
 
     if (index === null || index === undefined) {
         state.texts.push({ type, content });

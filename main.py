@@ -571,6 +571,10 @@ def main() -> None:
                 pass
         _DEVNULL_STREAMS.clear()
 
+        # Hard-stop: guarantee process exit even if non-daemon threads
+        # (e.g. pystray internal message pump) are still alive.
+        os._exit(0)
+
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()

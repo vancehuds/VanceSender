@@ -105,6 +105,12 @@ class _TrayController:
             self._thread = None
 
         if icon is not None:
+            # Hide icon first to remove tray visual immediately
+            try:
+                icon.visible = False
+            except Exception:
+                pass
+
             stop_method = getattr(icon, "stop", None)
             if callable(stop_method):
                 try:

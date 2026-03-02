@@ -342,7 +342,7 @@ async def rewrite_texts(
     for item in texts:
         item_type = item.get("type")
         item_content = item.get("content")
-        if item_type not in ("me", "do", "b") or not isinstance(item_content, str):
+        if item_type not in ("me", "do", "b", "e") or not isinstance(item_content, str):
             raise ValueError("重写文本格式不正确。")
         content = item_content.strip()
         if not content:
@@ -385,14 +385,14 @@ async def rewrite_texts(
     rewritten: list[dict[str, str]] = []
     for idx, item in enumerate(parsed):
         expected_type = texts[idx].get("type")
-        safe_type = expected_type if expected_type in ("me", "do", "b") else item["type"]
+        safe_type = expected_type if expected_type in ("me", "do", "b", "e") else item["type"]
         rewritten.append({"type": safe_type, "content": item["content"]})
     return rewritten, resolved_pid
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-_LINE_RE = re.compile(r"^(?:\d+\.\s*)?/(me|do|b)\s+(.+)$", re.MULTILINE)
+_LINE_RE = re.compile(r"^(?:\d+\.\s*)?/(me|do|b|e)\s+(.+)$", re.MULTILINE)
 
 
 def _parse_lines(raw: str) -> list[dict[str, str]]:
@@ -427,7 +427,7 @@ def _parse_rewrite_payload(raw: str, expected_count: int) -> list[dict[str, str]
             raise RuntimeError("AI重写返回格式异常，数组元素必须是对象。")
         item_type = item.get("type")
         content = item.get("content")
-        if item_type not in ("me", "do", "b") or not isinstance(content, str):
+        if item_type not in ("me", "do", "b", "e") or not isinstance(content, str):
             raise RuntimeError("AI重写返回格式异常，type/content字段不正确。")
         safe_content = content.strip()
         if not safe_content:

@@ -94,7 +94,7 @@ async def import_presets(request: Request):
         for t in texts:
             if isinstance(t, dict) and t.get("content"):
                 t_type = t.get("type", "me")
-                if t_type not in ("me", "do", "b"):
+                if t_type not in ("me", "do", "b", "e"):
                     t_type = "me"
                 valid_texts.append({"type": t_type, "content": str(t["content"])})
 
