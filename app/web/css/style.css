@@ -722,9 +722,6 @@ body.quick-panel-mode .toast-container {
     grid-column: 1 / -1;
 }
 
-.home-card-relay {
-    grid-column: 1 / -1;
-}
 
 .home-update-meta {
     display: grid;
@@ -756,41 +753,6 @@ body.quick-panel-mode .toast-container {
 
 .home-update-actions {
     margin-top: 2px;
-}
-
-.relay-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.relay-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.relay-dot.online {
-    background: var(--accent-success);
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
-    animation: relayPulse 2s ease infinite;
-}
-
-.relay-dot.offline {
-    background: var(--text-muted);
-}
-
-@keyframes relayPulse {
-
-    0%,
-    100% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
 }
 
 .text-danger {
