@@ -71,6 +71,14 @@ async def ai_generate(body: AIGenerateRequest):
             texts=validated_texts,
             provider_id=resolved_pid,
         )
+    except UnicodeError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "请求编码错误，请检查服务商配置（API地址/密钥/自定义请求头）是否包含特殊字符",
+                **extract_api_error_details(exc, provider_id=body.provider_id),
+            },
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=400,
@@ -101,6 +109,9 @@ async def ai_generate_stream(body: AIGenerateRequest):
             ):
                 yield f"data: {chunk}\n\n"
             yield "data: [DONE]\n\n"
+        except UnicodeError as exc:
+            import json as _json
+            yield f"data: {_json.dumps({'error': f'请求编码错误，请检查服务商配置是否包含特殊字符: {exc}'}, ensure_ascii=False)}\n\n"
         except ValueError as exc:
             import json as _json
             yield f"data: {_json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
@@ -133,6 +144,14 @@ async def ai_rewrite(body: AIRewriteRequest):
             raise RuntimeError("AI重写结果与输入条数不一致。")
 
         return AIRewriteResponse(texts=validated_texts, provider_id=resolved_pid)
+    except UnicodeError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "请求编码错误，请检查服务商配置（API地址/密钥/自定义请求头）是否包含特殊字符",
+                **extract_api_error_details(exc, provider_id=body.provider_id),
+            },
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=400,

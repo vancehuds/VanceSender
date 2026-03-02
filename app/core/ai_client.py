@@ -72,6 +72,42 @@ def invalidate_client_cache() -> None:
         _client_cache.clear()
 
 
+# ── Fullwidth → ASCII normalisation table ──────────────────────────────
+# Users sometimes paste URLs / keys from Chinese-IME contexts where
+# certain ASCII-range characters silently become their fullwidth Unicode
+# equivalents (e.g. ： → :).  HTTP headers and URLs are ASCII-only, so
+# we normalise these transparently before handing them to httpx.
+
+_FULLWIDTH_TABLE = str.maketrans(
+    {
+        "\uff1a": ":",   # ：→ :
+        "\uff0f": "/",   # ／→ /
+        "\uff0e": ".",   # ．→ .
+        "\uff1d": "=",   # ＝→ =
+        "\uff1f": "?",   # ？→ ?
+        "\uff06": "&",   # ＆→ &
+        "\uff20": "@",   # ＠→ @
+        "\uff03": "#",   # ＃→ #
+        "\uff05": "%",   # ％→ %
+        "\uff0b": "+",   # ＋→ +
+        "\uff0d": "-",   # －→ -
+        "\uff3f": "_",   # ＿→ _
+        "\u3000": " ",   # 　→ (space)
+    }
+)
+
+
+def _sanitize_ascii(value: str) -> str:
+    """Normalise fullwidth chars → ASCII and strip remaining non-ASCII.
+
+    This prevents UnicodeEncodeError when httpx tries to encode URLs or
+    HTTP header values with the ``ascii`` codec.
+    """
+    value = value.translate(_FULLWIDTH_TABLE)
+    # Drop any remaining non-ASCII characters (shouldn't be in URLs/keys)
+    return value.encode("ascii", errors="ignore").decode("ascii").strip()
+
+
 def _build_client(
     provider: dict[str, Any], cfg: dict[str, Any] | None = None
 ) -> AsyncOpenAI:
@@ -90,10 +126,20 @@ def _build_client(
         if cached is not None:
             return cached
 
+    api_key = _sanitize_ascii(provider.get("api_key") or "unused")
+    api_base = _sanitize_ascii(provider.get("api_base", ""))
+
+    safe_headers: dict[str, str] | None = None
+    if custom_headers:
+        safe_headers = {
+            _sanitize_ascii(k): _sanitize_ascii(v)
+            for k, v in custom_headers.items()
+        }
+
     client = AsyncOpenAI(
-        api_key=provider.get("api_key") or "unused",
-        base_url=provider.get("api_base", ""),
-        default_headers=custom_headers if custom_headers else None,
+        api_key=api_key,
+        base_url=api_base,
+        default_headers=safe_headers if safe_headers else None,
     )
 
     with _client_cache_lock:
