@@ -1212,10 +1212,6 @@ function initOnboarding() {
         dom.onboardingSkipBtn.addEventListener('click', completeOnboarding);
     }
 
-    if (dom.onboardingOverlay) {
-        dom.onboardingOverlay.addEventListener('click', completeOnboarding);
-    }
-
     window.addEventListener('resize', handleResize);
 
     // Start the onboarding after a brief delay so layout is settled
