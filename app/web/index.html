@@ -220,6 +220,17 @@
                             <div class="home-code-block">
                                 <span id="home-lan-urls" class="code">http://192.168.x.x:8730</span>
                             </div>
+                            <div class="home-lan-qr-section">
+                                <div class="home-lan-qr-wrapper">
+                                    <canvas id="home-lan-qrcode"></canvas>
+                                </div>
+                                <p class="home-lan-qr-hint">使用手机扫描二维码即可快速打开 WebUI</p>
+                                <div id="home-lan-ip-select-row" class="home-lan-ip-select-row hidden">
+                                    <label for="home-lan-ip-select">切换 IP</label>
+                                    <select id="home-lan-ip-select"></select>
+                                </div>
+                                <button id="home-copy-lan-btn" class="btn btn-sm btn-secondary" type="button">复制局域网地址</button>
+                            </div>
                             <p class="desc">局域网访问开启后可用同一局域网(WIFI)下的设备进行远程控制。建议设置 Token 保护局域网访问安全。</p>
                         </div>
 

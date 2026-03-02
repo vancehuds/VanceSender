@@ -787,6 +787,60 @@ body.quick-panel-mode .toast-container {
     flex: 1 1 150px;
 }
 
+/* LAN QR Code Section */
+.home-lan-qr-section {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.home-lan-qr-wrapper {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.home-lan-qr-wrapper canvas {
+    display: block;
+    width: 160px;
+    height: 160px;
+    image-rendering: pixelated;
+}
+
+.home-lan-qr-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.home-lan-ip-select-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 280px;
+}
+
+.home-lan-ip-select-row label {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.home-lan-ip-select-row select {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    padding: 6px 10px;
+}
+
 .section-inline-link {
     margin-top: 8px;
     display: inline-flex;
@@ -1700,6 +1754,19 @@ input:checked+.slider:before {
     .home-link-actions .btn {
         width: 100%;
         justify-content: flex-start;
+    }
+
+    .home-lan-qr-wrapper canvas {
+        width: 180px;
+        height: 180px;
+    }
+
+    .home-lan-ip-select-row {
+        max-width: 100%;
+    }
+
+    .home-lan-ip-select-row select {
+        min-height: 44px;
     }
 
     #panel-send {

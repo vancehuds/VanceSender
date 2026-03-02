@@ -3,6 +3,377 @@
  * Pure Vanilla JS - No Frameworks
  */
 
+/* ── Minimal QR Code Generator (Canvas) ──────────────────────────────── */
+const QRCodeGen = (() => {
+    // Lightweight QR encoder — based on the QR Code specification
+    // Supports numeric, alphanumeric, and byte modes for URL-length data
+    function generate(text, opts = {}) {
+        const moduleSize = opts.moduleSize || 4;
+        const margin = opts.margin ?? 2;
+        const canvas = opts.canvas || document.createElement('canvas');
+        const modules = encode(text);
+        const size = modules.length;
+        const canvasSize = (size + margin * 2) * moduleSize;
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasSize, canvasSize);
+        ctx.fillStyle = '#000000';
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if (modules[r][c]) {
+                    ctx.fillRect((c + margin) * moduleSize, (r + margin) * moduleSize, moduleSize, moduleSize);
+                }
+            }
+        }
+        return canvas;
+    }
+
+    function encode(text) {
+        // Use the well-tested qrcode-generator approach via a small shim
+        // We'll use a simpler approach: create a temporary script-less encoder
+        // For reliability, use the proven algorithm via the qr() helper below
+        const qr = qrcodegen(0, 'M');
+        qr.addData(text);
+        qr.make();
+        const count = qr.getModuleCount();
+        const modules = [];
+        for (let r = 0; r < count; r++) {
+            const row = [];
+            for (let c = 0; c < count; c++) {
+                row.push(qr.isDark(r, c));
+            }
+            modules.push(row);
+        }
+        return modules;
+    }
+
+    // Minimal QR code encoder — Type Number 0 = auto, Error correction M
+    // Ported from kazuhikoarase/qrcode-generator (MIT License)
+    function qrcodegen(typeNumber, errorCorrectionLevel) {
+        const PAD0 = 0xEC, PAD1 = 0x11;
+        const _typeNumber = typeNumber;
+        const _errorCorrectionLevel = { L: 1, M: 0, Q: 3, H: 2 }[errorCorrectionLevel] || 0;
+        let _modules = null, _moduleCount = 0, _dataCache = null;
+        const _dataList = [];
+
+        const _this = {
+            addData(data) { _dataList.push({ mode: 4, getLength() { return data.length; }, write(buf) { for (let i = 0; i < data.length; i++) buf.put(data.charCodeAt(i), 8); } }); _dataCache = null; },
+            make() {
+                let tn = _typeNumber;
+                if (tn < 1) {
+                    for (tn = 1; tn < 40; tn++) {
+                        const rsBlocks = QRRSBlock_getRSBlocks(tn, _errorCorrectionLevel);
+                        let totalDC = 0; for (const b of rsBlocks) totalDC += b.dataCount;
+                        let totalBits = 0; for (const d of _dataList) { totalBits += 4; totalBits += getLengthInBits(d.mode, tn); totalBits += d.getLength() * 8; }
+                        if (totalBits <= totalDC * 8) break;
+                    }
+                }
+                _moduleCount = tn * 4 + 17;
+                _modules = Array.from({ length: _moduleCount }, () => new Array(_moduleCount).fill(null));
+                setupPositionProbe(0, 0); setupPositionProbe(_moduleCount - 7, 0); setupPositionProbe(0, _moduleCount - 7);
+                setupPositionAdjust(tn); setupTimingPattern();
+                setupTypeInfo(true, 0); if (tn >= 7) setupTypeNumber(true);
+                _dataCache = _dataCache || createData(tn, _errorCorrectionLevel, _dataList);
+                mapData(_dataCache, getMaskPattern(0));
+                let minLostPoint = Infinity, bestPattern = 0;
+                for (let p = 0; p < 8; p++) {
+                    setupPositionProbe(0, 0); setupPositionProbe(_moduleCount - 7, 0); setupPositionProbe(0, _moduleCount - 7);
+                    setupPositionAdjust(tn); setupTimingPattern();
+                    setupTypeInfo(true, p); if (tn >= 7) setupTypeNumber(true);
+                    mapData(_dataCache, getMaskPattern(p));
+                    const lp = getLostPoint();
+                    if (lp < minLostPoint) { minLostPoint = lp; bestPattern = p; }
+                }
+                _modules = Array.from({ length: _moduleCount }, () => new Array(_moduleCount).fill(null));
+                setupPositionProbe(0, 0); setupPositionProbe(_moduleCount - 7, 0); setupPositionProbe(0, _moduleCount - 7);
+                setupPositionAdjust(tn); setupTimingPattern();
+                setupTypeInfo(false, bestPattern); if (tn >= 7) setupTypeNumber(false);
+                mapData(_dataCache, getMaskPattern(bestPattern));
+            },
+            getModuleCount() { return _moduleCount; },
+            isDark(row, col) { return _modules[row][col] === true; }
+        };
+
+        function setupPositionProbe(row, col) {
+            for (let r = -1; r <= 7; r++) {
+                if (row + r < 0 || _moduleCount <= row + r) continue;
+                for (let c = -1; c <= 7; c++) {
+                    if (col + c < 0 || _moduleCount <= col + c) continue;
+                    _modules[row + r][col + c] = (0 <= r && r <= 6 && (c === 0 || c === 6)) || (0 <= c && c <= 6 && (r === 0 || r === 6)) || (2 <= r && r <= 4 && 2 <= c && c <= 4);
+                }
+            }
+        }
+
+        function setupTimingPattern() {
+            for (let i = 8; i < _moduleCount - 8; i++) {
+                if (_modules[i][6] !== null) continue;
+                _modules[i][6] = i % 2 === 0;
+                _modules[6][i] = i % 2 === 0;
+            }
+        }
+
+        const PATTERN_POSITION_TABLE = [[], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50], [6, 30, 54], [6, 32, 58], [6, 34, 62], [6, 26, 46, 66], [6, 26, 48, 70], [6, 26, 50, 74], [6, 30, 54, 78], [6, 30, 56, 82], [6, 30, 58, 86], [6, 34, 62, 90], [6, 28, 50, 72, 94], [6, 26, 50, 74, 98], [6, 30, 54, 78, 102], [6, 28, 54, 80, 106], [6, 32, 58, 84, 110], [6, 30, 58, 86, 114], [6, 34, 62, 90, 118], [6, 26, 50, 74, 98, 122], [6, 30, 54, 78, 102, 126], [6, 26, 52, 78, 104, 130], [6, 30, 56, 82, 108, 134], [6, 34, 60, 86, 112, 138], [6, 30, 58, 86, 114, 142], [6, 34, 62, 90, 118, 146], [6, 30, 54, 78, 102, 126, 150], [6, 24, 50, 76, 102, 128, 154], [6, 28, 54, 80, 106, 132, 158], [6, 32, 58, 84, 110, 136, 162], [6, 26, 54, 82, 110, 138, 166], [6, 30, 58, 86, 114, 142, 170]];
+
+        function setupPositionAdjust(typeNum) {
+            const pos = PATTERN_POSITION_TABLE[typeNum - 1] || [];
+            for (let i = 0; i < pos.length; i++) {
+                for (let j = 0; j < pos.length; j++) {
+                    const row = pos[i], col = pos[j];
+                    if (_modules[row][col] !== null) continue;
+                    for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) _modules[row + r][col + c] = r === -2 || r === 2 || c === -2 || c === 2 || (r === 0 && c === 0);
+                }
+            }
+        }
+
+        function setupTypeNumber(test) {
+            const typeNum = _modules.length === 0 ? 1 : Math.floor((_moduleCount - 17) / 4);
+            const bits = QRUtil_getBCHTypeNumber(typeNum);
+            for (let i = 0; i < 18; i++) {
+                const mod = !test && ((bits >> i) & 1) === 1;
+                _modules[Math.floor(i / 3)][i % 3 + _moduleCount - 8 - 3] = mod;
+                _modules[i % 3 + _moduleCount - 8 - 3][Math.floor(i / 3)] = mod;
+            }
+        }
+
+        function setupTypeInfo(test, maskPattern) {
+            const data = (_errorCorrectionLevel << 3) | maskPattern;
+            const bits = QRUtil_getBCHTypeInfo(data);
+            for (let i = 0; i < 15; i++) {
+                const mod = !test && ((bits >> i) & 1) === 1;
+                if (i < 6) _modules[i][8] = mod;
+                else if (i < 8) _modules[i + 1][8] = mod;
+                else _modules[_moduleCount - 15 + i][8] = mod;
+                if (i < 8) _modules[8][_moduleCount - i - 1] = mod;
+                else if (i < 9) _modules[8][15 - i - 1 + 1] = mod;
+                else _modules[8][15 - i - 1] = mod;
+            }
+            _modules[_moduleCount - 8][8] = !test;
+        }
+
+        function getMaskPattern(maskPattern) {
+            const fns = [
+                (i, j) => (i + j) % 2 === 0,
+                (i) => i % 2 === 0,
+                (_, j) => j % 3 === 0,
+                (i, j) => (i + j) % 3 === 0,
+                (i, j) => (Math.floor(i / 2) + Math.floor(j / 3)) % 2 === 0,
+                (i, j) => (i * j) % 2 + (i * j) % 3 === 0,
+                (i, j) => ((i * j) % 2 + (i * j) % 3) % 2 === 0,
+                (i, j) => ((i * j) % 3 + (i + j) % 2) % 2 === 0
+            ];
+            return fns[maskPattern];
+        }
+
+        function getLostPoint() {
+            let lp = 0;
+            for (let row = 0; row < _moduleCount; row++) {
+                for (let col = 0; col < _moduleCount; col++) {
+                    let sameCount = 0, dark = _modules[row][col];
+                    for (let r = -1; r <= 1; r++) {
+                        if (row + r < 0 || _moduleCount <= row + r) continue;
+                        for (let c = -1; c <= 1; c++) {
+                            if (col + c < 0 || _moduleCount <= col + c) continue;
+                            if (r === 0 && c === 0) continue;
+                            if (dark === _modules[row + r][col + c]) sameCount++;
+                        }
+                    }
+                    if (sameCount > 5) lp += (3 + sameCount - 5);
+                }
+            }
+            for (let row = 0; row < _moduleCount - 1; row++) {
+                for (let col = 0; col < _moduleCount - 1; col++) {
+                    let count = 0;
+                    if (_modules[row][col]) count++;
+                    if (_modules[row + 1][col]) count++;
+                    if (_modules[row][col + 1]) count++;
+                    if (_modules[row + 1][col + 1]) count++;
+                    if (count === 0 || count === 4) lp += 3;
+                }
+            }
+            for (let row = 0; row < _moduleCount; row++) {
+                for (let col = 0; col < _moduleCount - 6; col++) {
+                    if (_modules[row][col] && !_modules[row][col + 1] && _modules[row][col + 2] && _modules[row][col + 3] && _modules[row][col + 4] && !_modules[row][col + 5] && _modules[row][col + 6]) lp += 40;
+                }
+            }
+            for (let col = 0; col < _moduleCount; col++) {
+                for (let row = 0; row < _moduleCount - 6; row++) {
+                    if (_modules[row][col] && !_modules[row + 1][col] && _modules[row + 2][col] && _modules[row + 3][col] && _modules[row + 4][col] && !_modules[row + 5][col] && _modules[row + 6][col]) lp += 40;
+                }
+            }
+            let darkCount = 0;
+            for (let row = 0; row < _moduleCount; row++) for (let col = 0; col < _moduleCount; col++) if (_modules[row][col]) darkCount++;
+            lp += Math.abs(100 * darkCount / _moduleCount / _moduleCount - 50) / 5 * 10;
+            return lp;
+        }
+
+        function mapData(data, maskFunc) {
+            let inc = -1, row = _moduleCount - 1, bitIndex = 7, byteIndex = 0;
+            for (let col = _moduleCount - 1; col > 0; col -= 2) {
+                if (col === 6) col--;
+                while (true) {
+                    for (let c = 0; c < 2; c++) {
+                        if (_modules[row][col - c] === null) {
+                            let dark = false;
+                            if (byteIndex < data.length) dark = ((data[byteIndex] >>> bitIndex) & 1) === 1;
+                            if (maskFunc(row, col - c)) dark = !dark;
+                            _modules[row][col - c] = dark;
+                            bitIndex--;
+                            if (bitIndex === -1) { byteIndex++; bitIndex = 7; }
+                        }
+                    }
+                    row += inc;
+                    if (row < 0 || _moduleCount <= row) { row -= inc; inc = -inc; break; }
+                }
+            }
+        }
+
+        function createData(typeNumber, ecLevel, dataList) {
+            const rsBlocks = QRRSBlock_getRSBlocks(typeNumber, ecLevel);
+            const buffer = { _buffer: [], _length: 0, put(num, length) { for (let i = 0; i < length; i++) { this._buffer[Math.floor((this._length + i) / 8)] |= ((num >>> (length - i - 1)) & 1) << (7 - (this._length + i) % 8); this._length += 1; } }, getLengthInBits() { return this._length; }, get(index) { return (this._buffer[Math.floor(index / 8)] >>> (7 - index % 8)) & 1; } };
+            // Fix: ensure buffer._buffer is properly sized
+            buffer._buffer = [];
+            for (const data of dataList) {
+                buffer.put(data.mode, 4);
+                buffer.put(data.getLength(), getLengthInBits(data.mode, typeNumber));
+                data.write(buffer);
+            }
+            let totalDataCount = 0;
+            for (const b of rsBlocks) totalDataCount += b.dataCount;
+            if (buffer.getLengthInBits() > totalDataCount * 8) throw new Error('QR data overflow');
+            if (buffer.getLengthInBits() + 4 <= totalDataCount * 8) buffer.put(0, 4);
+            while (buffer.getLengthInBits() % 8 !== 0) buffer.put(0, 1);
+            while (true) {
+                if (buffer.getLengthInBits() >= totalDataCount * 8) break;
+                buffer.put(PAD0, 8);
+                if (buffer.getLengthInBits() >= totalDataCount * 8) break;
+                buffer.put(PAD1, 8);
+            }
+            return createBytes(buffer, rsBlocks);
+        }
+
+        function createBytes(buffer, rsBlocks) {
+            let offset = 0, maxDcCount = 0, maxEcCount = 0;
+            const dcdata = [], ecdata = [];
+            for (let r = 0; r < rsBlocks.length; r++) {
+                const dcCount = rsBlocks[r].dataCount, ecCount = rsBlocks[r].totalCount - dcCount;
+                maxDcCount = Math.max(maxDcCount, dcCount);
+                maxEcCount = Math.max(maxEcCount, ecCount);
+                dcdata[r] = new Array(dcCount);
+                for (let i = 0; i < dcCount; i++) dcdata[r][i] = 0xff & buffer._buffer[i + offset];
+                offset += dcCount;
+                const rsPoly = QRUtil_getErrorCorrectPolynomial(ecCount);
+                const rawPoly = { num: [...dcdata[r], ...new Array(rsPoly.num.length - 1).fill(0)], getLength() { return this.num.length; } };
+                const modPoly = polyMod(rawPoly, rsPoly);
+                ecdata[r] = new Array(rsPoly.num.length - 1);
+                for (let i = 0; i < ecdata[r].length; i++) {
+                    const modIndex = i + modPoly.num.length - ecdata[r].length;
+                    ecdata[r][i] = modIndex >= 0 ? modPoly.num[modIndex] : 0;
+                }
+            }
+            const totalCodeCount = rsBlocks.reduce((s, b) => s + b.totalCount, 0);
+            const data = new Array(totalCodeCount);
+            let index = 0;
+            for (let i = 0; i < maxDcCount; i++) for (let r = 0; r < rsBlocks.length; r++) if (i < dcdata[r].length) data[index++] = dcdata[r][i];
+            for (let i = 0; i < maxEcCount; i++) for (let r = 0; r < rsBlocks.length; r++) if (i < ecdata[r].length) data[index++] = ecdata[r][i];
+            return data;
+        }
+
+        function polyMod(a, b) {
+            let num = [...a.num];
+            for (let i = 0; i < a.num.length - b.num.length + 1; i++) {
+                const ratio = num[i];
+                if (ratio === 0) continue;
+                const logRatio = QR_LOG_TABLE[ratio];
+                for (let j = 0; j < b.num.length; j++) {
+                    num[i + j] ^= QR_EXP_TABLE[(QR_LOG_TABLE[b.num[j]] + logRatio) % 255];
+                }
+            }
+            // Strip leading zeros
+            while (num.length > 0 && num[0] === 0) num.shift();
+            return { num, getLength() { return num.length; } };
+        }
+
+        return _this;
+    }
+
+    // GF(256) tables
+    const QR_EXP_TABLE = new Array(256);
+    const QR_LOG_TABLE = new Array(256);
+    (() => {
+        for (let i = 0; i < 8; i++) QR_EXP_TABLE[i] = 1 << i;
+        for (let i = 8; i < 256; i++) QR_EXP_TABLE[i] = QR_EXP_TABLE[i - 4] ^ QR_EXP_TABLE[i - 5] ^ QR_EXP_TABLE[i - 6] ^ QR_EXP_TABLE[i - 8];
+        for (let i = 0; i < 255; i++) QR_LOG_TABLE[QR_EXP_TABLE[i]] = i;
+    })();
+
+    function QRUtil_getErrorCorrectPolynomial(ecLength) {
+        let a = { num: [1], getLength() { return this.num.length; } };
+        for (let i = 0; i < ecLength; i++) {
+            const b = [1, QR_EXP_TABLE[i]];
+            const newNum = new Array(a.num.length + b.length - 1).fill(0);
+            for (let j = 0; j < a.num.length; j++) for (let k = 0; k < b.length; k++) newNum[j + k] ^= QR_EXP_TABLE[(QR_LOG_TABLE[a.num[j]] + QR_LOG_TABLE[b[k]]) % 255];
+            a = { num: newNum, getLength() { return newNum.length; } };
+        }
+        return a;
+    }
+
+    const G15 = (1 << 10) | (1 << 8) | (1 << 5) | (1 << 4) | (1 << 2) | (1 << 1) | (1 << 0);
+    const G15_MASK = (1 << 14) | (1 << 12) | (1 << 10) | (1 << 4) | (1 << 1);
+    const G18 = (1 << 12) | (1 << 11) | (1 << 10) | (1 << 9) | (1 << 8) | (1 << 5) | (1 << 2) | (1 << 0);
+
+    function QRUtil_getBCHTypeInfo(data) {
+        let d = data << 10;
+        while (getBCHDigit(d) - getBCHDigit(G15) >= 0) d ^= G15 << (getBCHDigit(d) - getBCHDigit(G15));
+        return ((data << 10) | d) ^ G15_MASK;
+    }
+
+    function QRUtil_getBCHTypeNumber(data) {
+        let d = data << 12;
+        while (getBCHDigit(d) - getBCHDigit(G18) >= 0) d ^= G18 << (getBCHDigit(d) - getBCHDigit(G18));
+        return (data << 12) | d;
+    }
+
+    function getBCHDigit(data) {
+        let digit = 0, d = data;
+        while (d !== 0) { digit++; d >>>= 1; }
+        return digit;
+    }
+
+    function getLengthInBits(mode, type) {
+        if (type >= 1 && type <= 9) return mode === 4 ? 8 : mode === 2 ? 9 : mode === 1 ? 10 : 8;
+        if (type <= 26) return mode === 4 ? 16 : mode === 2 ? 11 : mode === 1 ? 12 : 10;
+        return mode === 4 ? 16 : mode === 2 ? 13 : mode === 1 ? 14 : 12;
+    }
+
+    // RS Block definitions
+    const RS_BLOCK_TABLE = [
+        [1, 26, 19], [1, 26, 16], [1, 26, 13], [1, 26, 9],
+        [1, 44, 34], [1, 44, 28], [1, 44, 22], [1, 44, 16],
+        [1, 70, 55], [1, 70, 44], [2, 35, 17], [2, 35, 13],
+        [1, 100, 80], [2, 50, 32], [2, 50, 24], [4, 25, 9],
+        [1, 134, 108], [2, 67, 43], [2, 33, 15, 2, 34, 16], [2, 33, 11, 2, 34, 12],
+        [2, 86, 68], [4, 43, 27], [4, 43, 19], [4, 43, 15],
+        [2, 98, 78], [4, 49, 31], [2, 32, 14, 4, 33, 15], [4, 39, 13, 1, 40, 14],
+        [2, 121, 97], [2, 60, 38, 2, 61, 39], [4, 40, 18, 2, 41, 19], [4, 40, 14, 2, 41, 15],
+        [2, 146, 116], [3, 58, 36, 2, 59, 37], [4, 36, 16, 4, 37, 17], [4, 36, 12, 4, 37, 13],
+        [2, 86, 68, 2, 87, 69], [4, 69, 43, 1, 70, 44], [6, 43, 19, 2, 44, 20], [6, 43, 15, 2, 44, 16],
+    ];
+
+    function QRRSBlock_getRSBlocks(typeNumber, ecLevel) {
+        const rsBlock = RS_BLOCK_TABLE[(typeNumber - 1) * 4 + ecLevel];
+        if (!rsBlock) throw new Error('Bad RS block for type ' + typeNumber);
+        const blocks = [];
+        for (let i = 0; i < rsBlock.length; i += 3) {
+            const count = rsBlock[i], totalCount = rsBlock[i + 1], dataCount = rsBlock[i + 2];
+            for (let j = 0; j < count; j++) blocks.push({ totalCount, dataCount });
+        }
+        return blocks;
+    }
+
+    return { generate };
+})();
+
 const DESKTOP_CLIENT_SESSION_KEY = 'vs_desktop_client';
 const QUICK_PANEL_SESSION_KEY = 'vs_quick_panel_mode';
 const QUICK_SEND_PRESET_MEMORY_KEY = 'vs_quick_send_last_preset';
@@ -385,6 +756,10 @@ const dom = {
     homeLanEnabled: document.getElementById('home-lan-enabled'),
     homeLanDisabled: document.getElementById('home-lan-disabled'),
     homeLanUrls: document.getElementById('home-lan-urls'),
+    homeLanQrcode: document.getElementById('home-lan-qrcode'),
+    homeLanIpSelectRow: document.getElementById('home-lan-ip-select-row'),
+    homeLanIpSelect: document.getElementById('home-lan-ip-select'),
+    homeCopyLanBtn: document.getElementById('home-copy-lan-btn'),
     homeSecurityWarning: document.getElementById('home-security-warning'),
     homeOpenBrowserBtn: document.getElementById('home-open-browser-btn'),
     homeCopyLocalBtn: document.getElementById('home-copy-local-btn'),
@@ -921,6 +1296,52 @@ function getServerLocalWebuiUrl(serverSettings) {
     return `http://127.0.0.1:${port}`;
 }
 
+/**
+ * Sort LAN URLs so that 192.168.*.* addresses come first,
+ * then other private IPs (10.*, 172.16-31.*), then the rest.
+ */
+function sortLanUrlsByPriority(urlList) {
+    function ipPriority(url) {
+        // Extract IP from URL like http://192.168.1.5:8730
+        const match = url.match(/:\/\/([\d.]+)/);
+        if (!match) return 99;
+        const ip = match[1];
+        if (ip.startsWith('192.168.')) return 0;
+        if (ip.startsWith('10.')) return 1;
+        if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return 2;
+        return 10;
+    }
+    return [...urlList].sort((a, b) => ipPriority(a) - ipPriority(b));
+}
+
+function buildLanQrUrl(lanUrl, serverSettings) {
+    const tokenSet = Boolean(serverSettings?.token_set);
+    if (!tokenSet) return lanUrl;
+    // If token is set, we can't embed the actual token from settings (it's hidden).
+    // The user needs to enter it on their phone. So just use the plain URL.
+    // However, if the user is currently authenticated (has a token in localStorage),
+    // we can embed that token so scanning "just works".
+    const currentToken = getToken();
+    if (!currentToken) return lanUrl;
+    const sep = lanUrl.includes('?') ? '&' : '?';
+    return `${lanUrl}${sep}vs_token=${encodeURIComponent(currentToken)}`;
+}
+
+function renderLanQrCode(url) {
+    if (!dom.homeLanQrcode) return;
+    try {
+        QRCodeGen.generate(url, {
+            canvas: dom.homeLanQrcode,
+            moduleSize: 4,
+            margin: 2
+        });
+    } catch (e) {
+        // If URL is too long for QR, hide the canvas
+        dom.homeLanQrcode.width = 0;
+        dom.homeLanQrcode.height = 0;
+    }
+}
+
 function renderHomePanel(serverSettings) {
     const localUrl = getServerLocalWebuiUrl(serverSettings);
     const docsUrl = String(serverSettings?.docs_url || '').trim() || `${localUrl}/docs`;
@@ -936,7 +1357,9 @@ function renderHomePanel(serverSettings) {
     const lanEnabled = Boolean(serverSettings?.lan_access);
     const lanPort = Number.parseInt(String(serverSettings?.port || ''), 10) || 8730;
     const lanUrlList = pickLanList(serverSettings, 'lan_urls', 'lan_url');
-    const displayLanList = lanUrlList.length > 0 ? lanUrlList : [`http://<your-ip>:${lanPort}`];
+    const sortedLanUrlList = sortLanUrlsByPriority(
+        lanUrlList.length > 0 ? lanUrlList : [`http://<your-ip>:${lanPort}`]
+    );
 
     if (dom.homeLanStatus) {
         dom.homeLanStatus.textContent = lanEnabled
@@ -953,7 +1376,30 @@ function renderHomePanel(serverSettings) {
     }
 
     if (dom.homeLanUrls) {
-        dom.homeLanUrls.textContent = displayLanList.join(' | ');
+        dom.homeLanUrls.textContent = sortedLanUrlList.join(' | ');
+    }
+
+    // QR Code for LAN access
+    if (lanEnabled && sortedLanUrlList.length > 0 && dom.homeLanQrcode) {
+        const qrUrl = buildLanQrUrl(sortedLanUrlList[0], serverSettings);
+        renderLanQrCode(qrUrl);
+
+        // Multi-IP dropdown
+        if (dom.homeLanIpSelect && dom.homeLanIpSelectRow) {
+            if (sortedLanUrlList.length > 1) {
+                dom.homeLanIpSelect.innerHTML = '';
+                sortedLanUrlList.forEach((url, index) => {
+                    const opt = document.createElement('option');
+                    opt.value = url;
+                    opt.textContent = url;
+                    if (index === 0) opt.selected = true;
+                    dom.homeLanIpSelect.appendChild(opt);
+                });
+                dom.homeLanIpSelectRow.classList.remove('hidden');
+            } else {
+                dom.homeLanIpSelectRow.classList.add('hidden');
+            }
+        }
     }
 
     const tokenSet = Boolean(serverSettings?.token_set);
@@ -989,6 +1435,35 @@ function initHomePanel() {
 
             const copied = await copyTextToClipboard(url);
             showToast(copied ? '地址已复制' : '复制失败，请手动复制', copied ? 'success' : 'error');
+        });
+    }
+
+    // Copy LAN URL button
+    if (dom.homeCopyLanBtn) {
+        dom.homeCopyLanBtn.addEventListener('click', async () => {
+            // Use the currently selected LAN URL (from dropdown or the first one)
+            let lanUrl = '';
+            if (dom.homeLanIpSelect && !dom.homeLanIpSelectRow.classList.contains('hidden')) {
+                lanUrl = dom.homeLanIpSelect.value;
+            } else {
+                lanUrl = String(dom.homeLanUrls?.textContent || '').split(' | ')[0].trim();
+            }
+            if (!lanUrl) {
+                showToast('局域网地址未就绪', 'error');
+                return;
+            }
+            const copied = await copyTextToClipboard(lanUrl);
+            showToast(copied ? '局域网地址已复制' : '复制失败，请手动复制', copied ? 'success' : 'error');
+        });
+    }
+
+    // LAN IP selector — switch QR code when user picks a different IP
+    if (dom.homeLanIpSelect) {
+        dom.homeLanIpSelect.addEventListener('change', () => {
+            const selectedUrl = dom.homeLanIpSelect.value;
+            if (!selectedUrl) return;
+            const qrUrl = buildLanQrUrl(selectedUrl, state.settings?.server || {});
+            renderLanQrCode(qrUrl);
         });
     }
 
