@@ -732,6 +732,8 @@ const dom = {
     aiScenario: document.getElementById('ai-scenario'),
     aiStyle: document.getElementById('ai-style'),
     aiCount: document.getElementById('ai-count'),
+    aiTemperature: document.getElementById('ai-temperature'),
+    aiTemperatureLabel: document.getElementById('ai-temperature-label'),
     aiProvider: document.getElementById('ai-provider-select'),
     aiGenerateBtn: document.getElementById('ai-generate-btn'),
     aiPreviewList: document.getElementById('ai-preview-list'),
@@ -2876,6 +2878,14 @@ function applySceneTemplate(template) {
 function initAIPanel() {
     renderSceneTemplates();
     dom.aiGenerateBtn.addEventListener('click', generateAI);
+
+    // Temperature slider live update
+    if (dom.aiTemperature && dom.aiTemperatureLabel) {
+        dom.aiTemperature.addEventListener('input', () => {
+            dom.aiTemperatureLabel.textContent = dom.aiTemperature.value;
+        });
+    }
+
     dom.aiImportBtn.addEventListener('click', () => {
         if (!Array.isArray(state.aiPreview) || state.aiPreview.length === 0) {
             showToast('暂无可导入内容，请先生成有效文本', 'error');
@@ -3033,6 +3043,7 @@ function friendlyAIError(rawError) {
 
 // ── Active stream abort controller (for cancel support) ──────────────────
 let _aiStreamAbort = null;
+let _aiLastGenTime = 0; // debounce timestamp
 
 async function generateAI() {
     const scenario = dom.aiScenario.value.trim();
@@ -3049,6 +3060,12 @@ async function generateAI() {
     const providerId = dom.aiProvider.value;
     const type = document.querySelector('input[name="ai-type"]:checked').value;
     const count = parseInt(dom.aiCount.value) || 5;
+    const temperature = dom.aiTemperature ? parseFloat(dom.aiTemperature.value) : null;
+
+    // Debounce: prevent rapid clicks within 500ms
+    const now = Date.now();
+    if (now - _aiLastGenTime < 500) return;
+    _aiLastGenTime = now;
 
     dom.aiGenerateBtn.disabled = false;
     dom.aiGenerateBtn.innerHTML = '<span class="icon">⏹</span> 取消生成';
@@ -3076,7 +3093,8 @@ async function generateAI() {
                 provider_id: providerId,
                 count,
                 text_type: type,
-                style: style || null
+                style: style || null,
+                temperature: temperature,
             }),
             signal: abortCtrl.signal,
         });
@@ -3217,14 +3235,31 @@ function _renderStreamPreview(texts, fromIndex) {
 
     for (let i = fromIndex; i < texts.length; i++) {
         const item = texts[i];
+        const score = _scoreText(item);
         const card = document.createElement('div');
         card.className = 'text-card ai-stream-card';
         card.style.animation = 'fadeInUp 0.3s ease-out';
         card.innerHTML = `
             <div class="badge badge-${item.type}">/${item.type}</div>
             <div class="text-content">${item.content}</div>
+            <span class="quality-badge quality-${score.level}" title="${score.hint}">${score.icon}</span>
         `;
         dom.aiPreviewList.appendChild(card);
+    }
+}
+
+/**
+ * Score text quality based on length and content.
+ * Returns { level: 'good'|'warn', icon: string, hint: string }.
+ */
+function _scoreText(item) {
+    const len = item.content.length;
+    if (len >= 15 && len <= 75) {
+        return { level: 'good', icon: '✅', hint: `${len}字 · 长度合适` };
+    } else if (len < 15) {
+        return { level: 'warn', icon: '⚠️', hint: `${len}字 · 内容偏短，建议丰富描述` };
+    } else {
+        return { level: 'warn', icon: '⚠️', hint: `${len}字 · 内容偏长，可能超出游戏限制` };
     }
 }
 
@@ -3241,11 +3276,13 @@ function renderAIPreview() {
     }
 
     state.aiPreview.forEach(item => {
+        const score = _scoreText(item);
         const card = document.createElement('div');
         card.className = 'text-card';
         card.innerHTML = `
             <div class="badge badge-${item.type}">/${item.type}</div>
             <div class="text-content">${item.content}</div>
+            <span class="quality-badge quality-${score.level}" title="${score.hint}">${score.icon}</span>
         `;
         dom.aiPreviewList.appendChild(card);
     });

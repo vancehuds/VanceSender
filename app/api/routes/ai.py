@@ -65,6 +65,7 @@ async def ai_generate(body: AIGenerateRequest):
             count=body.count,
             text_type=body.text_type,
             style=body.style,
+            temperature=body.temperature,
         )
 
         validated_texts: list[TextLine] = []
@@ -129,6 +130,7 @@ async def ai_generate_stream(body: AIGenerateRequest):
                 count=body.count,
                 text_type=body.text_type,
                 style=body.style,
+                temperature=body.temperature,
             ):
                 accumulated.append(chunk)
                 yield f"data: {chunk}\n\n"
@@ -172,6 +174,7 @@ async def ai_rewrite(body: AIRewriteRequest):
             provider_id=body.provider_id,
             style=body.style,
             requirements=body.requirements,
+            temperature=body.temperature,
         )
 
         validated_texts: list[TextLine] = []

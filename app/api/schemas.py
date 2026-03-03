@@ -86,6 +86,12 @@ class AIGenerateRequest(BaseModel):
         max_length=120,
         description="自定义生成风格，如'冷峻电影感'",
     )
+    temperature: float | None = Field(
+        None,
+        ge=0.0,
+        le=2.0,
+        description="生成温度(0-2)，值越高越有创意，留空使用默认0.8",
+    )
 
 
 class AIGenerateResponse(BaseModel):
@@ -112,6 +118,12 @@ class AIRewriteRequest(BaseModel):
         min_length=1,
         max_length=500,
         description="额外要求，如'保留动作顺序并强化环境描写'",
+    )
+    temperature: float | None = Field(
+        None,
+        ge=0.0,
+        le=2.0,
+        description="生成温度(0-2)，值越高越有创意，留空使用默认0.7",
     )
 
 

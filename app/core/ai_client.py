@@ -259,6 +259,24 @@ def _resolve_provider(
     return cfg, provider
 
 
+def _get_fallback_providers(
+    cfg: dict[str, Any],
+    exclude_id: str = "",
+) -> list[dict[str, Any]]:
+    """Return a list of fallback providers from config, excluding the given ID."""
+    fallback_ids = cfg.get("ai", {}).get("fallback_providers", [])
+    if not isinstance(fallback_ids, list):
+        return []
+    result = []
+    for fid in fallback_ids:
+        if fid == exclude_id:
+            continue
+        p = get_provider_by_id(fid, cfg)
+        if p is not None:
+            result.append(p)
+    return result
+
+
 def _build_generate_user_prompt(
     scenario: str,
     count: int | None = None,
@@ -314,6 +332,7 @@ async def generate_texts(
     count: int | None = None,
     text_type: str = "mixed",
     style: str | None = None,
+    temperature: float | None = None,
 ) -> tuple[list[dict[str, str]], str]:
     """Generate a list of /me + /do lines for a given scenario.
 
@@ -336,19 +355,39 @@ async def generate_texts(
     user_prompt = _build_generate_user_prompt(scenario, count, text_type, style)
     max_tokens = _estimate_max_tokens(count)
     messages = _build_generate_messages(system, user_prompt, text_type)
+    temp = temperature if temperature is not None else 0.8
 
-    response = await _call_with_retry(
-        client,
-        model=provider.get("model", "gpt-4o"),
-        messages=messages,
-        temperature=0.8,
-        max_tokens=max_tokens,
-    )
+    # Try primary provider, then fallback chain
+    providers_to_try = [(provider, client, resolved_pid)]
+    for fb_provider in _get_fallback_providers(cfg, exclude_id=resolved_pid):
+        fb_client = _build_client(fb_provider, cfg)
+        providers_to_try.append(
+            (fb_provider, fb_client, fb_provider.get("id", ""))
+        )
 
-    raw = (response.choices[0].message.content or "") if response.choices else ""
-    texts = _parse_generate_output(raw)
-    texts = _postprocess_texts(texts)
-    return texts, resolved_pid
+    last_error: Exception | None = None
+    for prov, cli, pid in providers_to_try:
+        try:
+            response = await _call_with_retry(
+                cli,
+                model=prov.get("model", "gpt-4o"),
+                messages=messages,
+                temperature=temp,
+                max_tokens=max_tokens,
+            )
+            raw = (response.choices[0].message.content or "") if response.choices else ""
+            texts = _parse_generate_output(raw)
+            texts = _postprocess_texts(texts)
+            if pid != resolved_pid:
+                log.info("Fallback to provider '%s' succeeded", pid)
+            return texts, pid
+        except Exception as exc:
+            log.warning("Provider '%s' failed: %s", pid, exc)
+            last_error = exc
+            continue
+
+    # All providers failed — raise the last error
+    raise last_error  # type: ignore[misc]
 
 
 async def generate_texts_stream(
@@ -357,6 +396,7 @@ async def generate_texts_stream(
     count: int | None = None,
     text_type: str = "mixed",
     style: str | None = None,
+    temperature: float | None = None,
 ) -> AsyncIterator[str]:
     """Streaming variant — yields raw text chunks."""
     cfg, provider = _resolve_provider(provider_id)
@@ -370,7 +410,7 @@ async def generate_texts_stream(
     stream = await client.chat.completions.create(
         model=provider.get("model", "gpt-4o"),
         messages=messages,
-        temperature=0.8,
+        temperature=temperature if temperature is not None else 0.8,
         max_tokens=max_tokens,
         stream=True,
     )
@@ -404,6 +444,7 @@ async def rewrite_texts(
     provider_id: str | None = None,
     style: str | None = None,
     requirements: str | None = None,
+    temperature: float | None = None,
 ) -> tuple[list[dict[str, str]], str]:
     """Rewrite existing RP lines while preserving order and type.
 
@@ -453,7 +494,7 @@ async def rewrite_texts(
             {"role": "system", "content": system},
             {"role": "user", "content": "\n".join(prompt_parts)},
         ],
-        temperature=0.7,
+        temperature=temperature if temperature is not None else 0.7,
         max_tokens=max_tokens,
     )
 
