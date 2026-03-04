@@ -90,14 +90,21 @@ def _to_numeric_version(value: str) -> tuple[int, ...] | None:
 
 
 def _compare_versions(
-    current_version: str, latest_version: str
+    current_version: str,
+    latest_version: str,
+    *,
+    include_prerelease: bool = False,
 ) -> _VersionCompareResult:
     try:
         current_parsed = Version(current_version)
         latest_parsed = Version(latest_version)
 
         # 默认不把预发布当成稳定版用户的可升级版本。
-        if latest_parsed.is_prerelease and not current_parsed.is_prerelease:
+        if (
+            not include_prerelease
+            and latest_parsed.is_prerelease
+            and not current_parsed.is_prerelease
+        ):
             return _VersionCompareResult(update_available=False, comparable=True)
 
         return _VersionCompareResult(
@@ -355,8 +362,12 @@ def _build_success_result(
     release_url: str | None,
     published_at: str | None,
     suffix: str = "",
+    *,
+    include_prerelease: bool = False,
 ) -> GitHubUpdateResult:
-    compare_result = _compare_versions(current_version, latest_version)
+    compare_result = _compare_versions(
+        current_version, latest_version, include_prerelease=include_prerelease
+    )
     if compare_result.comparable and compare_result.update_available:
         message = f"发现新版本 v{latest_version}{suffix}"
     elif compare_result.comparable:
@@ -614,8 +625,127 @@ def _request_release_latest(
     )
 
 
+def _request_releases_with_prerelease(
+    *,
+    current_version: str,
+    owner: str,
+    repo: str,
+    cache_key: str,
+    cache_entry: _UpdateCacheEntry | None,
+) -> GitHubUpdateResult:
+    """Fetch releases list including prereleases and find the latest version."""
+    prerelease_cache_key = f"{cache_key}:prerelease"
+    encoded_owner = quote(owner, safe="")
+    encoded_repo = quote(repo, safe="")
+    releases_api = (
+        f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/releases?per_page=10"
+    )
+
+    prerelease_cache = _get_cache_entry(prerelease_cache_key)
+    releases_headers = _build_conditional_headers(prerelease_cache, source_kind="releases_list")
+    releases_response = _fetch_json(releases_api, extra_headers=releases_headers)
+
+    if releases_response.status_code == 304:
+        if prerelease_cache is not None and prerelease_cache.source_kind == "releases_list":
+            _touch_cache_entry(prerelease_cache_key, time.time())
+            return _build_result_from_cache(current_version, prerelease_cache)
+        releases_response = _fetch_json(releases_api)
+
+    if releases_response.status_code == 200 and isinstance(releases_response.payload, list):
+        releases = releases_response.payload
+        if len(releases) == 0:
+            return _fallback_to_cache_or_failure(
+                current_version=current_version,
+                cache_entry=prerelease_cache or cache_entry,
+                message="GitHub 仓库暂无可用 Release",
+                status_code=404,
+            )
+
+        # Find the latest version (including prerelease) by PEP 440 comparison
+        best_release: dict[str, Any] | None = None
+        best_version: Version | None = None
+
+        for release in releases:
+            if not isinstance(release, dict):
+                continue
+            tag_name = release.get("tag_name")
+            if not isinstance(tag_name, str) or not tag_name.strip():
+                continue
+            try:
+                parsed = Version(_normalize_version(tag_name))
+            except InvalidVersion:
+                continue
+
+            if best_version is None or parsed > best_version:
+                best_version = parsed
+                best_release = release
+
+        if best_release is None or best_version is None:
+            return _fallback_to_cache_or_failure(
+                current_version=current_version,
+                cache_entry=prerelease_cache or cache_entry,
+                message="GitHub Releases 中未找到有效版本号",
+                error_type="ValueError",
+                status_code=200,
+            )
+
+        latest_tag = best_release.get("tag_name", "")
+        release_url = best_release.get("html_url")
+        published_at = best_release.get("published_at")
+        is_prerelease = bool(best_release.get("prerelease", False))
+        suffix = "（预发布）" if is_prerelease else ""
+
+        entry = _build_cache_entry(
+            cache_key=prerelease_cache_key,
+            source_kind="releases_list",
+            latest_version=_normalize_version(latest_tag),
+            release_url=release_url if isinstance(release_url, str) else None,
+            published_at=published_at if isinstance(published_at, str) else None,
+            suffix=suffix,
+            response_headers=releases_response.headers,
+        )
+        _set_cache_entry(entry)
+        return _build_success_result(
+            current_version=current_version,
+            latest_version=entry.latest_version,
+            release_url=entry.release_url,
+            published_at=entry.published_at,
+            suffix=entry.suffix,
+            include_prerelease=True,
+        )
+
+    if releases_response.status_code in (403, 429):
+        _update_rate_limit_window(cache_key, releases_response)
+        return _fallback_to_cache_or_failure(
+            current_version=current_version,
+            cache_entry=prerelease_cache or cache_entry,
+            message="GitHub API 访问频率受限，请稍后重试",
+            error_type=releases_response.error_type,
+            status_code=releases_response.status_code,
+        )
+
+    _logger.warning(
+        "GitHub releases list request failed for %s (status=%s, error_type=%s)",
+        cache_key,
+        releases_response.status_code,
+        releases_response.error_type,
+    )
+    return _fallback_to_cache_or_failure(
+        current_version=current_version,
+        cache_entry=prerelease_cache or cache_entry,
+        message="检查更新失败，请稍后重试",
+        error_type=releases_response.error_type,
+        status_code=(
+            releases_response.status_code if releases_response.status_code > 0 else None
+        ),
+    )
+
+
 def _check_github_update_sync(
-    current_version: str, repository: str
+    current_version: str,
+    repository: str,
+    *,
+    include_prerelease: bool = False,
 ) -> GitHubUpdateResult:
     normalized_current = _normalize_version(current_version)
     if not normalized_current:
@@ -635,8 +765,9 @@ def _check_github_update_sync(
         )
 
     key = _cache_key(owner, repo)
+    effective_cache_key = f"{key}:prerelease" if include_prerelease else key
     now = time.time()
-    cached_entry = _get_cache_entry(key)
+    cached_entry = _get_cache_entry(effective_cache_key)
     if cached_entry is not None and _is_cache_fresh(cached_entry, now):
         return _build_result_from_cache(normalized_current, cached_entry)
 
@@ -651,7 +782,7 @@ def _check_github_update_sync(
 
     with _CACHE_REFRESH_LOCK:
         now = time.time()
-        cached_entry = _get_cache_entry(key)
+        cached_entry = _get_cache_entry(effective_cache_key)
         if cached_entry is not None and _is_cache_fresh(cached_entry, now):
             return _build_result_from_cache(normalized_current, cached_entry)
 
@@ -664,6 +795,15 @@ def _check_github_update_sync(
                 status_code=429,
             )
 
+        if include_prerelease:
+            return _request_releases_with_prerelease(
+                current_version=normalized_current,
+                owner=owner,
+                repo=repo,
+                cache_key=key,
+                cache_entry=cached_entry,
+            )
+
         return _request_release_latest(
             current_version=normalized_current,
             owner=owner,
@@ -674,9 +814,15 @@ def _check_github_update_sync(
 
 
 async def check_github_update(
-    current_version: str, repository: str
+    current_version: str,
+    repository: str,
+    *,
+    include_prerelease: bool = False,
 ) -> GitHubUpdateResult:
     """Check whether GitHub has a newer release/tag than current version."""
     return await asyncio.to_thread(
-        _check_github_update_sync, current_version, repository
+        _check_github_update_sync,
+        current_version,
+        repository,
+        include_prerelease=include_prerelease,
     )

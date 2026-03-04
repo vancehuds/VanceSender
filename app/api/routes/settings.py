@@ -235,11 +235,12 @@ async def post_quick_panel_window_action(body: QuickPanelWindowActionRequest):
 
 
 @router.get("/update-check", response_model=UpdateCheckResponse)
-async def check_update():
+async def check_update(include_prerelease: bool = False):
     """检查 GitHub 是否有新版本。"""
     result = await check_github_update(
         current_version=APP_VERSION,
         repository=GITHUB_REPOSITORY,
+        include_prerelease=include_prerelease,
     )
     return UpdateCheckResponse(
         success=result.success,

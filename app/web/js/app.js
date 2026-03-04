@@ -784,6 +784,7 @@ const dom = {
     homeUpdateTip: document.getElementById('home-update-tip'),
     homeUpdateReleaseLink: document.getElementById('home-update-release-link'),
     homeCheckUpdateBtn: document.getElementById('home-check-update-btn'),
+    homeIncludePrerelease: document.getElementById('home-include-prerelease'),
     homePublicConfigCard: document.getElementById('home-public-config-card'),
     homePublicConfigTitle: document.getElementById('home-public-config-title'),
     homePublicConfigContent: document.getElementById('home-public-config-content'),
@@ -4662,7 +4663,8 @@ async function checkGitHubUpdate(options = {}) {
     }
 
     try {
-        const res = await apiFetch('/api/v1/settings/update-check');
+        const includePrerelease = dom.homeIncludePrerelease?.checked ? 'true' : 'false';
+        const res = await apiFetch(`/api/v1/settings/update-check?include_prerelease=${includePrerelease}`);
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
