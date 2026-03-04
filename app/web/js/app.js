@@ -679,6 +679,8 @@ const state = {
     presetSelectMode: false,
     selectedPresetIds: new Set(),
     currentQuickPresetId: null,
+    sendTagFilter: null,
+    quickSendTagFilter: null,
     editingTextIndex: null,
     draggingTextIndex: null,
     dragOverTextIndex: null,
@@ -3465,6 +3467,8 @@ async function fetchPresets() {
         const data = await res.json();
         state.presets = Array.isArray(data) ? data : [];
         renderPresetTagFilter(state.presets);
+        renderSendTagFilter(state.presets);
+        renderQuickSendTagFilter(state.presets);
         renderPresets(state.presets);
         renderQuickPresetSwitcher();
         renderQuickSendPresetSwitcher();
@@ -3479,42 +3483,61 @@ async function fetchPresets() {
     }
 }
 
-function renderPresetTagFilter(presets) {
-    const container = document.getElementById('preset-tag-filter');
+function _renderTagFilterBar(containerId, presets, stateKey, onFilterChange) {
+    const container = document.getElementById(containerId);
     if (!container) return;
 
-    // Collect all unique tags
     const allTags = new Set();
     presets.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
 
     container.innerHTML = '';
     if (allTags.size === 0) return;
 
-    // "All" pill
     const allPill = document.createElement('button');
     allPill.type = 'button';
-    allPill.className = 'btn btn-sm btn-outline tag-filter-pill active';
+    allPill.className = 'btn btn-sm btn-outline tag-filter-pill' + (state[stateKey] === null ? ' active' : '');
     allPill.textContent = '全部';
     allPill.addEventListener('click', () => {
-        state.activeTagFilter = null;
+        state[stateKey] = null;
         container.querySelectorAll('.tag-filter-pill').forEach(p => p.classList.remove('active'));
         allPill.classList.add('active');
-        renderPresets(state.presets);
+        onFilterChange();
     });
     container.appendChild(allPill);
 
     allTags.forEach(tag => {
         const pill = document.createElement('button');
         pill.type = 'button';
-        pill.className = 'btn btn-sm btn-outline tag-filter-pill';
+        pill.className = 'btn btn-sm btn-outline tag-filter-pill' + (state[stateKey] === tag ? ' active' : '');
         pill.textContent = tag;
         pill.addEventListener('click', () => {
-            state.activeTagFilter = tag;
+            state[stateKey] = tag;
             container.querySelectorAll('.tag-filter-pill').forEach(p => p.classList.remove('active'));
             pill.classList.add('active');
-            renderPresets(state.presets.filter(p => (p.tags || []).includes(tag)));
+            onFilterChange();
         });
         container.appendChild(pill);
+    });
+}
+
+function renderPresetTagFilter(presets) {
+    _renderTagFilterBar('preset-tag-filter', presets, 'activeTagFilter', () => {
+        const filtered = state.activeTagFilter
+            ? state.presets.filter(p => (p.tags || []).includes(state.activeTagFilter))
+            : state.presets;
+        renderPresets(filtered);
+    });
+}
+
+function renderSendTagFilter(presets) {
+    _renderTagFilterBar('send-tag-filter', presets, 'sendTagFilter', () => {
+        renderQuickPresetSwitcher();
+    });
+}
+
+function renderQuickSendTagFilter(presets) {
+    _renderTagFilterBar('quick-send-tag-filter', presets, 'quickSendTagFilter', () => {
+        renderQuickSendPresetSwitcher();
     });
 }
 
@@ -3689,22 +3712,26 @@ function renderQuickPresetSwitcher() {
 
     dom.quickPresetSelect.disabled = false;
 
+    const filteredPresets = state.sendTagFilter
+        ? state.presets.filter(p => (p.tags || []).includes(state.sendTagFilter))
+        : state.presets;
+
     const placeholder = document.createElement('option');
     placeholder.value = '';
     placeholder.textContent = '快速切换预设...';
     dom.quickPresetSelect.appendChild(placeholder);
 
-    state.presets.forEach((preset) => {
+    filteredPresets.forEach((preset) => {
         const option = document.createElement('option');
         option.value = preset.id;
         option.textContent = `${preset.name} (${preset.texts.length}条)`;
         dom.quickPresetSelect.appendChild(option);
     });
 
-    if (state.currentPresetId && state.presets.some((preset) => preset.id === state.currentPresetId)) {
+    if (state.currentPresetId && filteredPresets.some((preset) => preset.id === state.currentPresetId)) {
         dom.quickPresetSelect.value = state.currentPresetId;
     } else {
-        clearCurrentPresetSelection();
+        dom.quickPresetSelect.value = '';
     }
 }
 
@@ -3724,21 +3751,25 @@ function renderQuickSendPresetSwitcher() {
 
     dom.quickSendPresetSelect.disabled = false;
 
-    state.presets.forEach((preset) => {
+    const filteredPresets = state.quickSendTagFilter
+        ? state.presets.filter(p => (p.tags || []).includes(state.quickSendTagFilter))
+        : state.presets;
+
+    filteredPresets.forEach((preset) => {
         const option = document.createElement('option');
         option.value = preset.id;
         option.textContent = `${preset.name} (${preset.texts.length}条)`;
         dom.quickSendPresetSelect.appendChild(option);
     });
 
-    const currentValid = state.presets.some((preset) => preset.id === state.currentQuickPresetId);
+    const currentValid = filteredPresets.some((preset) => preset.id === state.currentQuickPresetId);
     if (!currentValid) {
         const rememberedPresetId = readRememberedQuickSendPresetId();
-        const rememberedValid = state.presets.some((preset) => preset.id === rememberedPresetId);
-        state.currentQuickPresetId = rememberedValid ? rememberedPresetId : state.presets[0].id;
+        const rememberedValid = filteredPresets.some((preset) => preset.id === rememberedPresetId);
+        state.currentQuickPresetId = (rememberedValid ? rememberedPresetId : (filteredPresets[0]?.id || null));
     }
 
-    dom.quickSendPresetSelect.value = state.currentQuickPresetId;
+    dom.quickSendPresetSelect.value = state.currentQuickPresetId || '';
     rememberQuickSendPresetId(state.currentQuickPresetId);
     renderQuickSendList();
 }
