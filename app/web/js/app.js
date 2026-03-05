@@ -961,6 +961,19 @@ function switchToPanel(panelTarget) {
     dom.panels.forEach(p => p.classList.remove('active'));
     const panel = document.getElementById(panelTarget);
     if (panel) panel.classList.add('active');
+    // Sync mobile tab bar
+    syncMobileTab(panelTarget);
+}
+
+function syncMobileTab(panelTarget) {
+    const mobileTabs = document.querySelectorAll('.mobile-tab');
+    mobileTabs.forEach(tab => {
+        if (tab.dataset.target === panelTarget) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
 }
 
 function initOnboarding() {
@@ -1243,27 +1256,40 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Navigation ---
+function navigateToPanel(targetId) {
+    const currentTarget = document.querySelector('.nav-item.active')?.dataset?.target || '';
+    if (currentTarget === 'panel-send' && targetId !== 'panel-send' && hasPresetUnsavedChanges()) {
+        const shouldLeave = confirm('当前预设有未保存修改，离开后不会自动保存。是否继续离开？');
+        if (!shouldLeave) return;
+    }
+
+    // Update sidebar nav
+    dom.navItems.forEach(n => n.classList.remove('active'));
+    const sidebarItem = document.querySelector(`.nav-item[data-target="${targetId}"]`);
+    if (sidebarItem) sidebarItem.classList.add('active');
+
+    // Update panels
+    dom.panels.forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(targetId);
+    if (panel) panel.classList.add('active');
+
+    // Sync mobile tab bar
+    syncMobileTab(targetId);
+}
+
 function initNavigation() {
+    // Sidebar nav click
     dom.navItems.forEach(item => {
         item.addEventListener('click', () => {
-            const currentTarget = document.querySelector('.nav-item.active')?.dataset?.target || '';
-            const nextTarget = item.dataset?.target || '';
-            if (currentTarget === 'panel-send' && nextTarget !== 'panel-send' && hasPresetUnsavedChanges()) {
-                const shouldLeave = confirm('当前预设有未保存修改，离开后不会自动保存。是否继续离开？');
-                if (!shouldLeave) return;
-            }
+            navigateToPanel(item.dataset.target);
+        });
+    });
 
-            // Update UI
-            dom.navItems.forEach((n) => {
-                n.classList.remove('active');
-            });
-            item.classList.add('active');
-
-            dom.panels.forEach((p) => {
-                p.classList.remove('active');
-            });
-            const target = document.getElementById(item.dataset.target);
-            target.classList.add('active');
+    // Mobile bottom tab bar click
+    const mobileTabs = document.querySelectorAll('.mobile-tab');
+    mobileTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            navigateToPanel(tab.dataset.target);
         });
     });
 }

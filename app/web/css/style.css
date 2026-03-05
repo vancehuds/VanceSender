@@ -4223,75 +4223,703 @@ details[open] .send-history-toggle::before {
     gap: 6px;
 }
 
-/* Responsive */
-@media (max-width: 900px) {
-    .home-grid {
-        grid-template-columns: 1fr;
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE UI — Bottom Tab Bar
+   ═══════════════════════════════════════════════════════════════════════ */
+.mobile-tab-bar {
+    display: none;
+    /* shown via media query */
+}
+
+@media (max-width: 768px) {
+    .mobile-tab-bar {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 500;
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: linear-gradient(180deg, rgba(8, 14, 32, 0.82), rgba(3, 7, 18, 0.96));
+        backdrop-filter: blur(28px) saturate(1.6);
+        -webkit-backdrop-filter: blur(28px) saturate(1.6);
+        border-top: 1px solid rgba(79, 209, 255, 0.12);
+        box-shadow: 0 -8px 32px rgba(2, 8, 23, 0.6), 0 -2px 8px rgba(79, 209, 255, 0.04);
+        align-items: stretch;
+        justify-content: space-around;
     }
 
-    .home-card-lan,
-    .home-card-stats {
-        grid-row: auto;
-        grid-column: auto;
-    }
-
-    .home-card-announcement {
-        grid-column: auto;
-    }
-
-    .home-hero {
-        padding: 18px 22px;
-    }
-
-    .hero-title {
-        font-size: 1.4rem;
-    }
-
-    .hero-subtitle {
-        font-size: 0.85rem;
-    }
-
-    .sidebar {
-        width: 64px;
-    }
-
-    .sidebar .label,
-    .sidebar .logo-text,
-    .sidebar .brand {
-        display: none;
-    }
-
-    .sidebar .nav-item {
+    .mobile-tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
-        padding: 12px;
+        gap: 3px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.65rem;
+        font-weight: 500;
+        font-family: var(--font-stack);
+        padding: 6px 0 2px;
+        cursor: pointer;
+        position: relative;
+        transition: color 0.3s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .mobile-tab svg {
+        width: 22px;
+        height: 22px;
+        stroke-width: 1.8;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease;
+    }
+
+    .mobile-tab.active {
+        color: var(--accent-cyan);
+    }
+
+    .mobile-tab.active svg {
+        transform: scale(1.1) translateY(-1px);
+        filter: drop-shadow(0 2px 6px rgba(56, 189, 248, 0.4));
+    }
+
+    /* Glow indicator under active tab */
+    .mobile-tab::after {
+        content: '';
+        position: absolute;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 0px);
+        left: 50%;
+        transform: translateX(-50%) scaleX(0);
+        width: 28px;
+        height: 3px;
+        border-radius: 3px;
+        background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .mobile-tab.active::after {
+        transform: translateX(-50%) scaleX(1);
+    }
+
+    /* Ripple-like press effect */
+    .mobile-tab:active svg {
+        transform: scale(0.9);
     }
 }
 
-@media (max-width: 600px) {
-    .panel {
-        padding: 18px 14px;
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE UI — Global Layout Overrides
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* Hide desktop sidebar */
+    .sidebar {
+        display: none !important;
     }
 
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+    /* Hide desktop titlebar on mobile (LAN access from phone) */
+    .desktop-titlebar {
+        display: none !important;
+    }
+
+    /* Full-width app container */
+    .app-container {
+        flex-direction: column;
+    }
+
+    /* Content area fills screen, with bottom padding for tab bar */
+    .content {
+        padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+        border-radius: 0;
+        background:
+            radial-gradient(circle at top right, rgba(139, 123, 255, 0.12), transparent 44%),
+            radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.06), transparent 50%);
+    }
+
+    /* Panel base adjustments */
+    .panel {
+        padding: 16px;
+        border-radius: 0;
     }
 
     .panel-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .panel-header h1 {
+        font-size: 1.5rem;
     }
 
     .header-actions {
         width: 100%;
         justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 6px;
     }
 
-    .home-hero {
-        padding: 14px 16px;
+    .header-actions .btn {
+        font-size: 0.82rem;
+        padding: 7px 14px;
+    }
+
+    /* Bento cards — add touch-friendly spacing */
+    .bento-card {
+        border-radius: 16px;
+    }
+
+    .glass-card {
+        border-radius: 16px;
+    }
+
+    /* ── HOME PANEL ─────────────────────────────────────────────────── */
+    .home-bento-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .bento-hero {
+        padding: 20px 18px !important;
     }
 
     .hero-title {
+        font-size: 1.3rem !important;
+    }
+
+    .hero-subtitle {
+        font-size: 0.85rem !important;
+    }
+
+    .hero-quick-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .info-pill {
+        width: 100%;
+    }
+
+    /* Stats grid 2×2 on mobile */
+    .bento-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px;
+    }
+
+    /* LAN card — stack vertically */
+    .lan-active-layout {
+        flex-direction: column !important;
+        gap: 16px;
+    }
+
+    .lan-info-col {
+        width: 100%;
+    }
+
+    .lan-qr-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .qr-frame {
+        width: 120px;
+        height: 120px;
+    }
+
+    /* Subgrid → full-width stack */
+    .bento-subgrid {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .bento-small {
+        width: 100%;
+    }
+
+    /* Micro cards 2-col grid */
+    .bento-micro-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    /* Update section */
+    .bento-update-meta {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .update-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* ── SEND PANEL ─────────────────────────────────────────────────── */
+    .send-container.bento-grid-vertical {
+        gap: 12px;
+    }
+
+    .input-card .bento-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .input-actions {
+        margin-left: 0 !important;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .input-actions .hint {
+        display: none;
+    }
+
+    .list-controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .bulk-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .quick-preset-switch {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .quick-preset-controls {
+        width: 100%;
+    }
+
+    .quick-preset-controls select {
+        flex: 1;
+    }
+
+    /* Floating send bar — fixed at bottom above tab bar */
+    .float-bottom-bar {
+        position: fixed !important;
+        bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+        left: 8px;
+        right: 8px;
+        z-index: 400;
+        border-radius: 18px !important;
+        padding: 12px 16px !important;
+        box-shadow: 0 -8px 32px rgba(2, 8, 23, 0.5);
+        margin: 0 !important;
+    }
+
+    .sending-controls {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .delay-control {
+        flex: 1;
+        min-width: 100px;
+    }
+
+    .send-primary-btn {
+        width: 100%;
+        padding: 14px !important;
+        font-size: 1rem !important;
+    }
+
+    /* Text list bottom padding for floating bar */
+    .list-wrapper {
+        padding-bottom: 80px;
+    }
+
+    /* Text card mobile adjustments */
+    .text-card {
+        padding: 10px 12px;
+    }
+
+    .text-card-actions {
+        gap: 4px;
+    }
+
+    .text-card-actions .btn {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 4px 8px;
+        font-size: 0.78rem;
+    }
+
+    /* Send history */
+    .send-history-section {
+        margin-top: 12px;
+        margin-bottom: 90px;
+    }
+
+    /* ── QUICK SEND PANEL ──────────────────────────────────────────── */
+    .quick-send-container {
+        gap: 10px;
+    }
+
+    .quick-send-toolbar-pill {
+        padding: 10px 14px;
+    }
+
+    .pill-toolbar-content {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .quick-send-preset-controls {
+        width: 100%;
+    }
+
+    .quick-send-preset-controls select {
+        flex: 1;
+    }
+
+    .quick-send-list {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+
+    .quick-send-card {
+        padding: 14px;
+    }
+
+    .quick-send-card .btn {
+        min-height: 40px;
+    }
+
+    /* ── AI GENERATE PANEL ─────────────────────────────────────────── */
+    .ai-bento-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 14px;
+    }
+
+    .ai-scene-card,
+    .ai-settings-card {
+        width: 100% !important;
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+    }
+
+    /* Segmented control mobile */
+    .segmented-control {
+        flex-wrap: wrap;
+    }
+
+    .segmented-item {
+        flex: 1;
+        min-width: 60px;
+        text-align: center;
+    }
+
+    /* Generate button full width guaranteed */
+    #ai-generate-btn {
+        width: 100%;
+        padding: 16px !important;
+        font-size: 1.05rem !important;
+    }
+
+    .ai-results-area {
+        padding: 16px !important;
+    }
+
+    .results-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* AI history */
+    .ai-history-section {
+        margin-bottom: 10px;
+    }
+
+    .ai-history-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .ai-history-item-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    /* ── PRESETS PANEL ──────────────────────────────────────────────── */
+    .presets-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+
+    .preset-card {
+        padding: 14px 16px;
+    }
+
+    .preset-tag-filter-bar {
+        margin-bottom: 14px;
+        padding: 6px 2px;
+        gap: 8px;
+    }
+
+    .tag-filter-pill {
+        font-size: 0.82rem !important;
+        padding: 7px 14px !important;
+    }
+
+    /* ── SETTINGS PANEL ────────────────────────────────────────────── */
+    .settings-container {
+        gap: 14px;
+    }
+
+    .settings-section {
+        padding: 18px 16px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px;
+        /* Prevent ios auto-zoom */
+    }
+
+    .setting-item-toggle {
+        gap: 12px;
+    }
+
+    .setting-info label {
+        font-size: 0.92rem;
+    }
+
+    .providers-list {
+        gap: 10px;
+    }
+
+    /* Settings unsaved bar above tab bar */
+    .settings-unsaved-bar {
+        bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+        left: 8px !important;
+        right: 8px !important;
+        border-radius: 14px !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE UI — Modals (Bottom Sheet Style)
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .modal-backdrop {
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    .modal {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        transform: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-height: 85vh;
+        border-radius: 20px 20px 0 0 !important;
+        padding: 8px 20px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+        animation: mobileSheetUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Drag handle hint */
+    .modal::before {
+        content: '';
+        display: block;
+        width: 36px;
+        height: 4px;
+        border-radius: 4px;
+        background: rgba(148, 163, 184, 0.35);
+        margin: 8px auto 14px;
+    }
+
+    .modal h3 {
+        font-size: 1.1rem;
+        text-align: center;
+        margin-bottom: 16px;
+    }
+
+    .modal-actions {
+        flex-direction: column-reverse;
+        gap: 8px;
+        padding-top: 12px;
+    }
+
+    .modal-actions .btn {
+        width: 100%;
+        padding: 13px;
+        font-size: 0.95rem;
+        border-radius: 12px;
+    }
+}
+
+@keyframes mobileSheetUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0.6;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE UI — Toast & Auth Gate
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .toast-container {
+        bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+        top: auto !important;
+        left: 16px !important;
+        right: 16px !important;
+        max-width: none !important;
+    }
+
+    .auth-gate .auth-card {
+        width: calc(100vw - 40px);
+        max-width: 340px;
+    }
+
+    /* Onboarding card on mobile — position above tab bar */
+    .onboarding-card {
+        bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE UI — Touch & Interaction Enhancements
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* Larger touch targets */
+    .btn {
+        min-height: 38px;
+    }
+
+    .btn-sm {
+        min-height: 34px;
+        padding: 6px 12px;
+    }
+
+    .btn-icon {
+        min-width: 38px;
+        min-height: 38px;
+    }
+
+    /* Select inputs */
+    select,
+    .select-sm {
+        font-size: 16px;
+        min-height: 38px;
+    }
+
+    /* Scrollbar thin for mobile */
+    ::-webkit-scrollbar {
+        width: 3px;
+        height: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.2);
+        border-radius: 3px;
+    }
+
+    /* Smooth momentum scrolling on panels */
+    .panel {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent text selection on interactive elements */
+    .mobile-tab,
+    .nav-item,
+    .btn,
+    .micro-card,
+    .quick-send-card,
+    .preset-card,
+    .tag-filter-pill {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Larger spacing between card items */
+    .text-list {
+        gap: 8px;
+    }
+
+    .comparison-list {
+        gap: 10px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   MOBILE UI — Extra Small Screens (≤ 380px)
+   ═══════════════════════════════════════════════════════════════════════ */
+@media (max-width: 380px) {
+    .panel {
+        padding: 12px 10px;
+    }
+
+    .panel-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .bento-card {
+        padding: 14px 12px;
+    }
+
+    .hero-title {
+        font-size: 1.1rem !important;
+    }
+
+    .mobile-tab span {
+        font-size: 0.58rem;
+    }
+
+    .mobile-tab svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .bento-micro-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-item {
+        padding: 8px 6px;
+    }
+
+    .stat-value {
         font-size: 1.2rem;
     }
 }
