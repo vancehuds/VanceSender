@@ -19,9 +19,23 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function call in argument defaults (FastAPI depends)
-    "SIM108", # use ternary operator
+    "B008",   # do not perform function call in argument defaults (FastAPI Depends)
+    "B904",   # raise from — noisy in HTTP error handlers
+    "SIM105", # contextlib.suppress — try/except/pass is more readable in many cases
+    "SIM108", # use ternary operator — readability preference
+    "SIM110", # use any() — for-loop is often clearer
+    "SIM115", # context manager for open — not always applicable
+    "RUF001", # fullwidth chars in strings  — intentional Chinese text
+    "RUF002", # fullwidth chars in docstrings — intentional Chinese text
+    "RUF003", # fullwidth chars in comments — intentional Chinese text
+    "RUF012", # mutable class attribute — too strict for this project
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# desktop_shell.py uses setattr for dynamic config & has many except-pass for resilience
+"app/core/desktop_shell.py" = ["B010", "SIM105"]
+# main.py uses setattr and open() without context manager for logging setup
+"main.py" = ["B010", "SIM115"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

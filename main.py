@@ -26,8 +26,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import api_router
 from app.core.app_meta import APP_NAME, APP_VERSION, GITHUB_REPOSITORY
@@ -96,12 +96,16 @@ def create_app(lan_access: bool = False) -> FastAPI:
     )
 
     # CORS — restrict origins in local-only mode, open for LAN
-    cors_origins = ["*"] if lan_access else [
-        "http://127.0.0.1",
-        "http://localhost",
-        "http://localhost:5173",   # Vite dev server
-        "http://127.0.0.1:5173",  # Vite dev server (alt)
-    ]
+    cors_origins = (
+        ["*"]
+        if lan_access
+        else [
+            "http://127.0.0.1",
+            "http://localhost",
+            "http://localhost:5173",  # Vite dev server
+            "http://127.0.0.1:5173",  # Vite dev server (alt)
+        ]
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
@@ -158,7 +162,7 @@ def _attach_runtime_console_window() -> bool:
 
         stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
         stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
-        stdin = open("CONIN$", "r", encoding="utf-8", errors="replace")
+        stdin = open("CONIN$", encoding="utf-8", errors="replace")
 
         sys.stdout = stdout
         sys.stderr = stderr
@@ -243,9 +247,7 @@ def _append_query_params(url: str, params: dict[str, str]) -> str:
     )
 
 
-def _resolve_intro_start_url(
-    cfg: dict[str, object], base_url: str
-) -> tuple[str | None, bool]:
+def _resolve_intro_start_url(cfg: dict[str, object], base_url: str) -> tuple[str | None, bool]:
     """Resolve intro page startup URL and whether intro should be marked as seen."""
     launch_section = cfg.get("launch")
     launch_cfg = launch_section if isinstance(launch_section, dict) else {}
@@ -277,9 +279,7 @@ def _collect_startup_browser_urls(
     return urls
 
 
-def _start_uvicorn_in_background(
-    host: str, port: int
-) -> tuple[uvicorn.Server, threading.Thread]:
+def _start_uvicorn_in_background(host: str, port: int) -> tuple[uvicorn.Server, threading.Thread]:
     """Start uvicorn server on background thread and wait for readiness."""
     config = uvicorn.Config(
         app,
@@ -361,7 +361,7 @@ def _ensure_startup_port_available(host: str, port: int) -> bool:
 
 def main() -> None:
     _configure_console_encoding()
-    
+
     parser = argparse.ArgumentParser(description="VanceSender Server")
     parser.add_argument("--lan", action="store_true", help="启用局域网访问 (0.0.0.0)")
     parser.add_argument("--port", type=int, default=None, help="服务端口")
@@ -374,7 +374,7 @@ def main() -> None:
 
     cfg = load_config()
     _prepare_runtime_console(cfg)
-    
+
     server_token_raw = cfg.get("server", {}).get("token", "")
     server_token = server_token_raw.strip() if isinstance(server_token_raw, str) else ""
 
@@ -414,9 +414,7 @@ def main() -> None:
     lan_url_list = [f"http://{lan_ipv4}:{port}" for lan_ipv4 in lan_ipv4_list]
     lan_docs_url_list = [f"{lan_url}/docs" for lan_url in lan_url_list]
     local_web_base_url = _build_local_web_base_url(host, port)
-    intro_url, should_mark_intro_seen = _resolve_intro_start_url(
-        cfg, local_web_base_url
-    )
+    intro_url, should_mark_intro_seen = _resolve_intro_start_url(cfg, local_web_base_url)
     startup_browser_urls = _collect_startup_browser_urls(
         cfg,
         local_web_base_url,
@@ -440,18 +438,13 @@ def main() -> None:
     except Exception as exc:
         _log.warning("快捷悬浮窗模块启动失败: %s", exc)
 
-
     if use_desktop_shell:
         desktop_launch_params: dict[str, str] = {"vs_desktop": "1"}
         if server_token:
             desktop_launch_params["vs_token"] = server_token
-        desktop_start_url = _append_query_params(
-            desktop_start_url, desktop_launch_params
-        )
+        desktop_start_url = _append_query_params(desktop_start_url, desktop_launch_params)
 
-    intro_will_be_shown = should_mark_intro_seen and (
-        use_desktop_shell or bool(startup_browser_urls)
-    )
+    intro_will_be_shown = should_mark_intro_seen and (use_desktop_shell or bool(startup_browser_urls))
 
     app.state.runtime_host = host
     app.state.runtime_port = port
@@ -473,8 +466,14 @@ def main() -> None:
     tray_supported = has_system_tray_support()
     ui_mode_text = "桌面内嵌窗口" if use_desktop_shell else "浏览器模式"
 
-    _log.info("""\n╔══════════════════════════════════════════════╗\n║           %s v%s                 ║\n║  FiveM /me /do 文本发送器 & AI生成工具       ║\n╠══════════════════════════════════════════════╣\n║  UI模式:   %-32s║\n║  本地访问:  http://127.0.0.1:%-5d            ║\n║  API文档:   http://127.0.0.1:%-5d/docs       ║""",
-        APP_NAME, APP_VERSION, ui_mode_text, port, port)
+    _log.info(
+        """\n╔══════════════════════════════════════════════╗\n║           %s v%s                 ║\n║  FiveM /me /do 文本发送器 & AI生成工具       ║\n╠══════════════════════════════════════════════╣\n║  UI模式:   %-32s║\n║  本地访问:  http://127.0.0.1:%-5d            ║\n║  API文档:   http://127.0.0.1:%-5d/docs       ║""",
+        APP_NAME,
+        APP_VERSION,
+        ui_mode_text,
+        port,
+        port,
+    )
 
     if runtime_lan_access:
         if lan_url_list:
@@ -490,10 +489,10 @@ def main() -> None:
         _log.info("║  认证:     Token %s", masked)
     else:
         _log.info("║  认证:     未启用")
-    _log.info("║  浏览器启动: %s", '开启' if open_webui_on_start else '关闭')
-    _log.info("║  控制台日志: %s", '开启' if show_console_on_start else '关闭')
-    _log.info("║  启动托盘: %s", '开启' if enable_tray_on_start else '关闭')
-    _log.info("║  托盘支持: %s", '可用' if tray_supported else '不可用')
+    _log.info("║  浏览器启动: %s", "开启" if open_webui_on_start else "关闭")
+    _log.info("║  控制台日志: %s", "开启" if show_console_on_start else "关闭")
+    _log.info("║  启动托盘: %s", "开启" if enable_tray_on_start else "关闭")
+    _log.info("║  托盘支持: %s", "可用" if tray_supported else "不可用")
     if not args.no_webview and not webview_available:
         _log.info("║  提示:     未检测到 pywebview，已回退浏览器模式")
     if enable_tray_on_start and not tray_supported:
@@ -552,14 +551,13 @@ def main() -> None:
             timeout_graceful_shutdown=15,
         )
     finally:
-
         if quick_overlay_module is not None:
             quick_overlay_module.stop()
 
         # Clean up runtime streams to avoid resource leaks
         for stream in _CONSOLE_STREAMS:
             try:
-                if hasattr(stream, 'close'):
+                if hasattr(stream, "close"):
                     stream.close()
             except Exception:
                 pass
@@ -567,7 +565,7 @@ def main() -> None:
 
         for stream in _DEVNULL_STREAMS:
             try:
-                if hasattr(stream, 'close'):
+                if hasattr(stream, "close"):
                     stream.close()
             except Exception:
                 pass
@@ -580,9 +578,7 @@ def main() -> None:
             time.sleep(5)
             os._exit(0)
 
-        watchdog = threading.Thread(
-            target=_watchdog, daemon=True, name="exit-watchdog"
-        )
+        watchdog = threading.Thread(target=_watchdog, daemon=True, name="exit-watchdog")
         watchdog.start()
 
 

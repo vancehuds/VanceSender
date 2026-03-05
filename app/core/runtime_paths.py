@@ -6,7 +6,6 @@ import os
 import sys
 from pathlib import Path
 
-
 APP_NAME = "VanceSender"
 SOURCE_ROOT = Path(__file__).resolve().parent.parent.parent
 

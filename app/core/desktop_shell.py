@@ -118,11 +118,7 @@ class _TrayController:
                 except Exception:
                     pass
 
-        if (
-            thread is not None
-            and thread.is_alive()
-            and thread is not threading.current_thread()
-        ):
+        if thread is not None and thread.is_alive() and thread is not threading.current_thread():
             thread.join(timeout=2)
 
     def _run(self) -> None:
@@ -345,10 +341,7 @@ def has_webview_support() -> bool:
 
 def has_system_tray_support() -> bool:
     """Return whether runtime has required tray dependencies."""
-    return (
-        importlib.util.find_spec("pystray") is not None
-        and importlib.util.find_spec("PIL") is not None
-    )
+    return importlib.util.find_spec("pystray") is not None and importlib.util.find_spec("PIL") is not None
 
 
 def normalize_close_action(value: object) -> str:
@@ -390,9 +383,7 @@ def _create_tray_icon_image() -> object | None:
         image = image_cls("RGBA", (64, 64), (0, 0, 0, 0))
         draw: Any = draw_cls(image)
         draw.rounded_rectangle((4, 4, 60, 60), radius=14, fill=(18, 24, 37, 255))
-        draw.rounded_rectangle(
-            (10, 10, 54, 54), radius=11, outline=(87, 224, 255, 255), width=3
-        )
+        draw.rounded_rectangle((10, 10, 54, 54), radius=11, outline=(87, 224, 255, 255), width=3)
         draw.text((24, 18), "V", fill=(87, 224, 255, 255))
         return image
     except Exception:
@@ -513,9 +504,7 @@ def _resolve_launch_tray_preferences(
     launch_cfg = _launch_config_from_input(launch_options)
 
     enable_tray_on_start = resolve_enable_tray_on_start(launch_cfg)
-    close_action = normalize_close_action(
-        launch_cfg.get("close_action", _CLOSE_ACTION_ASK)
-    )
+    close_action = normalize_close_action(launch_cfg.get("close_action", _CLOSE_ACTION_ASK))
     return enable_tray_on_start, close_action
 
 
@@ -535,9 +524,7 @@ def _ask_close_action_and_maybe_remember(window: object) -> str:
     except Exception:
         return _CLOSE_ACTION_MINIMIZE_TO_TRAY
 
-    selected_action = (
-        _CLOSE_ACTION_EXIT if should_exit else _CLOSE_ACTION_MINIMIZE_TO_TRAY
-    )
+    selected_action = _CLOSE_ACTION_EXIT if should_exit else _CLOSE_ACTION_MINIMIZE_TO_TRAY
 
     return selected_action
 

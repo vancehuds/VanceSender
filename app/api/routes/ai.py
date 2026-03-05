@@ -15,22 +15,23 @@ from app.api.schemas import (
     TextLine,
 )
 from app.core.ai_client import (
+    _parse_generate_output,
+    _postprocess_texts,
     extract_api_error_details,
     generate_texts,
     generate_texts_stream,
     rewrite_texts,
     test_provider,
-    _parse_generate_output,
-    _postprocess_texts,
 )
 from app.core.ai_history import (
-    save_generation,
-    list_history as list_ai_history,
-    toggle_star,
-    delete_entry,
     clear_unstarred,
+    delete_entry,
+    save_generation,
+    toggle_star,
 )
-
+from app.core.ai_history import (
+    list_history as list_ai_history,
+)
 
 router = APIRouter()
 
@@ -154,12 +155,15 @@ async def ai_generate_stream(body: AIGenerateRequest):
             yield "data: [DONE]\n\n"
         except UnicodeError as exc:
             import json as _json
+
             yield f"data: {_json.dumps({'error': f'请求编码错误，请检查服务商配置是否包含特殊字符: {exc}'}, ensure_ascii=False)}\n\n"
         except ValueError as exc:
             import json as _json
+
             yield f"data: {_json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
         except Exception as exc:
             import json as _json
+
             yield f"data: {_json.dumps({'error': f'AI服务请求失败: {exc}'}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")

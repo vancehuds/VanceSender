@@ -13,11 +13,10 @@ import json
 import queue
 import threading
 import time
-from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-
 import tkinter as tk
 from tkinter import ttk
+from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.core.config import PRESETS_DIR, load_config
 from app.core.desktop_shell import (
@@ -174,18 +173,14 @@ class QuickOverlayModule:
         web_base_url: str = "",
         desktop_token: str = "",
     ) -> None:
-        hotkey_raw = str(
-            overlay_cfg.get("trigger_hotkey", DEFAULT_HOTKEY) or ""
-        ).strip()
+        hotkey_raw = str(overlay_cfg.get("trigger_hotkey", DEFAULT_HOTKEY) or "").strip()
         self._hotkey_label = hotkey_raw or DEFAULT_HOTKEY
         self._hotkey_vks = _parse_hotkey(self._hotkey_label)
         if not self._hotkey_vks:
             self._hotkey_label = DEFAULT_HOTKEY
             self._hotkey_vks = _parse_hotkey(DEFAULT_HOTKEY)
 
-        self._mouse_button_label = str(
-            overlay_cfg.get("mouse_side_button", "") or ""
-        ).strip()
+        self._mouse_button_label = str(overlay_cfg.get("mouse_side_button", "") or "").strip()
         self._mouse_side_vkey = _parse_mouse_side_button(self._mouse_button_label)
 
         poll_ms = int(overlay_cfg.get("poll_interval_ms", 40) or 40)
@@ -224,9 +219,7 @@ class QuickOverlayModule:
         self._last_foreground_hwnd = 0
         self._last_preload_attempt_monotonic = 0.0
         self._preload_retry_interval_seconds = 1.2
-        self._preload_not_before_monotonic = (
-            time.monotonic() + self._preload_start_delay_seconds
-        )
+        self._preload_not_before_monotonic = time.monotonic() + self._preload_start_delay_seconds
 
         self._web_base_url = str(web_base_url or "").strip()
         self._desktop_token = str(desktop_token or "").strip()
@@ -575,11 +568,7 @@ class QuickOverlayModule:
 
         tk.Label(
             frame,
-            text=(
-                "Enter 发送选中 · Ctrl+Enter 全部"
-                if self._compact_mode
-                else "Enter 发送选中 · Ctrl+Enter 一键发送"
-            ),
+            text=("Enter 发送选中 · Ctrl+Enter 全部" if self._compact_mode else "Enter 发送选中 · Ctrl+Enter 一键发送"),
             bg=self._popup_bg,
             fg=self._text_muted,
             font=("Segoe UI", self._hint_font_size),
@@ -657,9 +646,7 @@ class QuickOverlayModule:
 
         self._preload_web_quick_panel_if_needed()
 
-        hotkey_active = bool(self._hotkey_vks) and all(
-            _is_vk_pressed(vk) for vk in self._hotkey_vks
-        )
+        hotkey_active = bool(self._hotkey_vks) and all(_is_vk_pressed(vk) for vk in self._hotkey_vks)
         if hotkey_active and not self._hotkey_active_last:
             self._show_popup()
         self._hotkey_active_last = hotkey_active
@@ -774,10 +761,7 @@ class QuickOverlayModule:
         if now < self._preload_not_before_monotonic:
             return
 
-        if (
-            now - self._last_preload_attempt_monotonic
-            < self._preload_retry_interval_seconds
-        ):
+        if now - self._last_preload_attempt_monotonic < self._preload_retry_interval_seconds:
             return
         self._last_preload_attempt_monotonic = now
 
@@ -833,7 +817,7 @@ class QuickOverlayModule:
         loaded: list[dict[str, Any]] = []
         for fp in sorted(PRESETS_DIR.glob("*.json"), key=lambda p: p.name.lower()):
             try:
-                with open(fp, "r", encoding="utf-8") as f:
+                with open(fp, encoding="utf-8") as f:
                     data = json.load(f)
             except (OSError, json.JSONDecodeError):
                 continue
@@ -855,9 +839,7 @@ class QuickOverlayModule:
         self._presets = self._load_presets_from_disk()
         self._preset_ids = [str(p.get("id", "")) for p in self._presets]
 
-        options = [
-            f"{p.get('name', '')} ({len(_preset_lines(p))}条)" for p in self._presets
-        ]
+        options = [f"{p.get('name', '')} ({len(_preset_lines(p))}条)" for p in self._presets]
         self._preset_combo["values"] = options
 
         if not self._presets:
@@ -890,11 +872,7 @@ class QuickOverlayModule:
 
         self._line_listbox.delete(0, tk.END)
         selected = next(
-            (
-                p
-                for p in self._presets
-                if str(p.get("id", "")) == self._current_preset_id
-            ),
+            (p for p in self._presets if str(p.get("id", "")) == self._current_preset_id),
             None,
         )
 
@@ -1051,9 +1029,7 @@ class QuickOverlayModule:
 
     def _status_visual_state(self, text: str, final: bool) -> tuple[str, str, str, str]:
         lowered = text.lower()
-        is_error = any(key in text for key in ("失败", "异常", "取消")) or (
-            "error" in lowered
-        )
+        is_error = any(key in text for key in ("失败", "异常", "取消")) or ("error" in lowered)
         is_success = final and ("完成" in text or ("成功" in text and not is_error))
 
         if is_error:
@@ -1063,11 +1039,7 @@ class QuickOverlayModule:
         return ("进行中", self._accent_primary, "#1b2f4d", self._text_main)
 
     def _show_status(self, text: str, final: bool) -> None:
-        if (
-            self._root is None
-            or self._status_window is None
-            or self._status_var is None
-        ):
+        if self._root is None or self._status_window is None or self._status_var is None:
             return
 
         if self._status_hide_job is not None:
@@ -1100,9 +1072,7 @@ class QuickOverlayModule:
 
         if self._status_text_label is not None:
             self._status_text_label.configure(
-                wraplength=max(
-                    self._status_min_width - 20, width - self._status_wrap_margin
-                )
+                wraplength=max(self._status_min_width - 20, width - self._status_wrap_margin)
             )
 
         screen_width = self._status_window.winfo_screenwidth()
@@ -1135,9 +1105,7 @@ class QuickOverlayModule:
         if desired_style != ex_style:
             user32.SetWindowLongW(hwnd, GWL_EXSTYLE, desired_style)
 
-        flags = (
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW
-        )
+        flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW
         user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags)
         user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
 

@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ── Preset schemas ─────────────────────────────────────────────────────────
 
 
@@ -52,9 +51,7 @@ class SendSingleRequest(BaseModel):
 
 class SendBatchRequest(BaseModel):
     texts: list[str] = Field(..., min_length=1, description="待发送的文本列表")
-    delay_between: int | None = Field(
-        None, ge=200, le=30000, description="每条消息间隔(ms)，留空使用默认值"
-    )
+    delay_between: int | None = Field(None, ge=200, le=30000, description="每条消息间隔(ms)，留空使用默认值")
     source: Literal["webui", "quick_panel"] = Field(
         "webui",
         description="发送来源标识：webui 或 quick_panel",
@@ -224,8 +221,6 @@ class QuickOverlaySettings(BaseModel):
     poll_interval_ms: int | None = Field(None, ge=20, le=200)
 
 
-
-
 class ServerSettingsResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -372,4 +367,3 @@ class NotificationItem(BaseModel):
 
 class NotificationsResponse(BaseModel):
     notifications: list[NotificationItem]
-

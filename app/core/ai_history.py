@@ -16,7 +16,7 @@ import os
 import tempfile
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +39,7 @@ def _ensure_dir() -> None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
@@ -79,7 +79,7 @@ def _rebuild_index() -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for fp in AI_HISTORY_DIR.glob("gen_*.json"):
         try:
-            with open(fp, "r", encoding="utf-8") as f:
+            with open(fp, encoding="utf-8") as f:
                 entries.append(json.load(f))
         except (json.JSONDecodeError, OSError):
             continue
@@ -149,7 +149,7 @@ def toggle_star(gen_id: str) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         data["starred"] = not data.get("starred", False)
         _write_json(path, data)
@@ -175,7 +175,7 @@ def clear_unstarred() -> int:
     count = 0
     for fp in AI_HISTORY_DIR.glob("gen_*.json"):
         try:
-            with open(fp, "r", encoding="utf-8") as f:
+            with open(fp, encoding="utf-8") as f:
                 data = json.load(f)
             if not data.get("starred", False):
                 fp.unlink()
@@ -193,7 +193,7 @@ def _auto_cleanup() -> None:
     unstarred: list[tuple[str, Path]] = []
     for fp in AI_HISTORY_DIR.glob("gen_*.json"):
         try:
-            with open(fp, "r", encoding="utf-8") as f:
+            with open(fp, encoding="utf-8") as f:
                 data = json.load(f)
             if not data.get("starred", False):
                 unstarred.append((data.get("timestamp", ""), fp))

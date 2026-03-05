@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
 
+from app.api.auth import invalidate_token_cache
 from app.api.schemas import (
     AISettings,
     DesktopWindowActionRequest,
@@ -12,17 +13,18 @@ from app.api.schemas import (
     MessageResponse,
     NotificationItem,
     NotificationsResponse,
-    PublicConfigResponse,
     ProviderCreate,
     ProviderResponse,
     ProviderUpdate,
-    QuickPanelWindowActionRequest,
+    PublicConfigResponse,
     QuickOverlaySettings,
+    QuickPanelWindowActionRequest,
     SenderSettings,
     ServerSettings,
     SettingsResponse,
     UpdateCheckResponse,
 )
+from app.core.ai_client import invalidate_client_cache
 from app.core.app_meta import APP_VERSION, GITHUB_REPOSITORY
 from app.core.config import (
     add_provider,
@@ -34,10 +36,10 @@ from app.core.config import (
     update_config,
     update_provider,
 )
-from app.api.auth import invalidate_token_cache
-from app.core.ai_client import invalidate_client_cache
 from app.core.desktop_shell import (
     get_desktop_window_state as get_desktop_shell_state,
+)
+from app.core.desktop_shell import (
     has_system_tray_support,
     normalize_close_action,
     perform_quick_panel_window_action,
@@ -58,9 +60,7 @@ def _build_ai_section(cfg: dict) -> dict:
     """Build AI settings section with masked API keys."""
     ai_section = dict(cfg.get("ai", {}))
     providers = ai_section.get("providers", [])
-    ai_section["providers"] = [
-        {**p, "api_key_set": bool(p.get("api_key"))} for p in providers
-    ]
+    ai_section["providers"] = [{**p, "api_key_set": bool(p.get("api_key"))} for p in providers]
     for p in ai_section["providers"]:
         p.pop("api_key", None)
     return ai_section
@@ -73,17 +73,11 @@ def _build_launch_section(cfg: dict) -> dict:
     enable_tray_on_start = resolve_enable_tray_on_start(launch_section)
     return {
         "open_webui_on_start": bool(launch_section.get("open_webui_on_start", False)),
-        "open_intro_on_first_start": bool(
-            launch_section.get("open_intro_on_first_start", True)
-        ),
+        "open_intro_on_first_start": bool(launch_section.get("open_intro_on_first_start", True)),
         "onboarding_done": bool(launch_section.get("onboarding_done", False)),
-        "show_console_on_start": bool(
-            launch_section.get("show_console_on_start", False)
-        ),
+        "show_console_on_start": bool(launch_section.get("show_console_on_start", False)),
         "enable_tray_on_start": enable_tray_on_start,
-        "close_action": normalize_close_action(
-            launch_section.get("close_action", "ask")
-        ),
+        "close_action": normalize_close_action(launch_section.get("close_action", "ask")),
     }
 
 
@@ -91,14 +85,8 @@ def _build_server_section(cfg: dict, request: Request) -> dict:
     """Build server settings section with runtime info and LAN URLs."""
     server_section = dict(cfg.get("server", {}))
 
-    server_host = str(
-        getattr(
-            request.app.state, "runtime_host", server_section.get("host", "127.0.0.1")
-        )
-    )
-    server_port_raw = getattr(
-        request.app.state, "runtime_port", server_section.get("port", 8730)
-    )
+    server_host = str(getattr(request.app.state, "runtime_host", server_section.get("host", "127.0.0.1")))
+    server_port_raw = getattr(request.app.state, "runtime_port", server_section.get("port", 8730))
     try:
         server_port = int(server_port_raw)
     except (TypeError, ValueError):
@@ -106,9 +94,7 @@ def _build_server_section(cfg: dict, request: Request) -> dict:
 
     runtime_lan_access = bool(getattr(request.app.state, "runtime_lan_access", False))
     if not runtime_lan_access:
-        runtime_lan_access = (
-            bool(server_section.get("lan_access")) or server_host == "0.0.0.0"
-        )
+        runtime_lan_access = bool(server_section.get("lan_access")) or server_host == "0.0.0.0"
 
     server_section["host"] = server_host
     server_section["port"] = server_port
@@ -147,18 +133,14 @@ def _build_server_section(cfg: dict, request: Request) -> dict:
     desktop_window_state = get_desktop_shell_state()
     server_section["desktop_shell_active"] = desktop_window_state["active"]
     server_section["desktop_shell_maximized"] = desktop_window_state["maximized"]
-    server_section["ui_mode"] = (
-        "desktop" if desktop_window_state["active"] else "browser"
-    )
+    server_section["ui_mode"] = "desktop" if desktop_window_state["active"] else "browser"
 
     # Security warnings
     server_section["risk_no_token_with_lan"] = (
         bool(server_section.get("lan_access")) and not server_section["token_set"]
     )
     if server_section["risk_no_token_with_lan"]:
-        server_section["security_warning"] = (
-            "已开启局域网访问且未设置 Token，局域网内设备可直接访问 API。"
-        )
+        server_section["security_warning"] = "已开启局域网访问且未设置 Token，局域网内设备可直接访问 API。"
     else:
         server_section["security_warning"] = ""
     server_section.pop("token", None)
@@ -178,14 +160,11 @@ async def get_settings(request: Request):
     )
 
 
-
 @router.get("/desktop-window", response_model=DesktopWindowStateResponse)
 async def get_desktop_window_state_route():
     """获取内嵌桌面窗口状态。"""
     state = get_desktop_shell_state()
-    return DesktopWindowStateResponse(
-        active=state["active"], maximized=state["maximized"]
-    )
+    return DesktopWindowStateResponse(active=state["active"], maximized=state["maximized"])
 
 
 @router.post("/desktop-window/action", response_model=DesktopWindowStateResponse)
@@ -196,11 +175,7 @@ async def post_desktop_window_action(body: DesktopWindowActionRequest):
         raise HTTPException(status_code=400, detail="当前未启用桌面内嵌窗口")
 
     if body.action == "toggle_maximize":
-        success = (
-            perform_window_action("restore")
-            if state["maximized"]
-            else perform_window_action("maximize")
-        )
+        success = perform_window_action("restore") if state["maximized"] else perform_window_action("maximize")
     elif body.action == "minimize":
         success = perform_window_action("minimize")
     elif body.action == "hide_to_tray":
@@ -435,4 +410,3 @@ async def get_notifications_route(clear: bool = False):
     raw_items = get_notifications(clear=clear)
     items = [NotificationItem(**item) for item in raw_items]
     return NotificationsResponse(notifications=items)
-

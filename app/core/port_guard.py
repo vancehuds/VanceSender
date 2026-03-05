@@ -13,7 +13,6 @@ from dataclasses import dataclass
 
 from app.core.notifications import push_notification
 
-
 _WINDOWS_LISTEN_STATES = {"LISTENING", "侦听"}
 _DIALOG_TITLE = "VanceSender"
 _WINDOWS_MESSAGE_BOX_OK = 0x00000000
@@ -104,11 +103,7 @@ def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
 def _can_use_console_prompt() -> bool:
     """Return True when current runtime has an interactive console stdin."""
     stdin = getattr(sys, "stdin", None)
-    return bool(
-        stdin is not None
-        and callable(getattr(stdin, "isatty", None))
-        and stdin.isatty()
-    )
+    return bool(stdin is not None and callable(getattr(stdin, "isatty", None)) and stdin.isatty())
 
 
 def _show_windows_dialog(message: str, *, style: int) -> int | None:
@@ -138,9 +133,7 @@ def _show_notification_dialog(message: str, *, level: str) -> None:
     _show_windows_dialog(message, style=style)
 
 
-def _notify_user(
-    message: str, *, level: str, dialog_when_no_console: bool = False
-) -> None:
+def _notify_user(message: str, *, level: str, dialog_when_no_console: bool = False) -> None:
     """Emit startup notification via print + in-memory store + optional dialog."""
     has_console_prompt = _can_use_console_prompt()
     if has_console_prompt:
@@ -255,11 +248,7 @@ def _prompt_yes_no(question: str) -> bool:
     if not _can_use_console_prompt():
         result = _show_windows_dialog(
             question,
-            style=(
-                _WINDOWS_MESSAGE_BOX_YESNO
-                | _WINDOWS_MESSAGE_BOX_ICON_WARNING
-                | _WINDOWS_MESSAGE_BOX_TOPMOST
-            ),
+            style=(_WINDOWS_MESSAGE_BOX_YESNO | _WINDOWS_MESSAGE_BOX_ICON_WARNING | _WINDOWS_MESSAGE_BOX_TOPMOST),
         )
         if result is None:
             _notify_user(
@@ -342,8 +331,7 @@ def ensure_startup_port_available(host: str, port: int) -> bool:
     occupier = _find_port_occupier(port)
     if occupier is None:
         _notify_user(
-            "❌ 未能识别占用该端口的进程，无法自动关闭。\n"
-            "请手动释放端口，或通过 --port 指定其他端口后重试。",
+            "❌ 未能识别占用该端口的进程，无法自动关闭。\n请手动释放端口，或通过 --port 指定其他端口后重试。",
             level="error",
             dialog_when_no_console=True,
         )
@@ -362,9 +350,7 @@ def ensure_startup_port_available(host: str, port: int) -> bool:
             dialog_when_no_console=False,
         )
 
-    prompt_text = (
-        f"端口被占用: {host}:{port}\n占用进程: {process_name} (PID {occupier.pid})"
-    )
+    prompt_text = f"端口被占用: {host}:{port}\n占用进程: {process_name} (PID {occupier.pid})"
     if occupier.local_address:
         prompt_text += f"\n监听地址: {occupier.local_address}"
     prompt_text += "\n\n是否强制关闭该进程并重新启动程序？"

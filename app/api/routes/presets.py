@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any
 
@@ -19,7 +18,6 @@ from app.api.schemas import (
 )
 from app.core.presets import (
     PresetError,
-    PresetNotFoundError,
     delete_preset_file,
     list_all_presets,
     now_iso,
@@ -272,4 +270,3 @@ async def delete_preset(preset_id: str):
     except PresetError as exc:
         raise _handle_preset_error(exc)
     return MessageResponse(message=f"预设 '{preset_id}' 已删除")
-

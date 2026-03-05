@@ -6,7 +6,7 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Lock
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -16,7 +16,6 @@ import yaml
 
 from app.core.app_meta import GITHUB_REPOSITORY
 from app.core.config import load_config
-
 
 _DEFAULT_REMOTE_FILE_PATH = "public-config.yaml"
 _DEFAULT_CUSTOM_SOURCE_URL = "https://sender.vhuds.com/public-config.yaml"
@@ -59,14 +58,11 @@ def _default_source_url() -> str:
     if _USE_CUSTOM_DEFAULT_SOURCE_URL:
         return _DEFAULT_CUSTOM_SOURCE_URL
 
-    return (
-        f"https://raw.githubusercontent.com/"
-        f"{GITHUB_REPOSITORY}/main/{_DEFAULT_REMOTE_FILE_PATH}"
-    )
+    return f"https://raw.githubusercontent.com/{GITHUB_REPOSITORY}/main/{_DEFAULT_REMOTE_FILE_PATH}"
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _parse_positive_float(value: object, default: float) -> float:
@@ -232,9 +228,7 @@ def _build_failure(
     )
 
 
-def _read_cache(
-    source_url: str, cache_ttl_seconds: float
-) -> GitHubPublicConfigResult | None:
+def _read_cache(source_url: str, cache_ttl_seconds: float) -> GitHubPublicConfigResult | None:
     if cache_ttl_seconds <= 0:
         return None
 
@@ -263,14 +257,10 @@ def fetch_github_public_config_sync(
 ) -> GitHubPublicConfigResult:
     """Fetch GitHub-hosted public config for CLI/WebUI display."""
     runtime_cfg = cfg if cfg is not None else load_config()
-    source_url, timeout_seconds, cache_ttl_seconds = _extract_runtime_options(
-        runtime_cfg
-    )
+    source_url, timeout_seconds, cache_ttl_seconds = _extract_runtime_options(runtime_cfg)
 
     if not _is_http_url(source_url):
-        return _build_failure(
-            source_url, "public_config.source_url 仅支持 HTTP(S) 地址"
-        )
+        return _build_failure(source_url, "public_config.source_url 仅支持 HTTP(S) 地址")
 
     if not force_refresh:
         cached = _read_cache(source_url, cache_ttl_seconds)
@@ -316,9 +306,7 @@ def fetch_github_public_config_sync(
         return _build_failure(source_url, "远程配置文件过大", status_code=200)
 
     raw_text = body.decode("utf-8", errors="replace")
-    visible, title, content, link_url, link_text, message = _parse_remote_payload(
-        raw_text
-    )
+    visible, title, content, link_url, link_text, message = _parse_remote_payload(raw_text)
 
     result = GitHubPublicConfigResult(
         success=True,

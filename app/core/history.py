@@ -9,9 +9,8 @@ from __future__ import annotations
 import threading
 import uuid
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-
 
 _MAX_HISTORY = 200
 _history: deque[dict[str, Any]] = deque(maxlen=_MAX_HISTORY)
@@ -31,7 +30,7 @@ def record_send(
         "source": source,
         "success": success,
         "error": error,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
     with _lock:
         _history.appendleft(entry)

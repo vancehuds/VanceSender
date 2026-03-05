@@ -14,7 +14,6 @@ import yaml
 from app.core.notifications import push_notification
 from app.core.runtime_paths import get_runtime_root
 
-
 RUNTIME_ROOT = get_runtime_root()
 CONFIG_PATH = RUNTIME_ROOT / "config.yaml"
 DATA_DIR = RUNTIME_ROOT / "data"
@@ -56,7 +55,7 @@ def load_config() -> dict[str, Any]:
             return copy.deepcopy(_cached_config)
 
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         push_notification("config.yaml 格式错误，已回退到默认配置。")
@@ -104,8 +103,11 @@ def _save_config_locked(cfg: dict[str, Any]) -> None:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 yaml.dump(
-                    cfg, f, default_flow_style=False,
-                    allow_unicode=True, sort_keys=False,
+                    cfg,
+                    f,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                    sort_keys=False,
                 )
             os.replace(tmp_path, str(CONFIG_PATH))
         except BaseException:
@@ -158,7 +160,7 @@ def _load_config_locked() -> dict[str, Any]:
         return copy.deepcopy(_cached_config)
 
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             cfg = yaml.safe_load(f) or {}
     except yaml.YAMLError:
         push_notification("config.yaml 格式错误，已回退到默认配置。")
@@ -260,11 +262,8 @@ def _merge_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
             and "enable_tray_on_start" not in launch_raw
             and "start_minimized_to_tray" in launch_raw
         ):
-            launch_section["enable_tray_on_start"] = bool(
-                launch_raw.get("start_minimized_to_tray")
-            )
+            launch_section["enable_tray_on_start"] = bool(launch_raw.get("start_minimized_to_tray"))
         launch_section.pop("start_minimized_to_tray", None)
-
 
     return result
 
@@ -291,9 +290,7 @@ def get_providers(cfg: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     return cfg.get("ai", {}).get("providers", [])
 
 
-def get_provider_by_id(
-    provider_id: str, cfg: dict[str, Any] | None = None
-) -> dict[str, Any] | None:
+def get_provider_by_id(provider_id: str, cfg: dict[str, Any] | None = None) -> dict[str, Any] | None:
     for p in get_providers(cfg):
         if p.get("id") == provider_id:
             return p

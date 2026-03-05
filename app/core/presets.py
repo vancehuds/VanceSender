@@ -10,12 +10,11 @@ import json
 import os
 import re
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from app.core.config import PRESETS_DIR
-
 
 _SAFE_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -63,7 +62,7 @@ def read_preset(preset_id: str) -> dict[str, Any]:
     if not path.exists():
         raise PresetNotFoundError(preset_id)
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as exc:
         raise PresetError(f"预设文件读取失败: {exc}", status_code=500) from exc
@@ -77,9 +76,7 @@ def write_preset(preset_id: str, data: dict[str, Any]) -> None:
     PRESETS_DIR.mkdir(parents=True, exist_ok=True)
     target = preset_path(preset_id)
     try:
-        fd, tmp_path = tempfile.mkstemp(
-            suffix=".tmp", prefix="preset_", dir=str(PRESETS_DIR)
-        )
+        fd, tmp_path = tempfile.mkstemp(suffix=".tmp", prefix="preset_", dir=str(PRESETS_DIR))
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -103,7 +100,7 @@ def list_all_presets(*, tag_filter: str | None = None) -> list[dict[str, Any]]:
     presets: list[dict[str, Any]] = []
     for fp in sorted(PRESETS_DIR.glob("*.json")):
         try:
-            with open(fp, "r", encoding="utf-8") as f:
+            with open(fp, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, KeyError):
             continue
@@ -135,4 +132,4 @@ def delete_preset_file(preset_id: str) -> None:
 
 def now_iso() -> str:
     """Return current UTC time as ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

@@ -16,7 +16,6 @@ from urllib.request import Request, urlopen
 
 from packaging.version import InvalidVersion, Version
 
-
 _GITHUB_API_BASE = "https://api.github.com"
 _GITHUB_API_HEADERS = {
     "Accept": "application/vnd.github+json",
@@ -100,11 +99,7 @@ def _compare_versions(
         latest_parsed = Version(latest_version)
 
         # 默认不把预发布当成稳定版用户的可升级版本。
-        if (
-            not include_prerelease
-            and latest_parsed.is_prerelease
-            and not current_parsed.is_prerelease
-        ):
+        if not include_prerelease and latest_parsed.is_prerelease and not current_parsed.is_prerelease:
             return _VersionCompareResult(update_available=False, comparable=True)
 
         return _VersionCompareResult(
@@ -275,9 +270,7 @@ def _get_header_value(headers: dict[str, str], key: str) -> str | None:
     return text or None
 
 
-def _fetch_json(
-    url: str, *, extra_headers: dict[str, str] | None = None
-) -> _GitHubResponse:
+def _fetch_json(url: str, *, extra_headers: dict[str, str] | None = None) -> _GitHubResponse:
     request_headers = dict(_GITHUB_API_HEADERS)
     if extra_headers:
         request_headers.update(extra_headers)
@@ -295,11 +288,7 @@ def _fetch_json(
             )
     except HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
-        headers = (
-            {key.lower(): value for key, value in exc.headers.items()}
-            if exc.headers is not None
-            else {}
-        )
+        headers = {key.lower(): value for key, value in exc.headers.items()} if exc.headers is not None else {}
         return _GitHubResponse(
             status_code=int(exc.code),
             payload=_safe_json_loads(body),
@@ -365,9 +354,7 @@ def _build_success_result(
     *,
     include_prerelease: bool = False,
 ) -> GitHubUpdateResult:
-    compare_result = _compare_versions(
-        current_version, latest_version, include_prerelease=include_prerelease
-    )
+    compare_result = _compare_versions(current_version, latest_version, include_prerelease=include_prerelease)
     if compare_result.comparable and compare_result.update_available:
         message = f"发现新版本 v{latest_version}{suffix}"
     elif compare_result.comparable:
@@ -448,9 +435,7 @@ def _request_tags_latest(
 ) -> GitHubUpdateResult:
     encoded_owner = quote(owner, safe="")
     encoded_repo = quote(repo, safe="")
-    tags_api = (
-        f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/tags?per_page=1"
-    )
+    tags_api = f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/tags?per_page=1"
 
     tags_headers = _build_conditional_headers(cache_entry, source_kind="tags")
     tags_response = _fetch_json(tags_api, extra_headers=tags_headers)
@@ -529,9 +514,7 @@ def _request_tags_latest(
         cache_entry=cache_entry,
         message="检查更新失败，请稍后重试",
         error_type=tags_response.error_type,
-        status_code=(
-            tags_response.status_code if tags_response.status_code > 0 else None
-        ),
+        status_code=(tags_response.status_code if tags_response.status_code > 0 else None),
     )
 
 
@@ -545,9 +528,7 @@ def _request_release_latest(
 ) -> GitHubUpdateResult:
     encoded_owner = quote(owner, safe="")
     encoded_repo = quote(repo, safe="")
-    release_api = (
-        f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/releases/latest"
-    )
+    release_api = f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/releases/latest"
 
     release_headers = _build_conditional_headers(cache_entry, source_kind="release")
     release_response = _fetch_json(release_api, extra_headers=release_headers)
@@ -558,9 +539,7 @@ def _request_release_latest(
             return _build_result_from_cache(current_version, cache_entry)
         release_response = _fetch_json(release_api)
 
-    if release_response.status_code == 200 and isinstance(
-        release_response.payload, dict
-    ):
+    if release_response.status_code == 200 and isinstance(release_response.payload, dict):
         payload = release_response.payload
         latest_tag = payload.get("tag_name")
         if not isinstance(latest_tag, str) or not latest_tag.strip():
@@ -611,17 +590,14 @@ def _request_release_latest(
         cache_key,
         release_response.status_code,
         release_response.error_type,
-        _extract_api_message(release_response.payload)
-        or release_response.error_message,
+        _extract_api_message(release_response.payload) or release_response.error_message,
     )
     return _fallback_to_cache_or_failure(
         current_version=current_version,
         cache_entry=cache_entry,
         message="检查更新失败，请稍后重试",
         error_type=release_response.error_type,
-        status_code=(
-            release_response.status_code if release_response.status_code > 0 else None
-        ),
+        status_code=(release_response.status_code if release_response.status_code > 0 else None),
     )
 
 
@@ -637,9 +613,7 @@ def _request_releases_with_prerelease(
     prerelease_cache_key = f"{cache_key}:prerelease"
     encoded_owner = quote(owner, safe="")
     encoded_repo = quote(repo, safe="")
-    releases_api = (
-        f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/releases?per_page=10"
-    )
+    releases_api = f"{_GITHUB_API_BASE}/repos/{encoded_owner}/{encoded_repo}/releases?per_page=10"
 
     prerelease_cache = _get_cache_entry(prerelease_cache_key)
     releases_headers = _build_conditional_headers(prerelease_cache, source_kind="releases_list")
@@ -735,9 +709,7 @@ def _request_releases_with_prerelease(
         cache_entry=prerelease_cache or cache_entry,
         message="检查更新失败，请稍后重试",
         error_type=releases_response.error_type,
-        status_code=(
-            releases_response.status_code if releases_response.status_code > 0 else None
-        ),
+        status_code=(releases_response.status_code if releases_response.status_code > 0 else None),
     )
 
 

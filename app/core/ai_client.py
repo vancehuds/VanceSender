@@ -7,11 +7,12 @@ import json
 import logging
 import re
 import threading
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from openai import AsyncOpenAI
 
-from app.core.config import load_config, get_provider_by_id
+from app.core.config import get_provider_by_id, load_config
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ _DEFAULT_SYSTEM_PROMPT = (
     "3. 描述具体有画面感，同时保持简洁。\n"
     "4. 前后逻辑连贯，避免自相矛盾。\n\n"
     "输出格式（必须严格遵守）：\n"
-    '只输出一个JSON数组，不要输出任何其他文字。格式如下：\n'
+    "只输出一个JSON数组，不要输出任何其他文字。格式如下：\n"
     '[{"type":"me","content":"缓缓推开了房门"}, '
     '{"type":"do","content":"门轴发出吱呀的响声"}]\n\n'
     "如果你无法输出JSON，则每行一条命令，以 /me 或 /do 开头，不要编号，不要额外说明。"
@@ -47,7 +48,7 @@ _DEFAULT_SYSTEM_PROMPT = (
 # ── Few-shot examples (injected as user→assistant pairs) ──────────────────
 
 _FEWSHOT_MIXED = (
-    '场景描述：一名警察在路边拦停一辆可疑车辆进行检查\n请生成5条文本。\n'
+    "场景描述：一名警察在路边拦停一辆可疑车辆进行检查\n请生成5条文本。\n"
     '输出JSON数组，格式：[{"type":"me","content":"..."}, ...]',
     '[{"type":"me","content":"抬手示意前方车辆靠边停车，右手搭在腰间对讲机上"},'
     '{"type":"do","content":"警灯闪烁的巡逻车缓缓停在目标车辆后方"},'
@@ -57,8 +58,8 @@ _FEWSHOT_MIXED = (
 )
 
 _FEWSHOT_ME_ONLY = (
-    '场景描述：角色在酒吧独自喝酒\n请生成3条文本。\n'
-    '只使用/me命令（type全部为me）。\n'
+    "场景描述：角色在酒吧独自喝酒\n请生成3条文本。\n"
+    "只使用/me命令（type全部为me）。\n"
     '输出JSON数组，格式：[{"type":"me","content":"..."}, ...]',
     '[{"type":"me","content":"端起威士忌杯轻轻晃了晃，看着琥珀色的液体旋转"},'
     '{"type":"me","content":"仰头将杯中酒一饮而尽，眉头微微皱了一下"},'
@@ -66,8 +67,8 @@ _FEWSHOT_ME_ONLY = (
 )
 
 _FEWSHOT_DO_ONLY = (
-    '场景描述：暴雨中的城市街道\n请生成3条文本。\n'
-    '只使用/do命令（type全部为do）。\n'
+    "场景描述：暴雨中的城市街道\n请生成3条文本。\n"
+    "只使用/do命令（type全部为do）。\n"
     '输出JSON数组，格式：[{"type":"do","content":"..."}, ...]',
     '[{"type":"do","content":"豆大的雨点砸在柏油路面上，溅起一层白蒙蒙的水雾"},'
     '{"type":"do","content":"路灯昏黄的光线在积水中拉出长长的倒影"},'
@@ -88,7 +89,6 @@ _REWRITE_SYSTEM_PROMPT = (
     "必须保持条数、顺序和type与输入一致，"
     "且只能返回JSON数组，不要返回任何额外说明。"
 )
-
 
 
 # ── Client cache (keyed by api_base + api_key + custom_headers hash) ────────
@@ -129,19 +129,19 @@ def invalidate_client_cache() -> None:
 
 _FULLWIDTH_TABLE = str.maketrans(
     {
-        "\uff1a": ":",   # ：→ :
-        "\uff0f": "/",   # ／→ /
-        "\uff0e": ".",   # ．→ .
-        "\uff1d": "=",   # ＝→ =
-        "\uff1f": "?",   # ？→ ?
-        "\uff06": "&",   # ＆→ &
-        "\uff20": "@",   # ＠→ @
-        "\uff03": "#",   # ＃→ #
-        "\uff05": "%",   # ％→ %
-        "\uff0b": "+",   # ＋→ +
-        "\uff0d": "-",   # －→ -
-        "\uff3f": "_",   # ＿→ _
-        "\u3000": " ",   # 　→ (space)
+        "\uff1a": ":",  # ：→ :
+        "\uff0f": "/",  # ／→ /
+        "\uff0e": ".",  # ．→ .
+        "\uff1d": "=",  # ＝→ =
+        "\uff1f": "?",  # ？→ ?
+        "\uff06": "&",  # ＆→ &
+        "\uff20": "@",  # ＠→ @
+        "\uff03": "#",  # ＃→ #
+        "\uff05": "%",  # ％→ %
+        "\uff0b": "+",  # ＋→ +
+        "\uff0d": "-",  # －→ -
+        "\uff3f": "_",  # ＿→ _
+        "\u3000": " ",  # 　→ (space)
     }
 )
 
@@ -157,9 +157,7 @@ def _sanitize_ascii(value: str) -> str:
     return value.encode("ascii", errors="ignore").decode("ascii").strip()
 
 
-def _build_client(
-    provider: dict[str, Any], cfg: dict[str, Any] | None = None
-) -> AsyncOpenAI:
+def _build_client(provider: dict[str, Any], cfg: dict[str, Any] | None = None) -> AsyncOpenAI:
     """Return a cached AsyncOpenAI client for a given provider config.
 
     Clients are cached per unique (api_base, api_key, custom_headers)
@@ -180,10 +178,7 @@ def _build_client(
 
     safe_headers: dict[str, str] | None = None
     if custom_headers:
-        safe_headers = {
-            _sanitize_ascii(k): _sanitize_ascii(v)
-            for k, v in custom_headers.items()
-        }
+        safe_headers = {_sanitize_ascii(k): _sanitize_ascii(v) for k, v in custom_headers.items()}
 
     client = AsyncOpenAI(
         api_key=api_key,
@@ -200,9 +195,7 @@ def _build_client(
 # ── Shared error detail extraction ─────────────────────────────────────
 
 
-def extract_api_error_details(
-    exc: Exception, *, provider_id: str | None = None
-) -> dict[str, object]:
+def extract_api_error_details(exc: Exception, *, provider_id: str | None = None) -> dict[str, object]:
     """Extract structured error details from an API/AI exception.
 
     Used by both AI routes and test_provider to avoid duplicated logic.
@@ -221,9 +214,7 @@ def extract_api_error_details(
 
     body = getattr(exc, "body", None)
     if body is not None:
-        detail["body"] = (
-            body if isinstance(body, (str, int, float, bool, dict, list)) else str(body)
-        )
+        detail["body"] = body if isinstance(body, (str, int, float, bool, dict, list)) else str(body)
 
     response = getattr(exc, "response", None)
     if response is not None:
@@ -293,9 +284,7 @@ def _build_generate_user_prompt(
         parts.append("只使用/do命令（type全部为do）。")
     if style and style.strip():
         parts.append(f"请使用以下风格：{style.strip()}。")
-    parts.append(
-        '输出JSON数组，格式：[{"type":"me","content":"..."}, ...]'
-    )
+    parts.append('输出JSON数组，格式：[{"type":"me","content":"..."}, ...]')
     return "\n".join(parts)
 
 
@@ -361,9 +350,7 @@ async def generate_texts(
     providers_to_try = [(provider, client, resolved_pid)]
     for fb_provider in _get_fallback_providers(cfg, exclude_id=resolved_pid):
         fb_client = _build_client(fb_provider, cfg)
-        providers_to_try.append(
-            (fb_provider, fb_client, fb_provider.get("id", ""))
-        )
+        providers_to_try.append((fb_provider, fb_client, fb_provider.get("id", "")))
 
     last_error: Exception | None = None
     for prov, cli, pid in providers_to_try:
@@ -530,10 +517,13 @@ async def _call_with_retry(
         except Exception as exc:
             status = getattr(exc, "status_code", None)
             if status in _RETRYABLE_STATUS_CODES and attempt < _MAX_RETRIES:
-                delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                delay = _RETRY_BASE_DELAY * (2**attempt)
                 log.warning(
                     "AI API returned %s, retrying in %.1fs (attempt %d/%d)",
-                    status, delay, attempt + 1, _MAX_RETRIES,
+                    status,
+                    delay,
+                    attempt + 1,
+                    _MAX_RETRIES,
                 )
                 await asyncio.sleep(delay)
                 last_exc = exc

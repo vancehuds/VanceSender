@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 
 from app.api.auth import verify_token
+from app.api.routes.ai import router as ai_router
 from app.api.routes.presets import router as presets_router
 from app.api.routes.sender import router as sender_router
-from app.api.routes.ai import router as ai_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.stats import router as stats_router
 

@@ -13,15 +13,15 @@ from fastapi.responses import StreamingResponse
 from app.api.schemas import (
     MessageResponse,
     SendBatchRequest,
-    SendSingleRequest,
     SendResponse,
+    SendSingleRequest,
     SendStatusResponse,
 )
+from app.core import stats as send_stats
 from app.core.config import load_config
-from app.core.history import record_send, get_history, get_total, clear_history
+from app.core.history import clear_history, get_history, get_total, record_send
 from app.core.overlay_status import push_overlay_status
 from app.core.sender import sender
-from app.core import stats as send_stats
 
 router = APIRouter()
 
@@ -44,9 +44,7 @@ def _sender_delays(cfg: dict[str, Any]) -> dict[str, Any]:
 
 def _webui_overlay_enabled(cfg: dict[str, Any]) -> bool:
     overlay_cfg = cfg.get("quick_overlay", {})
-    return bool(overlay_cfg.get("enabled", True)) and bool(
-        overlay_cfg.get("show_webui_send_status", True)
-    )
+    return bool(overlay_cfg.get("enabled", True)) and bool(overlay_cfg.get("show_webui_send_status", True))
 
 
 def _normalize_send_source(value: object) -> str:
@@ -67,9 +65,7 @@ def _push_webui_overlay_status(enabled: bool, text: str, final: bool) -> None:
     push_overlay_status(text, final)
 
 
-def _overlay_message_from_progress(
-    progress: dict[str, Any], source: str
-) -> tuple[str | None, bool]:
+def _overlay_message_from_progress(progress: dict[str, Any], source: str) -> tuple[str | None, bool]:
     status = str(progress.get("status", ""))
     source_label = _overlay_source_label(source)
     if status == "sending":
@@ -116,9 +112,7 @@ async def send_single(body: SendSingleRequest):
             f"{source_label} 单条发送被拒绝：正在批量发送中",
             True,
         )
-        return SendResponse(
-            success=False, text=body.text, error="正在批量发送中，请等待完成或取消"
-        )
+        return SendResponse(success=False, text=body.text, error="正在批量发送中，请等待完成或取消")
 
     sender_options = _sender_delays(cfg)
     sender_options.pop("delay_between", None)
@@ -136,9 +130,7 @@ async def send_single(body: SendSingleRequest):
     send_stats.record_send(success=result.get("success", False))
 
     if result.get("success"):
-        _push_webui_overlay_status(
-            overlay_enabled, f"{source_label} 单条发送完成", True
-        )
+        _push_webui_overlay_status(overlay_enabled, f"{source_label} 单条发送完成", True)
     else:
         error = str(result.get("error", "未知错误"))
         _push_webui_overlay_status(
@@ -173,11 +165,7 @@ async def send_batch(body: SendBatchRequest):
             True,
         )
         return StreamingResponse(
-            iter(
-                [
-                    f"data: {json.dumps({'status': 'error', 'error': '已有批量发送任务进行中'})}\n\n"
-                ]
-            ),
+            iter([f"data: {json.dumps({'status': 'error', 'error': '已有批量发送任务进行中'})}\n\n"]),
             media_type="text/event-stream",
         )
 
@@ -231,9 +219,7 @@ async def send_batch(body: SendBatchRequest):
             while not task.done() or not progress_queue.empty():
                 try:
                     p = await asyncio.wait_for(progress_queue.get(), timeout=0.5)
-                    overlay_text, overlay_final = _overlay_message_from_progress(
-                        p, source
-                    )
+                    overlay_text, overlay_final = _overlay_message_from_progress(p, source)
                     if overlay_text is not None:
                         _push_webui_overlay_status(
                             overlay_enabled,
@@ -252,7 +238,7 @@ async def send_batch(body: SendBatchRequest):
                     yield f"data: {json.dumps(p, ensure_ascii=False)}\n\n"
                     if p.get("status") in ("completed", "cancelled", "error"):
                         break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
         finally:
             stream_closed.set()

@@ -6,9 +6,10 @@ import asyncio
 import contextlib
 import ctypes
 import ctypes.wintypes as wintypes
-import time
 import threading
-from typing import Any, Callable
+import time
+from collections.abc import Callable
+from typing import Any
 
 import pyperclip
 
@@ -254,20 +255,14 @@ def _build_attempt_profiles(
             DEFAULT_DELAY_AFTER_PASTE_MS,
         ),
         "delay_send": max(int(base_profile["delay_send"]), DEFAULT_DELAY_AFTER_SEND_MS),
-        "focus_timeout": max(
-            int(base_profile["focus_timeout"]), DEFAULT_FOCUS_TIMEOUT_MS
-        ),
+        "focus_timeout": max(int(base_profile["focus_timeout"]), DEFAULT_FOCUS_TIMEOUT_MS),
         "focus_stable": DEFAULT_FOCUS_STABLE_MS + 80,
-        "retry_interval": max(
-            int(base_profile["retry_interval"]), DEFAULT_RETRY_INTERVAL_MS
-        ),
+        "retry_interval": max(int(base_profile["retry_interval"]), DEFAULT_RETRY_INTERVAL_MS),
     }
 
     conservative_profile: dict[str, int | str] = {
         "method": "clipboard",
-        "delay_open": max(
-            int(base_profile["delay_open"]) + 100, DEFAULT_DELAY_OPEN_CHAT_MS + 100
-        ),
+        "delay_open": max(int(base_profile["delay_open"]) + 100, DEFAULT_DELAY_OPEN_CHAT_MS + 100),
         "delay_paste": max(
             int(base_profile["delay_paste"]) + 60,
             DEFAULT_DELAY_AFTER_PASTE_MS + 60,
@@ -409,10 +404,7 @@ class KeyboardSender:
                 )
                 if not is_focused:
                     title = current_title or "未知窗口"
-                    last_error = (
-                        f"第 {attempt} 次尝试未检测到 FiveM 在前台，"
-                        f"当前窗口: {title}。请先切回 FiveM 后重试"
-                    )
+                    last_error = f"第 {attempt} 次尝试未检测到 FiveM 在前台，当前窗口: {title}。请先切回 FiveM 后重试"
                     last_error_code = ERROR_FIVEM_NOT_FOREGROUND
                 else:
                     try:
@@ -437,14 +429,10 @@ class KeyboardSender:
                             last_error_code = ERROR_CLIPBOARD
                         else:
                             last_error_code = ERROR_SENDINPUT
-                        last_error = (
-                            f"第 {attempt} 次尝试失败（{active_method}）: {exc}"
-                        )
+                        last_error = f"第 {attempt} 次尝试失败（{active_method}）: {exc}"
                     except Exception as exc:
                         last_error_code = ERROR_UNKNOWN
-                        last_error = (
-                            f"第 {attempt} 次尝试失败（{active_method}）: {exc}"
-                        )
+                        last_error = f"第 {attempt} 次尝试失败（{active_method}）: {exc}"
 
                 if attempt < attempts:
                     time.sleep(max(0, int(profile["retry_interval"])) / 1000)
@@ -579,9 +567,7 @@ class KeyboardSender:
     async def send_single_async(self, text: str, **kwargs: Any) -> dict[str, Any]:
         """Async wrapper for send_single."""
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            None, lambda: self.send_single(text, **kwargs)
-        )
+        return await loop.run_in_executor(None, lambda: self.send_single(text, **kwargs))
 
     async def send_batch_async(
         self,

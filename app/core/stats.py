@@ -10,8 +10,7 @@ import json
 import os
 import tempfile
 import threading
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import DATA_DIR
@@ -36,7 +35,7 @@ def _load() -> dict[str, Any]:
     _ensure_dir()
     if STATS_FILE.exists():
         try:
-            with open(STATS_FILE, "r", encoding="utf-8") as f:
+            with open(STATS_FILE, encoding="utf-8") as f:
                 _stats = json.load(f)
                 return _stats
         except (json.JSONDecodeError, OSError):
@@ -91,7 +90,7 @@ def record_send(success: bool, preset_name: str | None = None) -> None:
             stats["total_failed"] += 1
 
         # Daily count
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         dc = stats.setdefault("daily_counts", {})
         dc[today] = dc.get(today, 0) + 1
 
@@ -134,9 +133,7 @@ def get_stats() -> dict[str, Any]:
             "total_failed": stats.get("total_failed", 0),
             "total_batches": stats.get("total_batches", 0),
             "success_rate": (
-                round(stats["total_success"] / stats["total_sent"] * 100, 1)
-                if stats.get("total_sent", 0) > 0
-                else 0
+                round(stats["total_success"] / stats["total_sent"] * 100, 1) if stats.get("total_sent", 0) > 0 else 0
             ),
             "most_used_presets": most_used,
             "daily_counts": stats.get("daily_counts", {}),
