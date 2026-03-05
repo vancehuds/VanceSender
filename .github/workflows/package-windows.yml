@@ -48,7 +48,13 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npx vite build
-        # Outputs to ../app/web/ which PyInstaller bundles
+
+      - name: Deploy frontend to app/web
+        shell: powershell
+        run: |
+          # Replace original app/web with Vue build output for PyInstaller bundling
+          Remove-Item -Path app\web -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path frontend\dist -Destination app\web -Recurse
 
       # ── Python build ────────────────────────────────────────
       - name: Set up Python

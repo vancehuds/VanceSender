@@ -1,14 +1,1261 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-    <script type="module" crossorigin src="/assets/index-sNfoG-Ti.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-8_Q9M_FT.css">
-  </head>
-  <body>
-    <div id="app"></div>
-  </body>
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>VanceSender - RP文本发送器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <header id="desktop-titlebar" class="desktop-titlebar hidden" role="banner" aria-label="桌面窗口标题栏">
+        <div class="desktop-titlebar-drag pywebview-drag-region">
+            <div class="desktop-titlebar-brand">
+                <div class="desktop-titlebar-logo">
+                    <svg viewBox="0 0 256 256" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="180,76 76,128 116,140" fill="currentColor" />
+                        <polygon points="180,76 116,140 128,180" fill="currentColor" />
+                        <polygon points="116,140 128,180 110,160" fill="currentColor" />
+                    </svg>
+                </div>
+                <div class="desktop-titlebar-meta">
+                    <span class="desktop-titlebar-name">VanceSender</span>
+                    <span class="desktop-titlebar-sub">重新定义RP文本发送体验</span>
+                </div>
+            </div>
+        </div>
+        <div class="desktop-titlebar-actions" aria-label="窗口控制按钮">
+            <button id="desktop-window-minimize" class="desktop-window-btn" type="button" title="最小化"
+                aria-label="最小化">—</button>
+            <button id="desktop-window-toggle-maximize" class="desktop-window-btn" type="button" title="最大化"
+                aria-label="最大化">□</button>
+            <button id="desktop-window-close" class="desktop-window-btn desktop-window-btn-close" type="button"
+                title="关闭" aria-label="关闭">✕</button>
+        </div>
+    </header>
+
+    <header id="quick-panel-titlebar" class="quick-panel-titlebar hidden" role="banner" aria-label="快捷面板标题栏">
+        <div class="quick-panel-titlebar-drag pywebview-drag-region">
+            <div class="quick-panel-titlebar-brand">
+                <div class="quick-panel-titlebar-logo">
+                    <svg viewBox="0 0 256 256" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="180,76 76,128 116,140" fill="currentColor" />
+                        <polygon points="180,76 116,140 128,180" fill="currentColor" />
+                        <polygon points="116,140 128,180 110,160" fill="currentColor" />
+                    </svg>
+                </div>
+                <div class="quick-panel-titlebar-meta">
+                    <span class="quick-panel-titlebar-name">快捷发送面板</span>
+                    <span class="quick-panel-titlebar-sub">源自 WebUI · 无侧边栏快速模式</span>
+                </div>
+            </div>
+        </div>
+        <div class="quick-panel-titlebar-actions" aria-label="快捷面板窗口控制按钮">
+            <button id="quick-panel-window-close" class="quick-panel-window-btn quick-panel-window-btn-close"
+                type="button" title="关闭" aria-label="关闭">✕</button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="brand">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 256 256" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="180,76 76,128 116,140" fill="currentColor" />
+                        <polygon points="180,76 116,140 128,180" fill="currentColor" />
+                        <polygon points="116,140 128,180 110,160" fill="currentColor" />
+                    </svg>
+                </div>
+                <span class="logo-text">VanceSender</span>
+            </div>
+
+            <ul class="nav-links">
+                <li class="nav-item active" data-target="panel-home">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <title>首页</title>
+                            <path d="M3 11.5L12 4l9 7.5"></path>
+                            <path d="M5 10.5V20h14v-9.5"></path>
+                            <path d="M9 20v-5h6v5"></path>
+                        </svg>
+                    </span>
+                    <span class="label" data-i18n="nav.home">首页</span>
+                </li>
+                <li class="nav-item" data-target="panel-send">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <title>发送</title>
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+                        </svg>
+                    </span>
+                    <span class="label" data-i18n="nav.send">发送</span>
+                </li>
+                <li class="nav-item" data-target="panel-quick-send">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <title>快捷发送</title>
+                            <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"></path>
+                        </svg>
+                    </span>
+                    <span class="label" data-i18n="nav.quickSend">快捷发送</span>
+                </li>
+                <li class="nav-item" data-target="panel-ai">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <title>AI生成</title>
+                            <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
+                            <path d="M12 12L2.1 12a10.1 10.1 0 0 0 1.9 4"></path>
+                            <path d="M12 12l4.5 7.8"></path>
+                        </svg>
+                    </span>
+                    <span class="label" data-i18n="nav.ai">AI生成</span>
+                </li>
+                <li class="nav-item" data-target="panel-presets">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <title>预设</title>
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                    </span>
+                    <span class="label" data-i18n="nav.presets">预设</span>
+                </li>
+                <li class="nav-item" data-target="panel-settings">
+                    <span class="icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <title>设置</title>
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
+                        </svg>
+                    </span>
+                    <span class="label" data-i18n="nav.settings">设置</span>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="content">
+
+            <!-- Panel 0: Home (Default) -->
+            <section id="panel-home" class="panel active">
+                <header class="panel-header">
+                    <h1>首页</h1>
+                    <div class="header-actions">
+                        <button id="home-open-browser-btn" class="btn btn-secondary" type="button">在浏览器打开</button>
+                        <button id="home-copy-local-btn" class="btn btn-ghost" type="button">复制地址</button>
+                    </div>
+                </header>
+
+                <div id="home-update-banner" class="home-update-banner hidden" role="status" aria-live="polite">
+                    <div class="home-update-banner-main">
+                        <span class="home-update-banner-badge">新版本可用</span>
+                        <span id="home-update-banner-text" class="home-update-banner-text">发现新版本，建议尽快更新。</span>
+                    </div>
+                    <div class="home-update-banner-actions">
+                        <button id="home-update-banner-dismiss-btn" class="btn btn-sm btn-ghost"
+                            type="button">本次关闭</button>
+                        <a id="home-update-banner-link" class="btn btn-sm btn-primary hidden" href="#"
+                            rel="noopener noreferrer" target="_blank">查看并下载</a>
+                    </div>
+                </div>
+
+                <div id="home-security-warning" class="home-security-warning hidden" role="alert" aria-live="assertive">
+                </div>
+
+                <div class="home-bento-grid">
+                    <!-- Hero Section -->
+                    <div class="bento-card bento-hero glass-card" style="--anim-delay: 0.1s">
+                        <div class="hero-blur-blob blob-1"></div>
+                        <div class="hero-blur-blob blob-2"></div>
+                        <div class="hero-content">
+                            <div class="hero-header-wrap">
+                                <h2 class="hero-title">欢迎使用 VanceSender</h2>
+                                <p class="hero-subtitle">重新定义 RP 文本发送体验，高效、轻量、现代化。</p>
+                            </div>
+
+                            <div class="hero-quick-info">
+                                <div class="info-pill" title="点击复制"
+                                    onclick="document.getElementById('home-copy-local-btn').click();">
+                                    <span class="pill-label">本机访问</span>
+                                    <span id="home-local-url"
+                                        class="pill-value code code-interactive">http://127.0.0.1:8730</span>
+                                </div>
+                                <div class="info-pill" title="点击打开API文档"
+                                    onclick="window.open('http://127.0.0.1:8730/docs', '_blank');">
+                                    <span class="pill-label">API 文档</span>
+                                    <span id="home-docs-url"
+                                        class="pill-value code code-interactive">http://127.0.0.1:8730/docs</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Section -->
+                    <div class="bento-card bento-stats glass-card" style="--anim-delay: 0.2s">
+                        <div class="bento-header">
+                            <h2>
+                                <div class="card-icon-wrapper">
+                                    <div class="icon-glow"></div>
+                                    <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M18 20V10"></path>
+                                        <path d="M12 20V4"></path>
+                                        <path d="M6 20v-6"></path>
+                                    </svg>
+                                </div>
+                                运行情况
+                            </h2>
+                        </div>
+                        <div id="stats-dashboard" class="bento-stats-container">
+                            <div class="bento-stats-grid">
+                                <div class="stat-item">
+                                    <span class="stat-value" id="stats-total-sent">0</span>
+                                    <span class="stat-label">总发送</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value text-accent-success" id="stats-success-rate">0%</span>
+                                    <span class="stat-label">成功率</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value" id="stats-total-batches">0</span>
+                                    <span class="stat-label">批量发送</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-value text-accent-danger" id="stats-total-failed">0</span>
+                                    <span class="stat-label">失败数</span>
+                                </div>
+                            </div>
+                            <div id="stats-presets-list" class="stats-presets-list hidden"></div>
+                        </div>
+                    </div>
+
+                    <!-- LAN Section -->
+                    <div class="bento-card bento-lan glass-card" style="--anim-delay: 0.3s">
+                        <div class="bento-header">
+                            <h2>
+                                <div class="card-icon-wrapper">
+                                    <div class="icon-glow glow-blue"></div>
+                                    <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                                        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                                        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                                    </svg>
+                                </div>
+                                局域网控制
+                            </h2>
+                            <span id="home-lan-status" class="bento-status-badge">检测中...</span>
+                        </div>
+                        <div class="bento-content">
+                            <div id="home-lan-enabled" class="hidden lan-active-layout">
+                                <div class="lan-info-col">
+                                    <div class="home-code-block code-interactive" title="点击复制"
+                                        onclick="document.getElementById('home-copy-lan-btn').click();">
+                                        <span id="home-lan-urls" class="code">http://192.168.x.x:8730</span>
+                                    </div>
+                                    <p class="desc">在同一局域网(WIFI)设备上打开此地址或扫描右侧二维码，即可进行远程控制。建议在设置中开启 Token 保护。</p>
+                                    <div class="lan-actions">
+                                        <button id="home-copy-lan-btn" class="btn btn-sm btn-secondary btn-icon-text"
+                                            type="button">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1">
+                                                </path>
+                                            </svg>
+                                            复制
+                                        </button>
+                                        <div id="home-lan-ip-select-row"
+                                            class="home-lan-ip-select-row hidden inline-select">
+                                            <label for="home-lan-ip-select">IP:</label>
+                                            <select id="home-lan-ip-select" class="select-sm"></select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="lan-qr-col">
+                                    <div class="qr-frame">
+                                        <canvas id="home-lan-qrcode"></canvas>
+                                    </div>
+                                    <p class="qr-hint">扫描打开</p>
+                                </div>
+                            </div>
+                            <div id="home-lan-disabled" class="home-inline-tip hidden">
+                                <div class="empty-state-icon">🌐</div>
+                                <div class="empty-state-text">
+                                    <p>当前未开启局域网访问</p>
+                                    <span>可在使用手机等设备时开启。<strong style="color:var(--text-main);">前往 网络设置 →
+                                            开启</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Setup small grid for the rest -->
+                    <div class="bento-subgrid">
+                        <!-- Update Section -->
+                        <div class="bento-card bento-small glass-card bento-update" style="--anim-delay: 0.4s">
+                            <div class="bento-header">
+                                <h2>
+                                    <div class="card-icon-wrapper">
+                                        <div class="icon-glow glow-green"></div>
+                                        <svg class="card-title-icon" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"></polyline>
+                                            <polyline points="1 20 1 14 7 14"></polyline>
+                                            <path
+                                                d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                    版本检查
+                                </h2>
+                                <span id="home-update-status" class="bento-status-badge text-muted">检查中...</span>
+                            </div>
+                            <div class="bento-update-meta">
+                                <div class="update-v-item">
+                                    <span class="v-label">当前</span>
+                                    <strong id="home-current-version" class="v-val">-</strong>
+                                </div>
+                                <div class="update-v-separator"></div>
+                                <div class="update-v-item">
+                                    <span class="v-label">最新</span>
+                                    <strong id="home-latest-version" class="v-val">-</strong>
+                                </div>
+                            </div>
+                            <div id="home-update-tip" class="home-inline-tip hidden"></div>
+                            <div class="bento-actions update-actions">
+                                <label class="inline-checkbox" title="同时检查 Beta 和 RC 预发布版本">
+                                    <input type="checkbox" id="home-include-prerelease">
+                                    <span>包含测试版</span>
+                                </label>
+                                <button id="home-check-update-btn" class="btn btn-sm btn-outline"
+                                    type="button">检查更新</button>
+                                <a id="home-update-release-link" class="btn btn-sm btn-ghost hidden" href="#"
+                                    rel="noopener noreferrer" target="_blank">发布页</a>
+                            </div>
+                        </div>
+
+                        <!-- Resources Section -->
+                        <div class="bento-card bento-small glass-card bento-resources" style="--anim-delay: 0.5s">
+                            <div class="bento-header">
+                                <h2>
+                                    <div class="card-icon-wrapper">
+                                        <div class="icon-glow glow-purple"></div>
+                                        <svg class="card-title-icon" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                    资源与帮助
+                                </h2>
+                            </div>
+                            <div class="bento-micro-cards">
+                                <a class="micro-card" href="https://sender.vhuds.com/help.html"
+                                    rel="noopener noreferrer" target="_blank">
+                                    <div class="mc-icon">📖</div>
+                                    <span class="mc-text">使用文档</span>
+                                </a>
+                                <a class="micro-card" href="https://qm.qq.com/q/RNjqaPwYme" rel="noopener noreferrer"
+                                    target="_blank">
+                                    <div class="mc-icon">💬</div>
+                                    <span class="mc-text">加入群聊</span>
+                                </a>
+                                <a class="micro-card" href="https://sender.vhuds.com" rel="noopener noreferrer"
+                                    target="_blank">
+                                    <div class="mc-icon">🌐</div>
+                                    <span class="mc-text">官方网站</span>
+                                </a>
+                                <a class="micro-card" href="https://github.com/vancehuds/VanceSender"
+                                    rel="noopener noreferrer" target="_blank">
+                                    <div class="mc-icon">⭐</div>
+                                    <span class="mc-text">项目仓库</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Remote Announcement -->
+                    <div id="home-public-config-card" class="bento-card glass-card home-card-announcement hidden"
+                        style="--anim-delay: 0.6s">
+                        <div class="bento-header">
+                            <h2 id="home-public-config-title">
+                                <div class="card-icon-wrapper">
+                                    <div class="icon-glow glow-orange"></div>
+                                    <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                </div>
+                                <span id="home-public-config-title-text">远程公告</span>
+                            </h2>
+                        </div>
+                        <div id="home-public-config-content" class="public-config-content"></div>
+                        <a id="home-public-config-link" class="btn btn-sm btn-ghost hidden section-inline-link" href="#"
+                            rel="noopener noreferrer" target="_blank">查看详情</a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 1: Send -->
+            <section id="panel-send" class="panel">
+                <header class="panel-header">
+                    <h1>发送文本</h1>
+                    <div class="header-actions">
+                        <a href="https://github.com/vancehuds/VanceSender" target="_blank" rel="noopener noreferrer"
+                            class="btn btn-ghost">GitHub</a>
+                    </div>
+                </header>
+
+                <div class="send-container bento-grid-vertical">
+                    <div class="input-card bento-card glass-card" style="--anim-delay: 0.1s">
+                        <div class="bento-header" style="margin-bottom: 0;">
+                            <h2>
+                                <div class="card-icon-wrapper">
+                                    <div class="icon-glow glow-blue"></div>
+                                    <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </div>
+                                输入控制
+                            </h2>
+                            <div class="input-actions" style="margin-left: auto;">
+                                <span class="hint" style="margin-right: 12px;">弹窗内 Ctrl+Enter 快速导入</span>
+                                <div class="input-action-buttons">
+                                    <button id="import-btn" class="btn btn-sm btn-primary" type="button">
+                                        导入文本
+                                    </button>
+                                    <button id="clear-text-btn" class="btn btn-sm btn-ghost" type="button">
+                                        清空
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="list-wrapper bento-card glass-card" style="--anim-delay: 0.2s">
+                        <div class="list-controls" style="margin-top: 0;">
+                            <span class="list-count">共 <span id="total-count">0</span> 条文本</span>
+                            <div class="bulk-actions">
+                                <div class="quick-preset-switch">
+                                    <div id="send-tag-filter" class="preset-tag-filter-bar compact-tag-bar"></div>
+                                    <label for="quick-preset-select">快速切换</label>
+                                    <div class="quick-preset-controls">
+                                        <select id="quick-preset-select" aria-label="快速切换预设" class="select-sm">
+                                            <option value="">暂无预设</option>
+                                        </select>
+                                        <button id="quick-preset-refresh-btn" class="btn btn-sm btn-ghost"
+                                            title="刷新预设列表" type="button">↻</button>
+                                    </div>
+                                </div>
+                                <button id="add-text-item-btn" class="btn btn-sm btn-ghost" type="button">新增项目</button>
+                                <button id="save-current-preset-btn" class="btn btn-sm btn-outline" type="button"
+                                    disabled>保存当前</button>
+                                <button id="save-preset-btn" class="btn btn-sm btn-outline" type="button">存为预设</button>
+                                <span id="preset-unsaved-hint" class="hint preset-unsaved-hint hidden">未保存修改</span>
+                            </div>
+                        </div>
+
+                        <div id="text-list" class="text-list">
+                            <!-- Items will be injected here via JS -->
+                            <div class="empty-state">
+                                <div class="empty-icon">📝</div>
+                                <p>暂无文本，请在上方输入或使用AI生成</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bottom-bar bento-card glass-card float-bottom-bar"
+                    style="--anim-delay: 0.3s; padding: 18px 24px;">
+                    <div class="sending-controls">
+                        <div class="delay-control bento-input-group">
+                            <label>间隔(ms)</label>
+                            <input type="number" id="send-delay" value="1500" min="100" step="100" class="input-sm"
+                                style="background: rgba(8,14,28,0.5); border-radius: 8px; border: 1px solid rgba(148,163,184,0.2);">
+                        </div>
+                        <div class="progress-area hidden" id="send-progress-area">
+                            <div class="progress-info">
+                                <div class="progress-status">
+                                    <div class="pulse-dot"></div>
+                                    <span id="progress-text">正在发送 1/5...</span>
+                                </div>
+                                <button id="cancel-send-btn" class="btn btn-sm btn-danger" type="button"
+                                    style="padding: 2px 10px;">取消</button>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%">
+                                    <div class="progress-bar-glow"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="send-all-btn" class="btn btn-primary btn-lg glow-effect send-primary-btn"
+                            type="button">
+                            全部发送
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Send History (collapsible) -->
+                <details class="send-history-section glass-card" id="send-history-section">
+                    <summary class="send-history-toggle">
+                        📋 发送历史
+                        <span id="send-history-count" class="history-count-badge"></span>
+                    </summary>
+                    <div class="send-history-actions">
+                        <button id="refresh-history-btn" class="btn btn-sm btn-ghost" type="button">刷新</button>
+                        <button id="clear-history-btn" class="btn btn-sm btn-ghost" type="button">清空</button>
+                    </div>
+                    <div id="send-history-list" class="send-history-list">
+                        <div class="empty-state small">
+                            <p>暂无发送记录</p>
+                        </div>
+                    </div>
+                </details>
+            </section>
+
+            <!-- Panel 2: Quick Send -->
+            <section id="panel-quick-send" class="panel">
+                <header class="panel-header">
+                    <h1>快捷发送</h1>
+                </header>
+
+                <div class="quick-send-container">
+                    <div id="quick-send-tag-filter" class="preset-tag-filter-bar compact-tag-bar"></div>
+                    <div class="bento-card glass-card quick-send-toolbar-pill" style="--anim-delay: 0.1s">
+                        <div class="pill-toolbar-content">
+                            <div class="pill-label">
+                                <div class="icon-glow glow-purple"
+                                    style="width: 16px; height: 16px; filter: blur(6px);"></div>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"
+                                    height="16" style="position:relative; z-index:2; color:var(--accent-purple);">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                </svg>
+                                <span>选择预设</span>
+                            </div>
+                            <div class="quick-send-preset-controls">
+                                <select id="quick-send-preset-select" aria-label="快捷发送预设" class="select-sm pill-select">
+                                    <option value="">暂无预设</option>
+                                </select>
+                                <button id="quick-send-refresh-btn" class="btn btn-sm btn-ghost btn-icon pill-btn"
+                                    title="刷新预设列表" type="button">↻</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="quick-send-list" class="quick-send-list">
+                        <div class="empty-state small">
+                            <p>暂无可发送内容</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 3: AI Generate -->
+            <section id="panel-ai" class="panel">
+                <header class="panel-header">
+                    <h1>AI 生成</h1>
+                </header>
+
+                <div class="ai-container">
+                    <div class="ai-bento-layout">
+                        <!-- Card 1: Prompts -->
+                        <div class="bento-card glass-card ai-scene-card" style="--anim-delay: 0.1s">
+                            <h3 class="bento-sub-title">
+                                <span class="icon">✍️</span> 场景与提示词
+                            </h3>
+                            <div class="form-group">
+                                <label>场景模板 <span class="hint"
+                                        style="font-weight:400;font-size:0.8rem;color:var(--text-muted)">点击一键填充</span></label>
+                                <div id="scene-templates-bar" class="scene-templates-bar">
+                                    <!-- Templates rendered by JS -->
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+                                <label>场景描述</label>
+                                <textarea id="ai-scenario" placeholder="描述你想要生成的角色扮演场景，例如：'一个愤怒的黑帮老大正在审问叛徒'..." rows="5"
+                                    style="flex: 1; resize: none;"></textarea>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 12px;">
+                                <label>自定义风格（可选）</label>
+                                <input id="ai-style" type="text" placeholder="例如：冷峻、电影感、黑色幽默">
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Settings -->
+                        <div class="bento-card glass-card ai-settings-card" style="--anim-delay: 0.2s">
+                            <h3 class="bento-sub-title">
+                                <span class="icon">⚙️</span> 生成设置
+                            </h3>
+                            <div class="form-group">
+                                <label>文本类型</label>
+                                <div class="segmented-control">
+                                    <label class="segmented-item">
+                                        <input type="radio" name="ai-type" value="mixed" checked>
+                                        <div class="segmented-bg"></div>
+                                        <span>混合</span>
+                                    </label>
+                                    <label class="segmented-item">
+                                        <input type="radio" name="ai-type" value="me">
+                                        <div class="segmented-bg"></div>
+                                        <span>仅 /me</span>
+                                    </label>
+                                    <label class="segmented-item">
+                                        <input type="radio" name="ai-type" value="do">
+                                        <div class="segmented-bg"></div>
+                                        <span>仅 /do</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>生成数量</label>
+                                <input type="number" id="ai-count" placeholder="自动" min="1" max="20">
+                            </div>
+
+                            <div class="form-group">
+                                <label>创意温度 <span id="ai-temperature-label"
+                                        style="font-weight:400;font-size:0.82rem;color:var(--accent-cyan)">0.8</span></label>
+                                <input type="range" id="ai-temperature" min="0" max="2" step="0.1" value="0.8"
+                                    style="width:100%; accent-color: var(--accent-cyan);">
+                                <div
+                                    style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                                    <span>精确</span><span>创意</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>AI 服务商</label>
+                                <select id="ai-provider-select">
+                                    <option value="">加载中...</option>
+                                </select>
+                            </div>
+
+                            <div style="flex: 1;"></div>
+
+                            <button id="ai-generate-btn" class="btn btn-primary btn-block glow-effect" type="button"
+                                style="margin-top: 20px; padding: 14px; font-size: 1.05rem;">
+                                <span class="icon">✨</span> 开始生成
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Results -->
+                    <div class="bento-card glass-card ai-results-area" style="--anim-delay: 0.3s; padding: 20px 24px;">
+                        <div class="results-header" style="margin-bottom: 16px;">
+                            <h3 class="bento-sub-title" style="margin-bottom: 0;">生成预览</h3>
+                            <div class="results-actions">
+                                <button id="ai-import-btn" class="btn btn-secondary btn-sm" type="button"
+                                    disabled>导入到发送列表</button>
+                            </div>
+                        </div>
+                        <div id="ai-preview-list" class="text-list">
+                            <div class="empty-state small">
+                                <div class="empty-icon">✨</div>
+                                <p>等待生成...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Generation History (collapsible) -->
+                <details class="ai-history-section glass-card" id="ai-history-section">
+                    <summary class="ai-history-toggle send-history-toggle">
+                        📜 生成历史
+                        <span id="ai-history-count" class="history-count-badge"></span>
+                    </summary>
+                    <div class="send-history-actions">
+                        <button id="refresh-ai-history-btn" class="btn btn-sm btn-ghost" type="button">刷新</button>
+                        <button id="clear-ai-history-btn" class="btn btn-sm btn-ghost" type="button">清空非收藏</button>
+                    </div>
+                    <div id="ai-history-list" class="ai-history-list">
+                        <div class="empty-state small">
+                            <p>暂无生成记录</p>
+                        </div>
+                    </div>
+                </details>
+            </section>
+
+            <!-- Panel 4: Presets -->
+            <section id="panel-presets" class="panel">
+                <header class="panel-header">
+                    <h1>预设管理</h1>
+                    <div class="header-actions">
+                        <button id="batch-delete-presets-btn" class="btn btn-danger hidden" type="button">删除选中 (<span
+                                id="batch-delete-count">0</span>)</button>
+                        <button id="cancel-preset-select-btn" class="btn btn-ghost hidden" type="button">取消选择</button>
+                        <button id="toggle-preset-select-btn" class="btn btn-ghost" type="button">多选</button>
+                        <button id="import-presets-btn" class="btn btn-secondary" type="button">导入预设</button>
+                        <button id="export-all-presets-btn" class="btn btn-ghost" type="button">全部导出</button>
+                        <button id="refresh-presets-btn" class="btn btn-icon" type="button">
+                            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2"
+                                fill="none">
+                                <title>刷新预设</title>
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <input type="file" id="preset-file-input" accept=".json" class="hidden" aria-hidden="true">
+                </header>
+
+                <div class="presets-container">
+                    <div id="preset-tag-filter" class="preset-tag-filter-bar">
+                        <!-- Tag filter pills rendered by JS -->
+                    </div>
+                    <div id="presets-grid" class="presets-grid">
+                        <!-- Presets injected here -->
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel 5: Settings -->
+            <section id="panel-settings" class="panel">
+                <header class="panel-header">
+                    <h1 data-i18n="settings.title">设置</h1>
+                    <div class="header-actions">
+                        <select id="setting-language"
+                            style="margin-right:8px;padding:6px 10px;border-radius:8px;background:var(--glass-bg);color:var(--text-main);border:1px solid var(--glass-border);font-size:0.85rem">
+                            <option value="zh-CN">中文</option>
+                            <option value="en">English</option>
+                        </select>
+                        <button id="save-settings-btn" class="btn btn-primary" type="button"
+                            data-i18n="settings.save">保存全部设置</button>
+                    </div>
+                </header>
+
+                <div class="settings-container">
+                    <div id="public-config-card" class="glass-card settings-section hidden">
+                        <h2 id="public-config-title">远程公告</h2>
+                        <div id="public-config-content" class="public-config-content"></div>
+                        <a id="public-config-link" class="btn btn-sm btn-ghost hidden section-inline-link" href="#"
+                            rel="noopener noreferrer" target="_blank">查看详情</a>
+                    </div>
+
+                    <!-- Sender Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>发送设置</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>发送方式</label>
+                                <select id="setting-method">
+                                    <option value="clipboard">剪贴板 (推荐)</option>
+                                    <option value="typing">模拟打字 (较慢)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>聊天键</label>
+                                <input type="text" id="setting-chat-key" value="t" maxlength="1">
+                            </div>
+                            <div class="form-group">
+                                <label>打开聊天框延迟 (ms)</label>
+                                <input type="number" id="setting-delay-open" value="100">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>粘贴后延迟 (ms)</label>
+                                <input type="number" id="setting-delay-paste" value="50">
+                            </div>
+                            <div class="form-group">
+                                <label>发送后延迟 (ms)</label>
+                                <input type="number" id="setting-delay-send" value="50">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>前台检测超时 (ms)</label>
+                                <input type="number" id="setting-focus-timeout" value="5000">
+                            </div>
+                            <div class="form-group">
+                                <label>失败重试次数</label>
+                                <input type="number" id="setting-retry-count" value="2">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>重试间隔 (ms)</label>
+                                <input type="number" id="setting-retry-interval" value="300">
+                            </div>
+                            <div class="form-group">
+                                <label>批量默认间隔 (ms)</label>
+                                <input type="number" id="setting-delay-between-lines" value="1500" min="200" max="30000"
+                                    step="100">
+                            </div>
+                            <div class="form-group">
+                                <label>typing 字符间隔 (ms)</label>
+                                <input type="number" id="setting-typing-char-delay" value="18">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Network Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>网络设置</h2>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>局域网访问</label>
+                                <p class="desc">允许同一网络下的手机/平板控制（修改后需重启应用生效）</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-lan-access">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div id="lan-urls" class="lan-info hidden">
+                            <p>局域网IP列表: <span id="lan-ip-value" class="code">未识别</span></p>
+                            <p>访问地址列表: <span id="lan-url-value" class="code">http://192.168.x.x:8730</span></p>
+                            <p>文档地址列表: <span id="lan-docs-url-value" class="code">http://192.168.x.x:8730/docs</span>
+                            </p>
+                        </div>
+                        <div id="lan-risk-warning" class="risk-warning hidden"></div>
+                        <div class="form-group" style="margin-top:16px">
+                            <label>访问令牌 (Token)</label>
+                            <div style="display:flex;gap:8px">
+                                <input type="password" id="setting-token" placeholder="留空则不启用认证" style="flex:1">
+                                <button type="button" id="clear-token-btn" class="btn btn-sm btn-ghost">清除</button>
+                            </div>
+                            <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">设置后所有 API
+                                请求需携带此 Token</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Overlay Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>高级选项</h2>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启动时启用系统托盘</label>
+                                <p class="desc">默认开启。启动时会创建托盘图标，同时主动打开主窗口。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-enable-tray-on-start">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启动时自动在浏览器打开 WebUI</label>
+                                <p class="desc">默认关闭。桌面版会自动以内嵌窗口显示，可按需手动开启浏览器启动。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-open-webui-on-start">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启动时显示控制台日志窗口</label>
+                                <p class="desc">默认关闭。开启后可查看实时日志输出，重启后生效。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-show-console-on-start">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label for="setting-close-action">点击关闭按钮时</label>
+                            <select id="setting-close-action">
+                                <option value="ask">每次询问（退出或最小化到托盘）</option>
+                                <option value="minimize_to_tray">直接最小化到托盘</option>
+                                <option value="exit">直接彻底关闭</option>
+                            </select>
+                            <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                选择“每次询问”时会弹出单个自定义窗口，可直接选择行为并勾选“记住选择”。
+                            </p>
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <button id="replay-onboarding-btn" class="btn btn-outline btn-sm" type="button">🎓
+                                重看新手教程</button>
+                            <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                重新播放首次使用时的引导教程，快速回顾各功能入口。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Overlay Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>快捷悬浮窗</h2>
+                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">
+                            以下配置修改后需重启应用生效。</p>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>启用悬浮窗</label>
+                                <p class="desc">关闭后将禁用全局热键与快捷发送弹窗</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-overlay-enabled">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>显示 WebUI 发送状态</label>
+                                <p class="desc">在右上角显示 WebUI 单条/批量发送进度</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-overlay-show-webui-status">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>紧凑模式</label>
+                                <p class="desc">使用更小尺寸的悬浮窗布局</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-overlay-compact-mode">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>热键模式</label>
+                                <select id="setting-overlay-hotkey-mode">
+                                    <option value="single">单键</option>
+                                    <option value="combo">组合键</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:2">
+                                <label>触发热键</label>
+                                <div style="display:flex;gap:8px;align-items:center">
+                                    <input type="text" id="setting-overlay-hotkey" value="f7" readonly
+                                        placeholder="点击右侧按钮开始捕捉" style="flex:1">
+                                    <button type="button" id="setting-overlay-capture-hotkey-btn"
+                                        class="btn btn-sm btn-outline">点击捕捉</button>
+                                </div>
+                                <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                    单键模式：按一个非修饰键。组合键模式：按住 Ctrl/Shift/Alt/Win 后再按主键。</p>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>鼠标侧键</label>
+                                <select id="setting-overlay-mouse-side-button">
+                                    <option value="">禁用</option>
+                                    <option value="x1">X1 (后退侧键)</option>
+                                    <option value="x2">X2 (前进侧键)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>轮询间隔 (ms)</label>
+                                <input type="number" id="setting-overlay-poll-interval-ms" value="40" min="20"
+                                    max="200">
+                            </div>
+                        </div>
+                        <h3 style="margin-top:16px;font-size:0.95rem;color:var(--text-secondary)">悬浮窗外观</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>背景透明度 <span id="overlay-opacity-value"
+                                        style="color:var(--accent-cyan)">0.92</span></label>
+                                <input type="range" id="setting-overlay-bg-opacity" min="0.1" max="1" step="0.05"
+                                    value="0.92">
+                            </div>
+                            <div class="form-group">
+                                <label>主题色</label>
+                                <input type="color" id="setting-overlay-accent-color" value="#7c5cff">
+                            </div>
+                            <div class="form-group">
+                                <label>字体大小</label>
+                                <input type="number" id="setting-overlay-font-size" value="12" min="8" max="20"
+                                    step="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Providers -->
+                    <div class="glass-card settings-section">
+                        <h2>AI 服务商管理</h2>
+                        <div id="providers-list" class="providers-list">
+                            <!-- Providers injected here -->
+                        </div>
+                        <button id="add-provider-btn" class="btn btn-outline btn-block btn-dashed" type="button">
+                            + 添加服务商
+                        </button>
+                    </div>
+
+                    <!-- System Prompt -->
+                    <div class="glass-card settings-section">
+                        <h2>系统提示词</h2>
+                        <div class="form-group">
+                            <textarea id="setting-system-prompt" rows="6" placeholder="系统提示词..."></textarea>
+                            <div class="input-actions right">
+                                <button id="reset-prompt-btn" class="btn btn-sm btn-ghost" type="button">恢复默认</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Headers -->
+                    <div class="glass-card settings-section">
+                        <h2>AI 请求头</h2>
+                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">自定义发送给 AI
+                            服务商的 HTTP 请求头 (JSON 格式)。值为空字符串表示移除该默认请求头。</p>
+                        <div class="form-group">
+                            <textarea id="setting-custom-headers" rows="10"
+                                placeholder='{"User-Agent": "python-httpx/0.28.1"}'
+                                style="font-family:monospace;tab-size:2"></textarea>
+                            <div class="input-actions right">
+                                <button id="reset-headers-btn" class="btn btn-sm btn-ghost" type="button">恢复默认</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="settings-unsaved-bar" class="settings-unsaved-bar glass-card hidden" role="status"
+                    aria-live="polite">
+                    <div class="settings-unsaved-message">检测到未保存的设置更改</div>
+                    <button id="settings-unsaved-save-btn" class="btn btn-primary btn-sm" type="button">保存设置</button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+
+    <!-- Desktop Close Confirm Modal -->
+    <div id="modal-desktop-close-confirm" class="modal glass-card hidden">
+        <h3>关闭 VanceSender</h3>
+        <p class="desc" style="margin-top: 8px; line-height: 1.6; color: var(--text-secondary);">
+            请选择关闭行为：
+            <br>
+            <strong>彻底关闭</strong> 或 <strong>最小化到系统托盘</strong>
+        </p>
+        <label class="desktop-close-confirm-remember-row" for="desktop-close-confirm-remember">
+            <input id="desktop-close-confirm-remember" type="checkbox">
+            <span>记住本次选择（可在设置中随时修改）</span>
+        </label>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="desktop-close-confirm-tray" class="btn btn-secondary" type="button">最小化到托盘</button>
+            <button id="desktop-close-confirm-exit" class="btn btn-danger" type="button">彻底关闭</button>
+        </div>
+    </div>
+
+    <!-- Save Preset Modal -->
+    <div id="modal-save-preset" class="modal glass-card hidden">
+        <h3>保存预设</h3>
+        <input type="text" id="preset-name-input" placeholder="输入预设名称" class="full-width">
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="confirm-save-preset" class="btn btn-primary" type="button">保存</button>
+        </div>
+    </div>
+
+    <!-- Import Text Modal -->
+    <div id="modal-import-text" class="modal glass-card hidden">
+        <h3>导入文本</h3>
+        <div class="form-group">
+            <label for="import-text-input">文本内容</label>
+            <textarea id="import-text-input" rows="8" class="full-width" placeholder="在此输入文本...
+每行一句
+/me 开头为动作
+/do 开头为描述
+/b 开头为OOC旁白
+/e 开头为表情动作
+默认识别为 /me"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="confirm-import-text" class="btn btn-primary" type="button">导入</button>
+        </div>
+    </div>
+
+    <!-- Edit Text Modal -->
+    <div id="modal-edit-text" class="modal glass-card hidden">
+        <h3 id="edit-text-modal-title">编辑项目</h3>
+        <div class="form-group">
+            <label for="edit-text-type">类型</label>
+            <select id="edit-text-type" class="full-width">
+                <option value="me">/me</option>
+                <option value="do">/do</option>
+                <option value="b">/b</option>
+                <option value="e">/e</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="edit-text-content">内容</label>
+            <textarea id="edit-text-content" rows="4" class="full-width" placeholder="输入文本内容"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="confirm-edit-text" class="btn btn-primary" type="button">保存修改</button>
+        </div>
+    </div>
+
+    <!-- AI Rewrite Modal -->
+    <div id="modal-ai-rewrite" class="modal glass-card hidden">
+        <h3 id="ai-rewrite-modal-title">AI重写</h3>
+        <p id="ai-rewrite-modal-desc" class="hint" style="margin-bottom: 12px;">根据你的风格与要求进行重写</p>
+        <div class="form-group">
+            <label for="ai-rewrite-provider-select">AI 服务商</label>
+            <select id="ai-rewrite-provider-select">
+                <option value="">加载中...</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="ai-rewrite-style">重写风格（可选）</label>
+            <input id="ai-rewrite-style" type="text" class="full-width" placeholder="例如：压迫感、节奏更快、口语化">
+        </div>
+        <div class="form-group">
+            <label for="ai-rewrite-requirements">具体要求（可选）</label>
+            <textarea id="ai-rewrite-requirements" rows="4" class="full-width"
+                placeholder="例如：保留原意；每句更简洁；加强环境描写"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" data-action="close-modal" type="button">取消</button>
+            <button id="confirm-ai-rewrite" class="btn btn-primary" type="button">开始重写</button>
+        </div>
+    </div>
+
+    <!-- AI Comparison Modal -->
+    <div id="modal-ai-comparison" class="modal glass-card hidden">
+        <h3>确认重写结果</h3>
+        <p class="hint" style="margin-bottom: 12px;">请检查重写前后的变化</p>
+        <div id="comparison-list" class="comparison-list">
+            <!-- Items injected via JS -->
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" id="cancel-rewrite-btn" type="button">放弃</button>
+            <button id="apply-rewrite-btn" class="btn btn-primary" type="button">应用更改</button>
+        </div>
+    </div>
+
+    <!-- Provider Edit Modal -->
+    <div id="modal-provider" class="modal glass-card hidden">
+        <h3 id="provider-modal-title">添加服务商</h3>
+        <form id="provider-form">
+            <input type="hidden" id="prov-id">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" id="prov-name" required placeholder="例如: DeepSeek">
+            </div>
+            <div class="form-group">
+                <label>API Base URL</label>
+                <input type="text" id="prov-base" required placeholder="https://api.example.com/v1">
+            </div>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="prov-key" placeholder="sk-...">
+            </div>
+            <div class="form-group">
+                <label>Model Name</label>
+                <input type="text" id="prov-model" required placeholder="deepseek-chat">
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-action="close-modal">取消</button>
+                <button type="button" id="test-provider-btn" class="btn btn-secondary">测试连接</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+            <div id="test-provider-result" class="hidden"
+                style="margin-top:12px;padding:10px;border:1px solid var(--glass-border);border-radius:10px;background:rgba(0,0,0,.15)">
+                <div id="test-provider-summary" style="font-weight:600;margin-bottom:8px"></div>
+                <pre id="test-provider-detail"
+                    style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:.85rem;color:var(--text-secondary)"></pre>
+            </div>
+        </form>
+    </div>
+
+    <!-- Auth Gate -->
+    <div id="auth-gate" class="auth-gate hidden">
+        <div class="auth-card glass-card">
+            <div class="auth-logo">V</div>
+            <h2>VanceSender</h2>
+            <p class="auth-subtitle">请输入访问令牌</p>
+            <input type="password" id="auth-token-input" placeholder="输入 Token...">
+            <button id="auth-submit" class="btn btn-primary btn-block glow-effect" type="button">验证</button>
+            <p id="auth-error" class="auth-error hidden">令牌无效，请重新输入</p>
+        </div>
+    </div>
+
+    <!-- Onboarding Tutorial -->
+    <div id="onboarding-overlay" class="onboarding-overlay hidden"></div>
+    <div id="onboarding-highlight" class="onboarding-highlight hidden"></div>
+    <div id="onboarding-card" class="onboarding-card glass-card hidden">
+        <div class="onboarding-progress-track">
+            <div class="onboarding-progress-fill"></div>
+        </div>
+        <div class="onboarding-card-header">
+            <span class="onboarding-step-badge" id="onboarding-step-badge">1 / 6</span>
+            <button id="onboarding-skip-btn" class="btn btn-sm btn-ghost onboarding-skip-btn" type="button">跳过</button>
+        </div>
+        <div class="onboarding-body">
+            <h3 id="onboarding-title" class="onboarding-title"></h3>
+            <p id="onboarding-desc" class="onboarding-desc"></p>
+        </div>
+        <div class="onboarding-dots" id="onboarding-dots"></div>
+        <div class="onboarding-actions">
+            <button id="onboarding-prev-btn" class="btn btn-ghost btn-sm" type="button" disabled>上一步</button>
+            <button id="onboarding-next-btn" class="btn btn-primary btn-sm glow-effect" type="button">下一步 →</button>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Tab Bar -->
+    <nav id="mobile-tab-bar" class="mobile-tab-bar" aria-label="移动端导航">
+        <button class="mobile-tab active" data-target="panel-home" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 11.5L12 4l9 7.5"></path>
+                <path d="M5 10.5V20h14v-9.5"></path>
+                <path d="M9 20v-5h6v5"></path>
+            </svg>
+            <span>首页</span>
+        </button>
+        <button class="mobile-tab" data-target="panel-send" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+            </svg>
+            <span>发送</span>
+        </button>
+        <button class="mobile-tab" data-target="panel-quick-send" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"></path>
+            </svg>
+            <span>快捷</span>
+        </button>
+        <button class="mobile-tab" data-target="panel-ai" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
+                <path d="M12 12L2.1 12a10.1 10.1 0 0 0 1.9 4"></path>
+                <path d="M12 12l4.5 7.8"></path>
+            </svg>
+            <span>AI</span>
+        </button>
+        <button class="mobile-tab" data-target="panel-settings" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+            </svg>
+            <span>设置</span>
+        </button>
+    </nav>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+
 </html>
