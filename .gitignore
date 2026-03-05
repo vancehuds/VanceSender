@@ -9,33 +9,53 @@ __pycache__/
 venv/
 env/
 
-# Tool caches
+# Python tool caches
 .ruff_cache/
 .pytest_cache/
 .mypy_cache/
 .pyright/
 
-# Packaging/build outputs
+# Python packaging/build
 build/
 dist/
 *.egg-info/
 
-# IDE/editor files
+# Frontend — node_modules & build output
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+app/web/
+
+# Tauri — Rust build artifacts & generated schemas
+frontend/src-tauri/target/
+frontend/src-tauri/gen/
+
+# IDE / Editor
 .idea/
 .vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
 # Local environment files
 .env
 .env.*
+*.local
 
-# Sensitive/local runtime data
+# Sensitive / local runtime data
 config.yaml
 data/presets/*.json
 
-# Windows oddities
-nul
+# OS files
+.DS_Store
 Thumbs.db
 Desktop.ini
+nul

@@ -1,0 +1,73 @@
+/* ── Design System Variables ─────────────────────────────────────── */
+/* Migrated from original style.css :root variables */
+
+:root {
+  /* ── Background ── */
+  --bg-main: #0a0e1a;
+  --bg-secondary: #0f1424;
+  --bg-elevated: #141a2e;
+
+  /* ── Text ── */
+  --text-main: #e8ecf4;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0a0e1a;
+
+  /* ── Accents ── */
+  --accent-primary: #6c5ce7;
+  --accent-primary-hover: #7c6ef7;
+  --accent-primary-glow: rgba(108, 92, 231, 0.35);
+  --accent-cyan: #22d3ee;
+  --accent-purple: #a78bfa;
+  --accent-green: #34d399;
+  --accent-orange: #fb923c;
+  --accent-danger: #ef4444;
+  --accent-danger-hover: #dc2626;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+
+  /* ── Glass / Surface ── */
+  --glass-bg: rgba(15, 20, 36, 0.65);
+  --glass-border: rgba(148, 163, 184, 0.12);
+  --glass-highlight: rgba(255, 255, 255, 0.03);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+
+  /* ── Input / Form ── */
+  --input-bg: rgba(8, 14, 28, 0.5);
+  --input-border: rgba(148, 163, 184, 0.2);
+  --input-focus-border: var(--accent-primary);
+  --input-placeholder: var(--text-muted);
+
+  /* ── Button ── */
+  --btn-radius: 10px;
+  --btn-transition: all 0.2s ease;
+
+  /* ── Layout ── */
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 64px;
+  --titlebar-height: 38px;
+  --mobile-tabbar-height: 64px;
+  --content-max-width: 1200px;
+  --card-radius: 16px;
+  --card-padding: 20px 24px;
+
+  /* ── Typography ── */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-size-xs: 0.72rem;
+  --font-size-sm: 0.82rem;
+  --font-size-base: 0.95rem;
+  --font-size-lg: 1.05rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.6rem;
+
+  /* ── Z-index ── */
+  --z-sidebar: 100;
+  --z-titlebar: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+  --z-tooltip: 500;
+
+  /* ── Transitions ── */
+  --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}

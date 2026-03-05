@@ -99,6 +99,8 @@ def create_app(lan_access: bool = False) -> FastAPI:
     cors_origins = ["*"] if lan_access else [
         "http://127.0.0.1",
         "http://localhost",
+        "http://localhost:5173",   # Vite dev server
+        "http://127.0.0.1:5173",  # Vite dev server (alt)
     ]
     app.add_middleware(
         CORSMiddleware,

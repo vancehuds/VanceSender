@@ -1,0 +1,116 @@
+/* ── Glassmorphism Components ────────────────────────────────── */
+
+.glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--glass-shadow);
+    padding: var(--card-padding);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+}
+
+.glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.08),
+            transparent);
+}
+
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Glow Effect ── */
+.glow-effect {
+    position: relative;
+}
+
+.glow-effect::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(135deg,
+            var(--accent-primary),
+            var(--accent-cyan),
+            var(--accent-purple));
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    filter: blur(12px);
+    transition: opacity 0.3s ease;
+}
+
+.glow-effect:hover::after {
+    opacity: 0.4;
+}
+
+/* ── Icon wrapper with glow ── */
+.card-icon-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+}
+
+.icon-glow {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    filter: blur(10px);
+    opacity: 0.4;
+}
+
+.icon-glow.glow-blue {
+    background: var(--accent-cyan);
+}
+
+.icon-glow.glow-green {
+    background: var(--accent-green);
+}
+
+.icon-glow.glow-purple {
+    background: var(--accent-purple);
+}
+
+.icon-glow.glow-orange {
+    background: var(--accent-orange);
+}
+
+/* ── Blur blobs ── */
+.hero-blur-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+}
+
+.blob-1 {
+    width: 300px;
+    height: 300px;
+    background: var(--accent-primary);
+    top: -100px;
+    right: -60px;
+}
+
+.blob-2 {
+    width: 200px;
+    height: 200px;
+    background: var(--accent-cyan);
+    bottom: -60px;
+    left: -40px;
+}
