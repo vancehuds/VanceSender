@@ -1,11 +1,13 @@
-import { apiGet, apiPost, apiDelete } from './client'
+import { api, apiGet, apiPost, apiDelete } from './client'
 import type { AIGenerateRequest, AIHistoryItem } from '@/types/api'
 
 export const aiApi = {
     /** Generate AI text (streaming) */
     generateStream(data: AIGenerateRequest) {
-        return apiPost<ReadableStream>('/ai/generate', data, {
-            responseType: 'stream',
+        return api<ReadableStream>('/ai/generate', {
+            method: 'POST',
+            body: data,
+            responseType: 'stream' as any,
         })
     },
 
