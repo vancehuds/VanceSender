@@ -29,12 +29,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Python backend build (sidecar) ─────────────────────
+      # ── Tool setup ─────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+
+      # ── Frontend build ─────────────────────────────────────
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      # ── Python backend build ───────────────────────────────
+      - name: Deploy frontend to app/web (for PyInstaller)
+        shell: powershell
+        run: |
+          Remove-Item -Path app\web -Recurse -Force -ErrorAction SilentlyContinue
+          Copy-Item -Path frontend\dist -Destination app\web -Recurse
 
       - name: Install Python dependencies
         shell: powershell
@@ -45,14 +76,7 @@ jobs:
 
       - name: Build Python backend
         shell: powershell
-        run: |
-          # Build frontend assets first for PyInstaller bundling
-          # (PyInstaller spec expects app/web to exist)
-          if (Test-Path "frontend\dist") {
-            Remove-Item -Path "app\web" -Recurse -Force -ErrorAction SilentlyContinue
-            Copy-Item -Path "frontend\dist" -Destination "app\web" -Recurse
-          }
-          pyinstaller --clean --noconfirm vancesender.spec
+        run: pyinstaller --clean --noconfirm vancesender.spec
 
       - name: Place backend into Tauri binaries
         shell: powershell
@@ -60,13 +84,11 @@ jobs:
           $backendSrc = "dist\VanceSender"
           $backendDest = "frontend\src-tauri\binaries\backend"
 
-          # Clean and copy
           if (Test-Path $backendDest) {
             Remove-Item -Path $backendDest -Recurse -Force
           }
           Copy-Item -Path $backendSrc -Destination $backendDest -Recurse
 
-          # Verify
           if (!(Test-Path "$backendDest\VanceSender.exe")) {
             Write-Error "Backend executable not found at $backendDest\VanceSender.exe"
             exit 1
@@ -74,33 +96,12 @@ jobs:
           Write-Host "Backend placed at $backendDest"
           Get-ChildItem $backendDest | Select-Object Name, Length | Format-Table
 
-      # ── Frontend + Tauri build ─────────────────────────────
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: frontend/src-tauri -> target
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Type check frontend
-        working-directory: frontend
-        run: npx vue-tsc --noEmit
-
+      # ── Tauri build ────────────────────────────────────────
       - name: Build Tauri app
         working-directory: frontend
-        run: npx tauri build
+        env:
+          TAURI_CONF_RESOURCES: '{"bundle":{"resources":{"binaries/backend/**":"./"}}}'
+        run: npx tauri build --config "$env:TAURI_CONF_RESOURCES"
 
       # ── Collect artifacts ──────────────────────────────────
       - name: Collect installer artifacts
