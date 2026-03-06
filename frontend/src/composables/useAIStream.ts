@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getToken } from '@/api/client'
+import { getToken, ensureBackendOrigin } from '@/api/client'
 import type { TextItem, TextType } from '@/types/api'
 
 export interface StreamGenerateOptions {
@@ -33,7 +33,8 @@ export function useAIStream() {
         if (token) headers['Authorization'] = `Bearer ${token}`
 
         try {
-            const response = await fetch('/api/v1/ai/generate/stream', {
+            const backendOrigin = await ensureBackendOrigin()
+            const response = await fetch(`${backendOrigin}/api/v1/ai/generate/stream`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(options),

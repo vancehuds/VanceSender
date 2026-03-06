@@ -104,12 +104,17 @@ def create_app(lan_access: bool = False) -> FastAPI:
             "http://localhost",
             "http://localhost:5173",  # Vite dev server
             "http://127.0.0.1:5173",  # Vite dev server (alt)
+            "tauri://localhost",      # Tauri v2 (Windows)
+            "https://tauri.localhost", # Tauri v2 (macOS/Linux)
         ]
     )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
-        allow_origin_regex=r"^https?://(127\.0\.0\.1|localhost)(:\d+)?$" if not lan_access else None,
+        allow_origin_regex=(
+            r"^(https?://(127\.0\.0\.1|localhost)(:\d+)?|tauri://localhost|https://tauri\.localhost)$"
+            if not lan_access else None
+        ),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

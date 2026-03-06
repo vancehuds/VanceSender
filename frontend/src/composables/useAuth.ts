@@ -1,5 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue'
-import { getToken, setToken, clearToken } from '@/api/client'
+import { api, getToken, setToken, clearToken } from '@/api/client'
 import { useAppStore } from '@/stores/app'
 
 export function useAuth() {
@@ -24,21 +24,22 @@ export function useAuth() {
         authError.value = ''
 
         try {
-            // Verify token by hitting a simple endpoint
-            const response = await fetch('/api/v1/stats', {
+            // Verify token by hitting a simple endpoint via the shared api client
+            await api('/stats', {
+                method: 'GET',
                 headers: { Authorization: `Bearer ${token}` },
             })
-            if (response.ok) {
-                showAuthGate.value = false
-                appStore.isAuthenticated = true
-                appStore.authRequired = true
-            } else if (response.status === 401) {
+            showAuthGate.value = false
+            appStore.isAuthenticated = true
+            appStore.authRequired = true
+        } catch (err: any) {
+            if (err?.response?.status === 401 || err?.statusCode === 401) {
                 clearToken()
                 authError.value = 'Token 错误，请重新输入'
+            } else {
+                // Server unreachable — proceed, errors will surface later
+                showAuthGate.value = false
             }
-        } catch {
-            // Server unreachable — proceed, errors will surface later
-            showAuthGate.value = false
         }
     }
 

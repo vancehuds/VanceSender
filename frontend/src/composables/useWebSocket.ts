@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useSenderStore } from '@/stores/sender'
-import { getToken } from '@/api/client'
+import { getToken, getBackendOrigin } from '@/api/client'
 
 export function useWebSocket() {
     const ws = ref<WebSocket | null>(null)
@@ -8,9 +8,18 @@ export function useWebSocket() {
     const reconnectTimer = ref<number | null>(null)
 
     function getWsUrl() {
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
         const token = getToken()
         const tokenParam = token ? `?token=${encodeURIComponent(token)}` : ''
+        const backendOrigin = getBackendOrigin()
+
+        if (backendOrigin) {
+            // Tauri: use absolute WebSocket URL to the backend
+            const wsOrigin = backendOrigin.replace(/^http/, 'ws')
+            return `${wsOrigin}/api/v1/ws${tokenParam}`
+        }
+
+        // Browser: derive from current page location
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
         return `${protocol}//${location.host}/api/v1/ws${tokenParam}`
     }
 
