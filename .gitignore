@@ -29,6 +29,8 @@ app/web/
 # Tauri — Rust build artifacts & generated schemas
 frontend/src-tauri/target/
 frontend/src-tauri/gen/
+frontend/src-tauri/binaries/backend/*
+!frontend/src-tauri/binaries/backend/.gitkeep
 
 # IDE / Editor
 .idea/

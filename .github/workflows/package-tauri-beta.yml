@@ -1,0 +1,231 @@
+name: Package Tauri Beta Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_prerelease:
+        description: "Create a GitHub Pre-release"
+        required: false
+        default: "false"
+        type: boolean
+
+  push:
+    branches:
+      - dev
+    tags:
+      - "v*-beta*"
+      - "v*-rc*"
+    paths-ignore:
+      - "docs/**"
+      - "pages/**"
+      - ".gitignore"
+      - "AGENTS.md"
+      - "CNAME"
+      - "LICENSE"
+      - "README.md"
+      - "public-config.yaml"
+
+permissions:
+  contents: write
+
+jobs:
+  package-tauri-beta:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine version info
+        id: version
+        shell: powershell
+        run: |
+          $ref = "${{ github.ref }}"
+          $sha = "${{ github.sha }}".Substring(0, 7)
+
+          if ($ref -match '^refs/tags/(.+)$') {
+            $tag = $Matches[1]
+            echo "VERSION=$tag" >> $env:GITHUB_OUTPUT
+            echo "IS_TAG=true" >> $env:GITHUB_OUTPUT
+            echo "Detected tag: $tag"
+          } else {
+            $metaContent = Get-Content "app/core/app_meta.py" -Raw
+            if ($metaContent -match 'APP_VERSION\s*=\s*"([^"]+)"') {
+              $baseVersion = $Matches[1]
+            } else {
+              $baseVersion = "0.0.0"
+            }
+            $devVersion = "${baseVersion}-dev.${sha}"
+            echo "VERSION=$devVersion" >> $env:GITHUB_OUTPUT
+            echo "IS_TAG=false" >> $env:GITHUB_OUTPUT
+            echo "Detected dev version: $devVersion"
+          }
+
+      - name: Inject version into app_meta.py
+        shell: powershell
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          if ($version.StartsWith("v")) {
+            $version = $version.Substring(1)
+          }
+          $metaPath = "app/core/app_meta.py"
+          $content = Get-Content $metaPath -Raw
+          $content = $content -replace 'APP_VERSION\s*=\s*"[^"]+"', "APP_VERSION = `"$version`""
+          Set-Content -Path $metaPath -Value $content -NoNewline
+          echo "Injected version: $version"
+          Get-Content $metaPath
+
+      - name: Inject version into tauri.conf.json
+        shell: powershell
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          if ($version.StartsWith("v")) {
+            $version = $version.Substring(1)
+          }
+          # Strip pre-release suffix for semver compliance (Tauri requires x.y.z)
+          $semver = $version -replace '-.*$', ''
+          if ($semver -notmatch '^\d+\.\d+\.\d+$') {
+            $semver = "0.1.0"
+          }
+          $confPath = "frontend/src-tauri/tauri.conf.json"
+          $content = Get-Content $confPath -Raw
+          $content = $content -replace '"version"\s*:\s*"[^"]+"', "`"version`": `"$semver`""
+          Set-Content -Path $confPath -Value $content -NoNewline
+          echo "Injected Tauri version: $semver"
+
+      # ── Python backend build (sidecar) ─────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        shell: powershell
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --disable-pip-version-check
+          pip install pyinstaller --disable-pip-version-check
+
+      - name: Build Python backend
+        shell: powershell
+        run: |
+          if (Test-Path "frontend\dist") {
+            Remove-Item -Path "app\web" -Recurse -Force -ErrorAction SilentlyContinue
+            Copy-Item -Path "frontend\dist" -Destination "app\web" -Recurse
+          }
+          pyinstaller --clean --noconfirm vancesender.spec
+
+      - name: Place backend into Tauri binaries
+        shell: powershell
+        run: |
+          $backendSrc = "dist\VanceSender"
+          $backendDest = "frontend\src-tauri\binaries\backend"
+
+          if (Test-Path $backendDest) {
+            Remove-Item -Path $backendDest -Recurse -Force
+          }
+          Copy-Item -Path $backendSrc -Destination $backendDest -Recurse
+
+          if (!(Test-Path "$backendDest\VanceSender.exe")) {
+            Write-Error "Backend executable not found at $backendDest\VanceSender.exe"
+            exit 1
+          }
+          Write-Host "Backend placed at $backendDest"
+
+      # ── Frontend + Tauri build ─────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/src-tauri -> target
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check frontend
+        working-directory: frontend
+        run: npx vue-tsc --noEmit
+
+      - name: Build Tauri app
+        working-directory: frontend
+        run: npx tauri build
+
+      # ── Collect & release ──────────────────────────────────
+      - name: Collect installer artifacts
+        id: artifacts
+        shell: powershell
+        run: |
+          $bundleDir = "frontend\src-tauri\target\release\bundle"
+          $outDir = "tauri-installers"
+          New-Item -ItemType Directory -Path $outDir -Force | Out-Null
+
+          $version = "${{ steps.version.outputs.VERSION }}"
+
+          # NSIS
+          $nsisFiles = Get-ChildItem -Path "$bundleDir\nsis\*.exe" -ErrorAction SilentlyContinue
+          foreach ($file in $nsisFiles) {
+            $newName = "VanceSender-${version}-x64-setup.exe"
+            Copy-Item $file.FullName "$outDir\$newName"
+            Write-Host "NSIS: $newName"
+          }
+
+          # MSI
+          $msiFiles = Get-ChildItem -Path "$bundleDir\msi\*.msi" -ErrorAction SilentlyContinue
+          foreach ($file in $msiFiles) {
+            $newName = "VanceSender-${version}-x64.msi"
+            Copy-Item $file.FullName "$outDir\$newName"
+            Write-Host "MSI: $newName"
+          }
+
+          $totalFiles = (Get-ChildItem $outDir).Count
+          if ($totalFiles -eq 0) {
+            Write-Error "No installer files found!"
+            exit 1
+          }
+
+      - name: Upload Tauri installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: VanceSender-tauri-${{ steps.version.outputs.VERSION }}
+          path: tauri-installers/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub Pre-release (tag)
+        if: steps.version.outputs.IS_TAG == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "${{ github.ref_name }} (Beta)"
+          generate_release_notes: true
+          prerelease: true
+          files: tauri-installers/*
+
+      - name: Publish GitHub Pre-release (manual)
+        if: >-
+          steps.version.outputs.IS_TAG == 'false' &&
+          github.event_name == 'workflow_dispatch' &&
+          inputs.create_prerelease == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.version.outputs.VERSION }}"
+          name: "v${{ steps.version.outputs.VERSION }} (Dev Build)"
+          body: |
+            🧪 **Development build** from `${{ github.ref_name }}` branch (Tauri).
+
+            Commit: ${{ github.sha }}
+            Triggered by: manual workflow dispatch
+          prerelease: true
+          files: tauri-installers/*
