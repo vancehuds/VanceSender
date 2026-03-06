@@ -24,7 +24,7 @@ export function useToast() {
         }
         toasts.value.push(toast)
 
-        if (toast.duration > 0) {
+        if (toast.duration! > 0) {
             setTimeout(() => {
                 removeToast(toast.id)
             }, toast.duration)

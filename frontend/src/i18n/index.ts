@@ -19,11 +19,11 @@ const i18n = createI18n<[MessageSchema], 'zh-CN' | 'en'>({
 export default i18n
 
 export function setLanguage(lang: 'zh-CN' | 'en') {
-    i18n.global.locale.value = lang
+    ; (i18n.global.locale as any).value = lang
     localStorage.setItem('vs_lang', lang)
     document.documentElement.lang = lang === 'zh-CN' ? 'zh-CN' : 'en'
 }
 
 export function getCurrentLang() {
-    return i18n.global.locale.value
+    return (i18n.global.locale as any).value
 }

@@ -4,7 +4,7 @@
       <div v-if="visible" class="onboarding-overlay" @click.self="skip">
         <!-- Spotlight -->
         <div
-          v-if="currentStep.target"
+          v-if="currentStep?.target"
           class="spotlight"
           :style="spotlightStyle"
         ></div>
@@ -15,8 +15,8 @@
             <span class="step-indicator">{{ currentIndex + 1 }} / {{ steps.length }}</span>
             <button class="skip-btn" @click="skip">跳过</button>
           </div>
-          <h3 class="onboarding-title">{{ currentStep.title }}</h3>
-          <p class="onboarding-desc">{{ currentStep.description }}</p>
+          <h3 class="onboarding-title">{{ currentStep?.title }}</h3>
+          <p class="onboarding-desc">{{ currentStep?.description }}</p>
           <div class="onboarding-progress">
             <div
               v-for="(_, i) in steps" :key="i"
@@ -68,7 +68,7 @@ const cardStyle = ref<Record<string, string>>({})
 
 function updatePositions() {
   const step = currentStep.value
-  if (!step.target) {
+  if (!step || !step.target) {
     spotlightStyle.value = { display: 'none' }
     cardStyle.value = {
       position: 'fixed',
@@ -79,7 +79,7 @@ function updatePositions() {
     return
   }
 
-  const el = document.querySelector(step.target)
+  const el = document.querySelector(step.target!)
   if (!el) {
     spotlightStyle.value = { display: 'none' }
     cardStyle.value = {
@@ -101,7 +101,7 @@ function updatePositions() {
     height: `${rect.height + pad * 2}px`,
   }
 
-  const pos = step.position || 'bottom'
+  const pos = step?.position || 'bottom'
   const cardW = 340
 
   switch (pos) {

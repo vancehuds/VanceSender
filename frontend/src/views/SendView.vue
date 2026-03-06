@@ -163,12 +163,15 @@ function addNewItem() {
 
 function updateItemType(index: number, type: TextType) {
   const item = senderStore.texts[index]
+  if (!item) return
   senderStore.updateText(index, { ...item, type })
 }
 
 function openEdit(index: number) {
+  const item = senderStore.texts[index]
+  if (!item) return
   editIndex.value = index
-  editItem.value = { ...senderStore.texts[index] }
+  editItem.value = { ...item }
   showEditModal.value = true
 }
 

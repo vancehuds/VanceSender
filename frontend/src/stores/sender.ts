@@ -37,7 +37,7 @@ export const useSenderStore = defineStore('sender', () => {
     }
 
     function moveText(fromIndex: number, toIndex: number) {
-        const item = texts.value.splice(fromIndex, 1)[0]
+        const item = texts.value.splice(fromIndex, 1)[0]!
         texts.value.splice(toIndex, 0, item)
         hasUnsavedChanges.value = true
     }

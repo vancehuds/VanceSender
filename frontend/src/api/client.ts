@@ -41,26 +41,26 @@ export const api = ofetch.create({
 })
 
 /** Type-safe GET helper */
-export function apiGet<T>(url: string, options?: FetchOptions) {
+export function apiGet<T>(url: string, options?: FetchOptions<'json'>) {
     return api<T>(url, { method: 'GET', ...options })
 }
 
 /** Type-safe POST helper */
-export function apiPost<T>(url: string, body?: unknown, options?: FetchOptions) {
+export function apiPost<T>(url: string, body?: Record<string, any>, options?: FetchOptions<'json'>) {
     return api<T>(url, { method: 'POST', body, ...options })
 }
 
 /** Type-safe PUT helper */
-export function apiPut<T>(url: string, body?: unknown, options?: FetchOptions) {
+export function apiPut<T>(url: string, body?: Record<string, any>, options?: FetchOptions<'json'>) {
     return api<T>(url, { method: 'PUT', body, ...options })
 }
 
 /** Type-safe DELETE helper */
-export function apiDelete<T>(url: string, options?: FetchOptions) {
+export function apiDelete<T>(url: string, options?: FetchOptions<'json'>) {
     return api<T>(url, { method: 'DELETE', ...options })
 }
 
 /** Type-safe PATCH helper */
-export function apiPatch<T>(url: string, body?: unknown, options?: FetchOptions) {
+export function apiPatch<T>(url: string, body?: Record<string, any>, options?: FetchOptions<'json'>) {
     return api<T>(url, { method: 'PATCH', body, ...options })
 }
