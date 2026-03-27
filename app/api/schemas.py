@@ -433,6 +433,27 @@ class ProviderTestResponse(BaseModel):
 # ── Notifications ──────────────────────────────────────────────────────────
 
 
+# ── Tunnel schemas ─────────────────────────────────────────────────────────
+
+
+class TunnelStartRequest(BaseModel):
+    mode: Literal["quick", "named"] = Field("quick", description="隧道模式: quick=零配置 | named=自定义域名")
+    named_token: str = Field("", description="named模式下的隧道令牌")
+
+
+class TunnelStatusResponse(BaseModel):
+    status: Literal["stopped", "starting", "running", "error"]
+    mode: str = ""
+    public_url: str = ""
+    error: str = ""
+    pid: int | None = None
+    started_at: float = 0.0
+    auto_generated_token: str = ""
+
+
+# ── Notifications ──────────────────────────────────────────────────────────
+
+
 class NotificationItem(BaseModel):
     level: str
     message: str

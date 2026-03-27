@@ -32,6 +32,12 @@ quick_overlay:
   mouse_side_button: ''
   poll_interval_ms: 40
 
+tunnel:
+  enabled: false
+  mode: quick              # quick = 零配置随机URL | named = 自定义域名(需Cloudflare账号)
+  named_token: ''          # named模式下的隧道令牌 (cloudflared tunnel token)
+  auto_start: false        # 启动时自动开启隧道
+
 public_config:
   source_url: ''
   timeout_seconds: 5

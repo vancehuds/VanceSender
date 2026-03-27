@@ -46,6 +46,7 @@ from app.core.desktop_shell import (
 )
 from app.core.network import get_lan_ipv4_addresses
 from app.core.notifications import get_notifications
+from app.core.tunnel import get_tunnel_status
 from app.core.public_config import fetch_github_public_config
 from app.core.update_checker import check_github_update
 
@@ -151,6 +152,11 @@ def _build_server_section(cfg: dict, request: Request) -> dict:
     server_section["ui_mode"] = (
         "desktop" if desktop_window_state["active"] else "browser"
     )
+
+    # Tunnel status
+    tunnel_status = get_tunnel_status()
+    server_section["tunnel_status"] = tunnel_status["status"]
+    server_section["tunnel_url"] = tunnel_status["public_url"]
 
     # Security warnings
     server_section["risk_no_token_with_lan"] = (

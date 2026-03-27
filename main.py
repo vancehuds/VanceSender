@@ -40,7 +40,9 @@ from app.core.desktop_shell import (
 )
 from app.core.network import get_lan_ipv4_addresses
 from app.core.public_config import fetch_github_public_config_sync
+from app.core.rate_limit import TunnelRateLimitMiddleware
 from app.core.runtime_paths import get_bundle_root
+from app.core.tunnel import get_tunnel_status, is_tunnel_active, start_tunnel, stop_tunnel
 
 _log = logging.getLogger(__name__)
 
@@ -109,6 +111,9 @@ def create_app(lan_access: bool = False) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Rate limiting — only enforced when tunnel is active
+    app.add_middleware(TunnelRateLimitMiddleware)
 
     # API routes
     app.include_router(api_router)
@@ -391,6 +396,11 @@ def main() -> None:
         action="store_true",
         help="禁用内嵌桌面窗口，仅使用浏览器访问 WebUI",
     )
+    parser.add_argument(
+        "--tunnel",
+        action="store_true",
+        help="启动 Cloudflare Tunnel 提供外网 HTTPS 访问",
+    )
     args = parser.parse_args()
 
     cfg = load_config()
@@ -478,6 +488,7 @@ def main() -> None:
     app.state.runtime_port = port
     app.state.runtime_lan_access = runtime_lan_access
     app.state.runtime_lan_ipv4_list = lan_ipv4_list
+    app.state.tunnel_rate_limit = False
 
     github_repository_url = f"https://github.com/{GITHUB_REPOSITORY}"
 
@@ -540,6 +551,48 @@ def main() -> None:
         _log.warning("风险提示: 当前已开启局域网访问且未设置 Token。")
         _log.warning("  局域网内任意设备都可访问 API，建议尽快设置 Token 并重启服务。")
 
+    # ── Cloudflare Tunnel ─────────────────────────────────────────────
+    tunnel_cfg = cfg.get("tunnel", {})
+    tunnel_cfg = tunnel_cfg if isinstance(tunnel_cfg, dict) else {}
+    should_start_tunnel = args.tunnel or bool(tunnel_cfg.get("auto_start"))
+
+    if should_start_tunnel:
+        tunnel_mode = tunnel_cfg.get("mode", "quick")
+        named_token = tunnel_cfg.get("named_token", "")
+        _log.info("║  隧道:     正在启动 Cloudflare Tunnel (%s模式)...", tunnel_mode)
+        tunnel_result = start_tunnel(
+            local_port=port,
+            mode=tunnel_mode,
+            named_token=named_token,
+        )
+        app.state.tunnel_rate_limit = True
+
+        if tunnel_result.get("auto_generated_token"):
+            auto_token = tunnel_result["auto_generated_token"]
+            _log.warning("╔══════════════════════════════════════════════╗")
+            _log.warning("║  安全提示: 已自动生成访问令牌                ║")
+            _log.warning("║  Token: %s", auto_token)
+            _log.warning("║  请妥善保存此令牌，外网访问需要此令牌认证    ║")
+            _log.warning("╚══════════════════════════════════════════════╝")
+
+        if tunnel_result.get("status") == "error":
+            _log.error("隧道启动失败: %s", tunnel_result.get("error", "未知错误"))
+        else:
+            # Wait briefly for the URL to become available
+            for _ in range(30):
+                time.sleep(1)
+                status = get_tunnel_status()
+                if status["status"] == "running" and status["public_url"]:
+                    _log.info("╔══════════════════════════════════════════════╗")
+                    _log.info("║  外网访问: %s", status["public_url"])
+                    _log.info("╚══════════════════════════════════════════════╝")
+                    break
+                if status["status"] == "error":
+                    _log.error("隧道启动失败: %s", status.get("error", "未知错误"))
+                    break
+            else:
+                _log.warning("隧道启动超时，可通过 API 查询状态: /api/v1/tunnel")
+
     try:
         if use_desktop_shell:
             try:
@@ -588,6 +641,12 @@ def main() -> None:
         ).start()
 
         # --- Cleanup (each step wrapped in try/except) ---
+
+        try:
+            if is_tunnel_active():
+                stop_tunnel()
+        except Exception:
+            pass
 
         try:
             if quick_overlay_module is not None:

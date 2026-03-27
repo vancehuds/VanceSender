@@ -225,6 +225,12 @@ def _default_config() -> dict[str, Any]:
                 "font_size": 12,
             },
         },
+        "tunnel": {
+            "enabled": False,
+            "mode": "quick",
+            "named_token": "",
+            "auto_start": False,
+        },
         "public_config": {
             "source_url": "",
             "timeout_seconds": 5,
