@@ -836,6 +836,22 @@ const dom = {
     providersList: document.getElementById('providers-list'),
     addProviderBtn: document.getElementById('add-provider-btn'),
 
+    // Tunnel
+    homeTunnelStatus: document.getElementById('home-tunnel-status'),
+    homeTunnelRunning: document.getElementById('home-tunnel-running'),
+    homeTunnelStopped: document.getElementById('home-tunnel-stopped'),
+    homeTunnelStarting: document.getElementById('home-tunnel-starting'),
+    homeTunnelError: document.getElementById('home-tunnel-error'),
+    homeTunnelUrl: document.getElementById('home-tunnel-url'),
+    homeCopyTunnelBtn: document.getElementById('home-copy-tunnel-btn'),
+    homeTunnelStartBtn: document.getElementById('home-tunnel-start-btn'),
+    homeTunnelStopBtn: document.getElementById('home-tunnel-stop-btn'),
+    homeTunnelQrcode: document.getElementById('home-tunnel-qrcode'),
+    settingTunnelStatusText: document.getElementById('setting-tunnel-status-text'),
+    settingTunnelUrlText: document.getElementById('setting-tunnel-url-text'),
+    settingTunnelStartBtn: document.getElementById('setting-tunnel-start-btn'),
+    settingTunnelStopBtn: document.getElementById('setting-tunnel-stop-btn'),
+    settingTunnelTokenInfo: document.getElementById('setting-tunnel-token-info'),
 
     // Modals
     modalBackdrop: document.getElementById('modal-backdrop'),
@@ -911,6 +927,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyLanguage();
 
     initSettingsPanel();
+    initTunnelControls();
     initAuth();
 
     // Auth check — use raw window.fetch to avoid triggering auth gate prematurely
@@ -936,7 +953,8 @@ async function loadInitialData() {
             fetchSettings(),
             fetchPresets(),
             fetchPublicConfig({ silent: true }),
-            loadSendStats()
+            loadSendStats(),
+            fetchTunnelStatus()
         ]);
         showToast('系统已就绪', 'success');
 
@@ -1814,6 +1832,156 @@ function initHomePanel() {
                 dom.homeUpdateBanner.classList.add('hidden');
             }
         });
+    }
+}
+
+// --- Tunnel Logic ---
+
+let _tunnelPollTimer = null;
+
+function updateTunnelUI(data) {
+    const status = data?.status || 'stopped';
+    const url = data?.public_url || '';
+    const error = data?.error || '';
+    const autoToken = data?.auto_generated_token || '';
+
+    // Home panel
+    if (dom.homeTunnelStatus) {
+        const labels = { stopped: '未启用', starting: '启动中...', running: '运行中', error: '错误' };
+        dom.homeTunnelStatus.textContent = labels[status] || status;
+        dom.homeTunnelStatus.className = 'bento-status-badge' + (status === 'running' ? ' text-accent-success' : status === 'error' ? ' text-accent-danger' : '');
+    }
+
+    if (dom.homeTunnelRunning) dom.homeTunnelRunning.classList.toggle('hidden', status !== 'running');
+    if (dom.homeTunnelStopped) dom.homeTunnelStopped.classList.toggle('hidden', status !== 'stopped');
+    if (dom.homeTunnelStarting) dom.homeTunnelStarting.classList.toggle('hidden', status !== 'starting');
+
+    if (dom.homeTunnelError) {
+        dom.homeTunnelError.classList.toggle('hidden', !error || status !== 'error');
+        dom.homeTunnelError.textContent = error ? '隧道错误: ' + error : '';
+    }
+
+    if (dom.homeTunnelUrl && url) {
+        dom.homeTunnelUrl.textContent = url;
+    }
+
+    // QR code for tunnel URL
+    if (status === 'running' && url && dom.homeTunnelQrcode) {
+        try {
+            QRCodeGen.generate(url, { canvas: dom.homeTunnelQrcode, moduleSize: 3, margin: 2 });
+        } catch (e) { /* ignore */ }
+    }
+
+    // Settings panel
+    if (dom.settingTunnelStatusText) {
+        const labels = { stopped: '未运行', starting: '启动中...', running: '运行中', error: '错误' };
+        dom.settingTunnelStatusText.textContent = labels[status] || status;
+        dom.settingTunnelStatusText.style.color = status === 'running' ? 'var(--accent-success)' : status === 'error' ? 'var(--accent-danger)' : '';
+    }
+
+    if (dom.settingTunnelUrlText) {
+        dom.settingTunnelUrlText.classList.toggle('hidden', !url);
+        dom.settingTunnelUrlText.textContent = url;
+    }
+
+    if (dom.settingTunnelStartBtn) dom.settingTunnelStartBtn.classList.toggle('hidden', status === 'running' || status === 'starting');
+    if (dom.settingTunnelStopBtn) dom.settingTunnelStopBtn.classList.toggle('hidden', status === 'stopped' || status === 'error');
+
+    if (dom.settingTunnelTokenInfo && autoToken) {
+        dom.settingTunnelTokenInfo.classList.remove('hidden');
+        dom.settingTunnelTokenInfo.innerHTML = '⚠ 已自动生成访问令牌: <code style="user-select:all;word-break:break-all">' + autoToken.replace(/</g, '&lt;') + '</code><br>请妥善保存，外网访问需携带此令牌认证。';
+    }
+}
+
+async function fetchTunnelStatus() {
+    try {
+        const res = await apiFetch('/api/v1/tunnel');
+        if (res.ok) {
+            const data = await res.json();
+            updateTunnelUI(data);
+            return data;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+async function startTunnel() {
+    try {
+        updateTunnelUI({ status: 'starting' });
+        const res = await apiFetch('/api/v1/tunnel/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: 'quick' }),
+        });
+        const data = await res.json();
+        updateTunnelUI(data);
+
+        if (data.status === 'error') {
+            showToast(data.error || '隧道启动失败', 'error');
+            return;
+        }
+
+        // Poll until running or error
+        startTunnelPolling();
+    } catch (e) {
+        showToast('隧道启动失败: ' + e.message, 'error');
+        updateTunnelUI({ status: 'error', error: e.message });
+    }
+}
+
+async function stopTunnel() {
+    try {
+        await apiFetch('/api/v1/tunnel/stop', { method: 'POST' });
+        stopTunnelPolling();
+        updateTunnelUI({ status: 'stopped' });
+        showToast('隧道已停止', 'info');
+    } catch (e) {
+        showToast('停止隧道失败: ' + e.message, 'error');
+    }
+}
+
+function startTunnelPolling() {
+    stopTunnelPolling();
+    _tunnelPollTimer = setInterval(async () => {
+        const data = await fetchTunnelStatus();
+        if (data && (data.status === 'running' || data.status === 'stopped' || data.status === 'error')) {
+            if (data.status === 'running') {
+                showToast('隧道已就绪: ' + data.public_url, 'success');
+            }
+            stopTunnelPolling();
+        }
+    }, 2000);
+}
+
+function stopTunnelPolling() {
+    if (_tunnelPollTimer) {
+        clearInterval(_tunnelPollTimer);
+        _tunnelPollTimer = null;
+    }
+}
+
+function initTunnelControls() {
+    // Home panel buttons
+    if (dom.homeTunnelStartBtn) {
+        dom.homeTunnelStartBtn.addEventListener('click', startTunnel);
+    }
+    if (dom.homeTunnelStopBtn) {
+        dom.homeTunnelStopBtn.addEventListener('click', stopTunnel);
+    }
+    if (dom.homeCopyTunnelBtn) {
+        dom.homeCopyTunnelBtn.addEventListener('click', () => {
+            const url = dom.homeTunnelUrl?.textContent || '';
+            if (url && url !== 'https://xxx.trycloudflare.com') {
+                navigator.clipboard.writeText(url).then(() => showToast('隧道地址已复制', 'success'));
+            }
+        });
+    }
+    // Settings panel buttons
+    if (dom.settingTunnelStartBtn) {
+        dom.settingTunnelStartBtn.addEventListener('click', startTunnel);
+    }
+    if (dom.settingTunnelStopBtn) {
+        dom.settingTunnelStopBtn.addEventListener('click', stopTunnel);
     }
 }
 

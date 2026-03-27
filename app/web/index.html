@@ -316,6 +316,69 @@
                         </div>
                     </div>
 
+                    <!-- Tunnel Section -->
+                    <div class="mac-card bento-lan glass-card" style="--anim-delay: 0.35s">
+                        <div class="mac-header">
+                            <h2>
+                                <div class="card-icon-wrapper">
+                                    <div class="icon-glow glow-purple"></div>
+                                    <svg class="card-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                        <path d="M2 17l10 5 10-5"></path>
+                                        <path d="M2 12l10 5 10-5"></path>
+                                    </svg>
+                                </div>
+                                外网访问
+                            </h2>
+                            <span id="home-tunnel-status" class="bento-status-badge">未启用</span>
+                        </div>
+                        <div class="mac-content">
+                            <div id="home-tunnel-running" class="hidden lan-active-layout">
+                                <div class="lan-info-col" style="flex:1">
+                                    <div class="home-code-block code-interactive" title="点击复制"
+                                        onclick="document.getElementById('home-copy-tunnel-btn')?.click();">
+                                        <span id="home-tunnel-url" class="code">https://xxx.trycloudflare.com</span>
+                                    </div>
+                                    <p class="desc">通过 Cloudflare Tunnel 提供的安全 HTTPS 外网访问地址，可在任意网络环境下访问 WebUI。</p>
+                                    <div class="lan-actions">
+                                        <button id="home-copy-tunnel-btn" class="btn btn-sm mac-btn-secondary btn-icon-text"
+                                            type="button">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
+                                                stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                            复制
+                                        </button>
+                                        <button id="home-tunnel-stop-btn" class="btn btn-sm mac-btn-ghost" type="button"
+                                            style="color:var(--accent-danger)">停止隧道</button>
+                                    </div>
+                                </div>
+                                <div class="lan-qr-col">
+                                    <div class="qr-frame">
+                                        <canvas id="home-tunnel-qrcode"></canvas>
+                                    </div>
+                                    <p class="qr-hint">扫描访问</p>
+                                </div>
+                            </div>
+                            <div id="home-tunnel-stopped" class="home-inline-tip">
+                                <div class="empty-state-icon">🔒</div>
+                                <div class="empty-state-text">
+                                    <p>外网隧道未启动</p>
+                                    <span>启动 Cloudflare Tunnel 后，即可在任何网络访问 WebUI。</span>
+                                </div>
+                                <button id="home-tunnel-start-btn" class="btn btn-sm mac-btn-primary"
+                                    type="button" style="margin-top:12px">启动隧道</button>
+                            </div>
+                            <div id="home-tunnel-starting" class="home-inline-tip hidden">
+                                <div class="loading-spinner" style="margin:0 auto 8px"></div>
+                                <p style="text-align:center;color:var(--text-muted)">隧道启动中，请稍候...</p>
+                            </div>
+                            <div id="home-tunnel-error" class="risk-warning hidden"></div>
+                        </div>
+                    </div>
+
                     <!-- Setup small grid for the rest -->
                     <div class="bento-subgrid">
                         <!-- Update Section -->
@@ -1012,6 +1075,36 @@
                             <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">设置后所有 API
                                 请求需携带此 Token</p>
                         </div>
+                    </div>
+
+                    <!-- Tunnel Settings -->
+                    <div class="glass-card settings-section">
+                        <h2>外网隧道 (Cloudflare Tunnel)</h2>
+                        <p class="desc" style="margin-bottom:12px;font-size:0.85rem;color:var(--text-muted)">
+                            通过 Cloudflare Tunnel 安全地将 WebUI 暴露到外网。需要先安装
+                            <a href="https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/"
+                                target="_blank" rel="noopener noreferrer"
+                                style="color:var(--accent-cyan)">cloudflared</a>。
+                        </p>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
+                                <label>隧道状态</label>
+                                <p class="desc">
+                                    <span id="setting-tunnel-status-text"
+                                        style="font-weight:500">未运行</span>
+                                    <span id="setting-tunnel-url-text" class="code hidden"
+                                        style="margin-left:8px;font-size:0.8rem"></span>
+                                </p>
+                            </div>
+                            <div style="display:flex;gap:8px">
+                                <button id="setting-tunnel-start-btn" class="btn btn-sm mac-btn-primary"
+                                    type="button">启动</button>
+                                <button id="setting-tunnel-stop-btn" class="btn btn-sm mac-btn-ghost hidden"
+                                    type="button" style="color:var(--accent-danger)">停止</button>
+                            </div>
+                        </div>
+                        <div id="setting-tunnel-token-info" class="risk-warning hidden"
+                            style="margin-top:12px"></div>
                     </div>
 
                     <!-- Quick Overlay Settings -->
