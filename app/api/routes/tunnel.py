@@ -9,6 +9,7 @@ from app.api.schemas import (
     TunnelStartRequest,
     TunnelStatusResponse,
 )
+from app.core.config import load_config
 from app.core.tunnel import get_tunnel_status, start_tunnel, stop_tunnel
 
 router = APIRouter()
@@ -32,10 +33,16 @@ async def tunnel_start(request: Request, body: TunnelStartRequest | None = None)
         body = TunnelStartRequest()
 
     port = int(getattr(request.app.state, "runtime_port", 8730))
+    named_token = body.named_token
+    if body.mode == "named" and not named_token.strip():
+        tunnel_cfg = load_config().get("tunnel", {})
+        if isinstance(tunnel_cfg, dict):
+            named_token = str(tunnel_cfg.get("named_token", "") or "")
+
     result = start_tunnel(
         local_port=port,
         mode=body.mode,
-        named_token=body.named_token,
+        named_token=named_token,
     )
     return TunnelStatusResponse(**result)
 

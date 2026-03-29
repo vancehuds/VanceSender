@@ -293,6 +293,12 @@ class QuickOverlaySettings(BaseModel):
     poll_interval_ms: int | None = Field(None, ge=20, le=200)
 
 
+class TunnelSettings(BaseModel):
+    mode: Literal["quick", "named"] | None = None
+    named_token: str | None = None
+    auto_start: bool | None = None
+
+
 
 
 class ServerSettingsResponse(BaseModel):
@@ -362,12 +368,21 @@ class QuickOverlaySettingsResponse(BaseModel):
     poll_interval_ms: int = 40
 
 
+class TunnelSettingsResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    mode: str = "quick"
+    named_token_set: bool = False
+    auto_start: bool = False
+
+
 class SettingsResponse(BaseModel):
     server: ServerSettingsResponse
     launch: LaunchSettingsResponse
     sender: SenderSettingsResponse
     ai: AISettingsResponse
     quick_overlay: QuickOverlaySettingsResponse
+    tunnel: TunnelSettingsResponse
 
 
 class UpdateCheckResponse(BaseModel):
@@ -462,4 +477,3 @@ class NotificationItem(BaseModel):
 
 class NotificationsResponse(BaseModel):
     notifications: list[NotificationItem]
-
