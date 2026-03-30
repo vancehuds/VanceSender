@@ -12,6 +12,7 @@ from app.api.schemas import (
     TunnelStartRequest,
     TunnelStatusResponse,
 )
+from app.core.config import load_config
 from app.core.tunnel import (
     cancel_install,
     get_cloudflared_status,
@@ -47,6 +48,12 @@ async def tunnel_start(request: Request, body: TunnelStartRequest | None = None)
         raise HTTPException(status_code=400, detail="named 模式需要提供有效的隧道令牌")
 
     port = int(getattr(request.app.state, "runtime_port", 8730))
+    named_token = body.named_token
+    if body.mode == "named" and not named_token.strip():
+        tunnel_cfg = load_config().get("tunnel", {})
+        if isinstance(tunnel_cfg, dict):
+            named_token = str(tunnel_cfg.get("named_token", "") or "")
+
     result = start_tunnel(
         local_port=port,
         mode=body.mode,

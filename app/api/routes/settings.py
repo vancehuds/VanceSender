@@ -21,6 +21,7 @@ from app.api.schemas import (
     SenderSettings,
     ServerSettings,
     SettingsResponse,
+    TunnelSettings,
     UpdateCheckResponse,
 )
 from app.core.app_meta import APP_VERSION, GITHUB_REPOSITORY
@@ -86,6 +87,17 @@ def _build_launch_section(cfg: dict) -> dict:
         "close_action": normalize_close_action(
             launch_section.get("close_action", "ask")
         ),
+    }
+
+
+def _build_tunnel_section(cfg: dict) -> dict:
+    """Build normalized Cloudflare Tunnel settings section."""
+    tunnel_raw = cfg.get("tunnel", {})
+    tunnel_section = tunnel_raw if isinstance(tunnel_raw, dict) else {}
+    return {
+        "mode": "named" if tunnel_section.get("mode") == "named" else "quick",
+        "named_token_set": bool(str(tunnel_section.get("named_token", "") or "").strip()),
+        "auto_start": bool(tunnel_section.get("auto_start", False)),
     }
 
 
@@ -182,6 +194,7 @@ async def get_settings(request: Request):
         sender=cfg.get("sender", {}),
         ai=_build_ai_section(cfg),
         quick_overlay=cfg.get("quick_overlay", {}),
+        tunnel=_build_tunnel_section(cfg),
     )
 
 
@@ -374,6 +387,23 @@ async def update_quick_overlay_settings(body: QuickOverlaySettings):
     return MessageResponse(message="快捷悬浮窗设置已更新，重启后生效")
 
 
+@router.put("/tunnel", response_model=MessageResponse)
+async def update_tunnel_settings(body: TunnelSettings):
+    """更新 Cloudflare Tunnel 设置。"""
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    if not patch:
+        return MessageResponse(message="没有需要更新的设置", success=False)
+
+    if "mode" in patch:
+        patch["mode"] = "named" if patch["mode"] == "named" else "quick"
+
+    if "named_token" in patch:
+        patch["named_token"] = str(patch["named_token"] or "").strip()
+
+    update_config({"tunnel": patch})
+    return MessageResponse(message="Cloudflare Tunnel 设置已更新")
+
+
 # ── Provider CRUD ─────────────────────────────────────────────────────────
 
 
@@ -448,4 +478,3 @@ async def get_notifications_route(clear: bool = False):
     raw_items = get_notifications(clear=clear)
     items = [NotificationItem(**item) for item in raw_items]
     return NotificationsResponse(notifications=items)
-

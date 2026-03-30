@@ -1088,6 +1088,41 @@
                         </p>
                         <div class="setting-item-toggle">
                             <div class="setting-info">
+                                <label>启动时自动开启隧道</label>
+                                <p class="desc">开启后，应用启动时会按下方模式自动拉起 Cloudflare Tunnel。</p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting-tunnel-auto-start">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="form-row" style="margin-top:12px">
+                            <div class="form-group">
+                                <label for="setting-tunnel-mode">隧道模式</label>
+                                <select id="setting-tunnel-mode">
+                                    <option value="quick">Quick Tunnel（随机临时地址）</option>
+                                    <option value="named">Named Tunnel（固定域名 / Token）</option>
+                                </select>
+                                <p class="desc" style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                    Quick 模式无需 Cloudflare 账号；Named 模式适合绑定稳定域名。
+                                </p>
+                            </div>
+                            <div class="form-group hidden" id="setting-tunnel-token-group">
+                                <label for="setting-tunnel-named-token">Named Tunnel Token</label>
+                                <div style="display:flex;gap:8px">
+                                    <input type="password" id="setting-tunnel-named-token"
+                                        placeholder="粘贴 cloudflared tunnel token" style="flex:1">
+                                    <button type="button" id="setting-tunnel-clear-token-btn"
+                                        class="btn btn-sm mac-btn-ghost">清除</button>
+                                </div>
+                                <p id="setting-tunnel-token-desc" class="desc"
+                                    style="margin-top:4px;font-size:0.8rem;color:var(--text-muted)">
+                                    未填写时将继续使用已保存的 Token。
+                                </p>
+                            </div>
+                        </div>
+                        <div class="setting-item-toggle">
+                            <div class="setting-info">
                                 <label>隧道状态</label>
                                 <p class="desc">
                                     <span id="setting-tunnel-status-text"

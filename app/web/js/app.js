@@ -738,6 +738,7 @@ const state = {
         launch: {},
         sender: {},
         ai: {},
+        tunnel: {},
         providers: []
     },
     settingsSnapshot: null,
@@ -917,6 +918,12 @@ const dom = {
     homeTunnelStartBtn: document.getElementById('home-tunnel-start-btn'),
     homeTunnelStopBtn: document.getElementById('home-tunnel-stop-btn'),
     homeTunnelQrcode: document.getElementById('home-tunnel-qrcode'),
+    settingTunnelAutoStart: document.getElementById('setting-tunnel-auto-start'),
+    settingTunnelMode: document.getElementById('setting-tunnel-mode'),
+    settingTunnelTokenGroup: document.getElementById('setting-tunnel-token-group'),
+    settingTunnelNamedToken: document.getElementById('setting-tunnel-named-token'),
+    settingTunnelClearTokenBtn: document.getElementById('setting-tunnel-clear-token-btn'),
+    settingTunnelTokenDesc: document.getElementById('setting-tunnel-token-desc'),
     settingTunnelStatusText: document.getElementById('setting-tunnel-status-text'),
     settingTunnelUrlText: document.getElementById('setting-tunnel-url-text'),
     settingTunnelStartBtn: document.getElementById('setting-tunnel-start-btn'),
@@ -1974,6 +1981,79 @@ function initHomePanel() {
 
 let _tunnelPollTimer = null;
 
+function getTunnelModeValue() {
+    return dom.settingTunnelMode?.value === 'named' ? 'named' : 'quick';
+}
+
+function hasSavedTunnelNamedToken() {
+    return dom.settingTunnelNamedToken?.dataset.saved === 'true';
+}
+
+function isTunnelNamedTokenClearRequested() {
+    return dom.settingTunnelNamedToken?.dataset.clearRequested === 'true';
+}
+
+function updateTunnelNamedTokenMeta() {
+    if (!dom.settingTunnelNamedToken) return;
+
+    const hasSavedToken = hasSavedTunnelNamedToken();
+    const clearRequested = isTunnelNamedTokenClearRequested();
+    const hasTypedToken = Boolean(dom.settingTunnelNamedToken.value.trim());
+
+    if (clearRequested) {
+        dom.settingTunnelNamedToken.placeholder = '保存后将清除当前已保存的 Token';
+    } else if (hasSavedToken) {
+        dom.settingTunnelNamedToken.placeholder = '已保存 Token（留空则保持不变）';
+    } else {
+        dom.settingTunnelNamedToken.placeholder = '粘贴 cloudflared tunnel token';
+    }
+
+    if (dom.settingTunnelTokenDesc) {
+        if (clearRequested) {
+            dom.settingTunnelTokenDesc.textContent = '当前已标记为清除 Token；点击保存后会删除已保存的 Named Tunnel Token。';
+        } else if (hasTypedToken) {
+            dom.settingTunnelTokenDesc.textContent = '保存后将使用你刚输入的新 Token 覆盖当前配置。';
+        } else if (hasSavedToken) {
+            dom.settingTunnelTokenDesc.textContent = '当前已保存 Named Tunnel Token；留空并保存时会保持现有 Token 不变。';
+        } else {
+            dom.settingTunnelTokenDesc.textContent = 'Named 模式需要提供 cloudflared tunnel token。';
+        }
+    }
+}
+
+function setTunnelNamedTokenState({ hasSavedToken = false, clearRequested = false } = {}) {
+    if (!dom.settingTunnelNamedToken) return;
+    dom.settingTunnelNamedToken.dataset.saved = hasSavedToken ? 'true' : 'false';
+    dom.settingTunnelNamedToken.dataset.clearRequested = clearRequested ? 'true' : 'false';
+    updateTunnelNamedTokenMeta();
+}
+
+function updateTunnelSettingsFormUI() {
+    const isNamedMode = getTunnelModeValue() === 'named';
+    if (dom.settingTunnelTokenGroup) {
+        dom.settingTunnelTokenGroup.classList.toggle('hidden', !isNamedMode);
+    }
+    updateTunnelNamedTokenMeta();
+}
+
+function getTunnelStartPayload() {
+    const mode = getTunnelModeValue();
+    const namedToken = dom.settingTunnelNamedToken?.value.trim() || '';
+    const hasUsableSavedToken = hasSavedTunnelNamedToken() && !isTunnelNamedTokenClearRequested();
+
+    if (mode === 'named' && !namedToken && !hasUsableSavedToken) {
+        return {
+            error: 'Named Tunnel 模式需要先填写并保存 Token，或输入一个临时 Token 再启动'
+        };
+    }
+
+    const payload = { mode };
+    if (mode === 'named' && namedToken) {
+        payload.named_token = namedToken;
+    }
+    return { payload };
+}
+
 function updateTunnelUI(data) {
     const status = data?.status || 'stopped';
     const url = data?.public_url || '';
@@ -2025,6 +2105,9 @@ function updateTunnelUI(data) {
     if (dom.settingTunnelTokenInfo && autoToken) {
         dom.settingTunnelTokenInfo.classList.remove('hidden');
         dom.settingTunnelTokenInfo.innerHTML = '⚠ 已自动生成访问令牌: <code style="user-select:all;word-break:break-all">' + autoToken.replace(/</g, '&lt;') + '</code><br>请妥善保存，外网访问需携带此令牌认证。';
+    } else if (dom.settingTunnelTokenInfo) {
+        dom.settingTunnelTokenInfo.classList.add('hidden');
+        dom.settingTunnelTokenInfo.textContent = '';
     }
 }
 
@@ -2044,6 +2127,12 @@ let _cloudflaredInstallPollTimer = null;
 
 async function startTunnel() {
     try {
+        const tunnelStart = getTunnelStartPayload();
+        if (tunnelStart.error) {
+            showToast(tunnelStart.error, 'error');
+            return;
+        }
+
         // First check if cloudflared is installed
         const statusRes = await apiFetch('/api/v1/tunnel/cloudflared');
         if (!statusRes.ok) {
@@ -2070,20 +2159,31 @@ async function startTunnel() {
         }
 
         // Cloudflared is installed, proceed to start tunnel
-        await doStartTunnel();
+        await doStartTunnel(tunnelStart.payload);
     } catch (e) {
         showToast('隧道启动失败: ' + e.message, 'error');
         updateTunnelUI({ status: 'error', error: e.message });
     }
 }
 
-async function doStartTunnel(autoInstall = false) {
+async function doStartTunnel(startPayloadOverride = null, autoInstall = false) {
     try {
+        const tunnelStart = startPayloadOverride ? { payload: startPayloadOverride } : getTunnelStartPayload();
+        if (tunnelStart.error) {
+            showToast(tunnelStart.error, 'error');
+            return;
+        }
+
+        const startPayload = { ...tunnelStart.payload };
+        if (autoInstall) {
+            startPayload.auto_install = true;
+        }
+
         updateTunnelUI({ status: 'starting' });
         const res = await apiFetch('/api/v1/tunnel/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'quick', auto_install: autoInstall }),
+            body: JSON.stringify(startPayload),
         });
         const data = await res.json();
         updateTunnelUI(data);
@@ -4703,6 +4803,11 @@ function getSettingsFormSnapshot() {
         openWebuiOnStart: Boolean(dom.settingOpenWebuiOnStart?.checked),
         showConsoleOnStart: Boolean(dom.settingShowConsoleOnStart?.checked),
         closeAction: dom.settingCloseAction?.value || 'ask',
+        tunnelAutoStart: Boolean(dom.settingTunnelAutoStart?.checked),
+        tunnelMode: getTunnelModeValue(),
+        tunnelNamedToken: dom.settingTunnelNamedToken?.value || '',
+        tunnelNamedTokenSaved: hasSavedTunnelNamedToken(),
+        tunnelNamedTokenClearRequested: isTunnelNamedTokenClearRequested(),
         overlayEnabled: Boolean(dom.settingOverlayEnabled?.checked),
         overlayShowWebuiStatus: Boolean(dom.settingOverlayShowWebuiStatus?.checked),
         overlayCompactMode: Boolean(dom.settingOverlayCompactMode?.checked),
@@ -4770,6 +4875,9 @@ function bindSettingsDirtyTracking() {
         dom.settingOpenWebuiOnStart,
         dom.settingShowConsoleOnStart,
         dom.settingCloseAction,
+        dom.settingTunnelAutoStart,
+        dom.settingTunnelMode,
+        dom.settingTunnelNamedToken,
         dom.settingOverlayEnabled,
         dom.settingOverlayShowWebuiStatus,
         dom.settingOverlayCompactMode,
@@ -4824,6 +4932,39 @@ function initSettingsPanel() {
             }
 
             refreshSettingsDirtyState();
+        });
+    }
+
+    if (dom.settingTunnelMode) {
+        dom.settingTunnelMode.addEventListener('change', () => {
+            updateTunnelSettingsFormUI();
+            refreshSettingsDirtyState();
+        });
+    }
+
+    if (dom.settingTunnelNamedToken) {
+        dom.settingTunnelNamedToken.addEventListener('input', () => {
+            if (dom.settingTunnelNamedToken.value.trim()) {
+                dom.settingTunnelNamedToken.dataset.clearRequested = 'false';
+            }
+            updateTunnelNamedTokenMeta();
+            refreshSettingsDirtyState();
+        });
+    }
+
+    if (dom.settingTunnelClearTokenBtn) {
+        dom.settingTunnelClearTokenBtn.addEventListener('click', () => {
+            if (!dom.settingTunnelNamedToken) return;
+            dom.settingTunnelNamedToken.value = '';
+            dom.settingTunnelNamedToken.dataset.clearRequested = hasSavedTunnelNamedToken() ? 'true' : 'false';
+            updateTunnelNamedTokenMeta();
+            refreshSettingsDirtyState();
+            showToast(
+                hasSavedTunnelNamedToken()
+                    ? '已标记清除 Named Tunnel Token，保存后生效'
+                    : '已清空 Tunnel Token 输入框',
+                'info'
+            );
         });
     }
 
@@ -5188,7 +5329,7 @@ function pickLanList(server, listKey, singleKey) {
 
 async function fetchSettings() {
     const res = await apiFetch('/api/v1/settings');
-    const data = await res.json(); // {server, launch, sender, ai, quick_overlay}
+    const data = await res.json(); // {server, launch, sender, ai, quick_overlay, tunnel}
     state.settings = data;
     stopOverlayHotkeyCapture();
 
@@ -5227,6 +5368,23 @@ async function fetchSettings() {
         }
         dom.settingCloseAction.disabled = !traySupported;
     }
+
+    const tunnel = data.tunnel || {};
+    if (dom.settingTunnelAutoStart) {
+        dom.settingTunnelAutoStart.checked = tunnel.auto_start ?? false;
+    }
+    if (dom.settingTunnelMode) {
+        dom.settingTunnelMode.value = tunnel.mode === 'named' ? 'named' : 'quick';
+    }
+    if (dom.settingTunnelNamedToken) {
+        dom.settingTunnelNamedToken.value = '';
+        setTunnelNamedTokenState({
+            hasSavedToken: Boolean(tunnel.named_token_set),
+            clearRequested: false,
+        });
+    }
+    updateTunnelSettingsFormUI();
+
     dom.settingSystemPrompt.value = data.ai.system_prompt || '';
 
     const quickOverlay = data.quick_overlay || {};
@@ -5405,6 +5563,14 @@ async function saveAllSettings() {
         return;
     }
 
+    const tunnelMode = getTunnelModeValue();
+    const tunnelNamedToken = dom.settingTunnelNamedToken?.value.trim() || '';
+    const tunnelHasSavedToken = hasSavedTunnelNamedToken() && !isTunnelNamedTokenClearRequested();
+    if (tunnelMode === 'named' && !tunnelNamedToken && !tunnelHasSavedToken) {
+        showToast('Named Tunnel 模式需要先填写并保存 Token', 'error');
+        return;
+    }
+
     let customHeaders;
     try {
         const rawHeaders = dom.settingCustomHeaders.value.trim();
@@ -5457,6 +5623,21 @@ async function saveAllSettings() {
                 show_console_on_start: Boolean(dom.settingShowConsoleOnStart?.checked),
                 close_action: dom.settingCloseAction?.value || 'ask'
             })
+        });
+
+        const tunnelPayload = {
+            mode: tunnelMode,
+            auto_start: Boolean(dom.settingTunnelAutoStart?.checked),
+        };
+        if (tunnelMode === 'named' && tunnelNamedToken) {
+            tunnelPayload.named_token = tunnelNamedToken;
+        } else if (isTunnelNamedTokenClearRequested()) {
+            tunnelPayload.named_token = '';
+        }
+        await apiFetch('/api/v1/settings/tunnel', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(tunnelPayload)
         });
 
         // If token was changed, update localStorage too
@@ -6332,4 +6513,3 @@ document.addEventListener('keydown', (event) => {
     });
     $deleteBranchBtn.addEventListener('click', deleteBranch);
 })();
-
