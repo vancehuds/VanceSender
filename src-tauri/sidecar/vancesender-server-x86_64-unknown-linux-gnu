@@ -1,0 +1,6 @@
+#!/bin/bash
+# Sidecar wrapper: launches the Python VanceSender server.
+# In production (Windows), this would be replaced by a PyInstaller exe.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+exec python3 "$PROJECT_ROOT/main.py" "$@"

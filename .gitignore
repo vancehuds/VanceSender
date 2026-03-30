@@ -35,6 +35,10 @@ dist/
 config.yaml
 data/presets/*.json
 
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
 # Windows oddities
 nul
 Thumbs.db

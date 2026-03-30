@@ -483,7 +483,8 @@ function readDesktopLaunchContext() {
         sessionQuickPanelMode = false;
     }
 
-    const desktopClient = queryDesktopClient || sessionDesktopClient;
+    const tauriDetected = typeof TauriBridge !== 'undefined' && TauriBridge.isTauri();
+    const desktopClient = queryDesktopClient || sessionDesktopClient || tauriDetected;
     const quickPanelMode = queryQuickPanelMode || sessionQuickPanelMode;
     const launchToken = desktopClient ? String(params.get('vs_token') || '').trim() : '';
     if (launchToken) {
@@ -1573,6 +1574,17 @@ async function handleDesktopCloseRequest() {
 function initDesktopTitlebar() {
     syncDesktopTitlebarControls();
 
+    // Tauri: enable native window dragging on titlebar drag regions
+    if (typeof TauriBridge !== 'undefined' && TauriBridge.isTauri()) {
+        document.querySelectorAll('.desktop-titlebar-drag, .quick-panel-titlebar-drag').forEach((el) => {
+            el.addEventListener('mousedown', (e) => {
+                if (e.button === 0 && e.target.closest('.desktop-titlebar-actions, .quick-panel-titlebar-actions') === null) {
+                    TauriBridge.startDragging();
+                }
+            });
+        });
+    }
+
     if (dom.desktopWindowMinimize) {
         dom.desktopWindowMinimize.addEventListener('click', () => {
             invokeDesktopWindowAction('minimize');
@@ -1715,6 +1727,16 @@ async function invokeDesktopWindowAction(action) {
     syncDesktopTitlebarControls();
 
     try {
+        // Use Tauri native API when available, fall back to Python API
+        if (typeof TauriBridge !== 'undefined' && TauriBridge.isTauri()) {
+            const result = await TauriBridge.performWindowAction(action);
+            applyDesktopShellState({
+                desktop_shell_active: Boolean(result.active),
+                desktop_shell_maximized: Boolean(result.maximized)
+            });
+            return;
+        }
+
         const response = await apiFetch('/api/v1/settings/desktop-window/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

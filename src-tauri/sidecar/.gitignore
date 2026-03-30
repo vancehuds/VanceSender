@@ -1,0 +1,4 @@
+# Only track dev wrapper scripts; CI builds add the real sidecar here
+*
+!.gitignore
+!vancesender-server-x86_64-unknown-linux-gnu

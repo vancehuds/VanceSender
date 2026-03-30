@@ -7,7 +7,10 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "repository": {
     "type": "git",
@@ -22,8 +25,12 @@
   },
   "homepage": "https://github.com/vancehuds/VanceSender#readme",
   "devDependencies": {
+    "@tauri-apps/cli": "^2",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
   }
 }
