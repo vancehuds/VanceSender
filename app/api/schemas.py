@@ -79,7 +79,7 @@ class AIGenerateRequest(BaseModel):
     scenario: str = Field(..., min_length=1, description="场景描述")
     provider_id: str | None = Field(None, description="使用的AI服务商ID，留空使用默认")
     count: int | None = Field(None, ge=1, le=30, description="期望生成的条数")
-    text_type: Literal["me", "do", "mixed"] = Field("mixed", description="文本类型")
+    text_type: Literal["me", "do", "mixed"] = Field(default="mixed", description="文本类型")
     style: str | None = Field(
         None,
         min_length=1,
@@ -204,8 +204,8 @@ class ConvTreeWrapupResponse(BaseModel):
 class ProviderCreate(BaseModel):
     id: str | None = Field(None, description="自定义ID，留空自动生成")
     name: str = Field(..., min_length=1)
-    type: Literal["openai", "gemini"] = Field("openai", description="供应商类型")
-    api_base: str = Field("", description="API地址（OpenAI类型必填，Gemini类型无需填写）")
+    type: Literal["openai", "gemini"] = Field(default="openai", description="供应商类型")
+    api_base: str = Field(default="", description="API地址（OpenAI类型必填，Gemini类型无需填写）")
     api_key: str = ""
     model: str = "gpt-4o"
 
@@ -437,8 +437,9 @@ class ProviderTestResponse(BaseModel):
 
 
 class TunnelStartRequest(BaseModel):
-    mode: Literal["quick", "named"] = Field("quick", description="隧道模式: quick=零配置 | named=自定义域名")
-    named_token: str = Field("", description="named模式下的隧道令牌")
+    mode: Literal["quick", "named"] = Field(default="quick", description="隧道模式: quick=零配置 | named=自定义域名")
+    named_token: str = Field(default="", description="named模式下的隧道令牌")
+    auto_install: bool = Field(default=False, description="是否允许自动安装 cloudflared")
 
 
 class TunnelStatusResponse(BaseModel):
@@ -449,6 +450,29 @@ class TunnelStatusResponse(BaseModel):
     pid: int | None = None
     started_at: float = 0.0
     auto_generated_token: str = ""
+
+
+class CloudflaredStatusResponse(BaseModel):
+    installed: bool
+    version: str = ""
+    path: str = ""
+    is_bundled: bool = False
+    can_auto_install: bool = False
+    platform_key: str = ""
+
+
+class CloudflaredInstallProgressResponse(BaseModel):
+    status: Literal["idle", "downloading", "extracting", "verifying", "completed", "cancelled", "error"]
+    progress_percent: float = 0.0
+    message: str = ""
+    error: str = ""
+    downloaded_bytes: int = 0
+    total_bytes: int = 0
+
+
+class CloudflaredInstallResponse(BaseModel):
+    status: str
+    message: str
 
 
 # ── Notifications ──────────────────────────────────────────────────────────

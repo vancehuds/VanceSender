@@ -923,6 +923,14 @@ const dom = {
     settingTunnelStopBtn: document.getElementById('setting-tunnel-stop-btn'),
     settingTunnelTokenInfo: document.getElementById('setting-tunnel-token-info'),
 
+    // Cloudflared Install Modal
+    modalCloudflaredInstall: document.getElementById('modal-cloudflared-install'),
+    cloudflaredInstallProgress: document.getElementById('cloudflared-install-progress'),
+    cloudflaredProgressBar: document.getElementById('cloudflared-progress-bar'),
+    cloudflaredProgressMessage: document.getElementById('cloudflared-progress-message'),
+    cloudflaredInstallConfirm: document.getElementById('cloudflared-install-confirm'),
+    cloudflaredInstallCancel: document.getElementById('cloudflared-install-cancel'),
+
     // Modals
     modalBackdrop: document.getElementById('modal-backdrop'),
     modalSavePreset: document.getElementById('modal-save-preset'),
@@ -979,6 +987,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initQuickPanelMode();
     initNavigation();
     initHomePanel();
+    initCardHoverEffects();
     initSendPanel();
     initQuickSendPanel();
     initAIPanel();
@@ -1049,6 +1058,62 @@ function switchToPanel(panelTarget) {
     dom.panels.forEach(p => p.classList.remove('active'));
     const panel = document.getElementById(panelTarget);
     if (panel) panel.classList.add('active');
+}
+
+// --- Card Hover Effects ---
+function initCardHoverEffects() {
+    const cards = document.querySelectorAll('.glass-card:not(.modal)');
+
+    cards.forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+            const rect = card.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            card.style.setProperty('--mouse-x', `${x}px`);
+            card.style.setProperty('--mouse-y', `${y}px`);
+        });
+
+        card.addEventListener('mouseenter', () => {
+            card.style.setProperty('--mouse-x', '50%');
+            card.style.setProperty('--mouse-y', '50%');
+        });
+    });
+
+    // Also apply to dynamically added cards via MutationObserver
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.classList?.contains('glass-card') && !node.classList?.contains('modal')) {
+                        attachCardHoverEffect(node);
+                    }
+                    // Also check children
+                    node.querySelectorAll?.('.glass-card:not(.modal)')?.forEach(card => {
+                        attachCardHoverEffect(card);
+                    });
+                }
+            });
+        });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function attachCardHoverEffect(card) {
+    card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        card.style.setProperty('--mouse-x', `${x}px`);
+        card.style.setProperty('--mouse-y', `${y}px`);
+    });
+
+    card.addEventListener('mouseenter', () => {
+        card.style.setProperty('--mouse-x', '50%');
+        card.style.setProperty('--mouse-y', '50%');
+    });
 }
 
 function initOnboarding() {
@@ -1975,13 +2040,50 @@ async function fetchTunnelStatus() {
     return null;
 }
 
+let _cloudflaredInstallPollTimer = null;
+
 async function startTunnel() {
+    try {
+        // First check if cloudflared is installed
+        const statusRes = await apiFetch('/api/v1/tunnel/cloudflared');
+        if (!statusRes.ok) {
+            showToast('无法检查 Cloudflared 状态', 'error');
+            return;
+        }
+        const cloudflaredStatus = await statusRes.json();
+
+        if (!cloudflaredStatus.installed) {
+            // Show install prompt modal
+            if (cloudflaredStatus.can_auto_install) {
+                openModal('modal-cloudflared-install');
+                // Reset modal state
+                if (dom.cloudflaredInstallProgress) dom.cloudflaredInstallProgress.classList.add('hidden');
+                if (dom.cloudflaredInstallConfirm) {
+                    dom.cloudflaredInstallConfirm.textContent = '开始安装';
+                    dom.cloudflaredInstallConfirm.disabled = false;
+                }
+                if (dom.cloudflaredInstallCancel) dom.cloudflaredInstallCancel.textContent = '取消';
+            } else {
+                showToast('未安装 Cloudflared，且当前平台不支持自动安装。请手动安装: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/', 'error');
+            }
+            return;
+        }
+
+        // Cloudflared is installed, proceed to start tunnel
+        await doStartTunnel();
+    } catch (e) {
+        showToast('隧道启动失败: ' + e.message, 'error');
+        updateTunnelUI({ status: 'error', error: e.message });
+    }
+}
+
+async function doStartTunnel(autoInstall = false) {
     try {
         updateTunnelUI({ status: 'starting' });
         const res = await apiFetch('/api/v1/tunnel/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: 'quick' }),
+            body: JSON.stringify({ mode: 'quick', auto_install: autoInstall }),
         });
         const data = await res.json();
         updateTunnelUI(data);
@@ -1996,6 +2098,90 @@ async function startTunnel() {
     } catch (e) {
         showToast('隧道启动失败: ' + e.message, 'error');
         updateTunnelUI({ status: 'error', error: e.message });
+    }
+}
+
+async function startCloudflaredInstall() {
+    try {
+        // Show progress UI
+        if (dom.cloudflaredInstallProgress) dom.cloudflaredInstallProgress.classList.remove('hidden');
+        if (dom.cloudflaredInstallConfirm) {
+            dom.cloudflaredInstallConfirm.textContent = '安装中...';
+            dom.cloudflaredInstallConfirm.disabled = true;
+        }
+        if (dom.cloudflaredInstallCancel) dom.cloudflaredInstallCancel.textContent = '取消安装';
+
+        // Start installation
+        const res = await apiFetch('/api/v1/tunnel/cloudflared/install', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.status === 'already_in_progress') {
+            showToast('安装已在进行中', 'info');
+        } else if (data.status !== 'started') {
+            showToast(data.message || '安装启动失败', 'error');
+            closeModal();
+            return;
+        }
+
+        // Start polling for progress
+        pollCloudflaredInstallProgress();
+    } catch (e) {
+        showToast('安装启动失败: ' + e.message, 'error');
+        closeModal();
+    }
+}
+
+function pollCloudflaredInstallProgress() {
+    stopCloudflaredInstallPolling();
+    _cloudflaredInstallPollTimer = setInterval(async () => {
+        try {
+            const res = await apiFetch('/api/v1/tunnel/cloudflared/install-progress');
+            const progress = await res.json();
+
+            // Update progress bar
+            if (dom.cloudflaredProgressBar) {
+                const percent = Math.round(progress.progress_percent || 0);
+                dom.cloudflaredProgressBar.style.width = percent + '%';
+            }
+            if (dom.cloudflaredProgressMessage) {
+                dom.cloudflaredProgressMessage.textContent = progress.message || '';
+            }
+
+            // Check completion
+            if (progress.status === 'completed') {
+                stopCloudflaredInstallPolling();
+                showToast('Cloudflared 安装完成', 'success');
+                closeModal();
+                // Auto start tunnel now
+                await doStartTunnel();
+            } else if (progress.status === 'error') {
+                stopCloudflaredInstallPolling();
+                showToast('安装失败: ' + (progress.error || '未知错误'), 'error');
+                closeModal();
+            } else if (progress.status === 'cancelled') {
+                stopCloudflaredInstallPolling();
+                showToast('安装已取消', 'info');
+                closeModal();
+            }
+        } catch (e) {
+            // Ignore polling errors
+        }
+    }, 500);
+}
+
+function stopCloudflaredInstallPolling() {
+    if (_cloudflaredInstallPollTimer) {
+        clearInterval(_cloudflaredInstallPollTimer);
+        _cloudflaredInstallPollTimer = null;
+    }
+}
+
+async function cancelCloudflaredInstall() {
+    try {
+        await apiFetch('/api/v1/tunnel/cloudflared/install-cancel', { method: 'POST' });
+        stopCloudflaredInstallPolling();
+    } catch (e) {
+        // Ignore
     }
 }
 
@@ -2052,6 +2238,20 @@ function initTunnelControls() {
     }
     if (dom.settingTunnelStopBtn) {
         dom.settingTunnelStopBtn.addEventListener('click', stopTunnel);
+    }
+    // Cloudflared install modal buttons
+    if (dom.cloudflaredInstallConfirm) {
+        dom.cloudflaredInstallConfirm.addEventListener('click', startCloudflaredInstall);
+    }
+    if (dom.cloudflaredInstallCancel) {
+        dom.cloudflaredInstallCancel.addEventListener('click', async () => {
+            // If installation is in progress, cancel it
+            const progressEl = dom.cloudflaredInstallProgress;
+            if (progressEl && !progressEl.classList.contains('hidden')) {
+                await cancelCloudflaredInstall();
+            }
+            closeModal();
+        });
     }
 }
 
@@ -5469,35 +5669,35 @@ document.addEventListener('keydown', (event) => {
 
 // ── Conversation Tree (Advanced AI) — Multi-Branch ──────────────────────
 (function convTreeModule() {
-    const $scenario    = document.getElementById('conv-tree-scenario');
-    const $provider    = document.getElementById('conv-tree-provider');
-    const $tempSlider  = document.getElementById('conv-tree-temperature');
-    const $tempLabel   = document.getElementById('conv-tree-temp-label');
-    const $startBtn    = document.getElementById('conv-tree-start-btn');
-    const $flowArea    = document.getElementById('conv-tree-flow-area');
-    const $timeline    = document.getElementById('conv-tree-timeline');
-    const $actionArea  = document.getElementById('conv-tree-action-area');
-    const $pathsList   = document.getElementById('conv-tree-paths-list');
-    const $manualBtn   = document.getElementById('conv-tree-manual-btn');
+    const $scenario = document.getElementById('conv-tree-scenario');
+    const $provider = document.getElementById('conv-tree-provider');
+    const $tempSlider = document.getElementById('conv-tree-temperature');
+    const $tempLabel = document.getElementById('conv-tree-temp-label');
+    const $startBtn = document.getElementById('conv-tree-start-btn');
+    const $flowArea = document.getElementById('conv-tree-flow-area');
+    const $timeline = document.getElementById('conv-tree-timeline');
+    const $actionArea = document.getElementById('conv-tree-action-area');
+    const $pathsList = document.getElementById('conv-tree-paths-list');
+    const $manualBtn = document.getElementById('conv-tree-manual-btn');
     const $manualInput = document.getElementById('conv-tree-manual-input');
-    const $replyText   = document.getElementById('conv-tree-reply-text');
+    const $replyText = document.getElementById('conv-tree-reply-text');
     const $submitReply = document.getElementById('conv-tree-submit-reply');
-    const $cancelManual= document.getElementById('conv-tree-cancel-manual');
-    const $importBtn   = document.getElementById('conv-tree-import-btn');
-    const $wrapupBtn   = document.getElementById('conv-tree-wrapup-btn');
-    const $resetBtn    = document.getElementById('conv-tree-reset-btn');
-    const $loading     = document.getElementById('conv-tree-loading');
-    const $setup       = document.getElementById('conv-tree-setup');
-    const $plotTendency= document.getElementById('conv-tree-plot-tendency');
-    const $plotStyle   = document.getElementById('conv-tree-plot-style');
+    const $cancelManual = document.getElementById('conv-tree-cancel-manual');
+    const $importBtn = document.getElementById('conv-tree-import-btn');
+    const $wrapupBtn = document.getElementById('conv-tree-wrapup-btn');
+    const $resetBtn = document.getElementById('conv-tree-reset-btn');
+    const $loading = document.getElementById('conv-tree-loading');
+    const $setup = document.getElementById('conv-tree-setup');
+    const $plotTendency = document.getElementById('conv-tree-plot-tendency');
+    const $plotStyle = document.getElementById('conv-tree-plot-style');
 
     // Round badge
-    const $roundBadge  = document.getElementById('conv-tree-round-badge');
+    const $roundBadge = document.getElementById('conv-tree-round-badge');
 
     // Branch UI elements
     const $branchSwitcher = document.getElementById('conv-tree-branch-switcher');
-    const $branchSelect   = document.getElementById('conv-tree-branch-select');
-    const $deleteBranchBtn= document.getElementById('conv-tree-delete-branch-btn');
+    const $branchSelect = document.getElementById('conv-tree-branch-select');
+    const $deleteBranchBtn = document.getElementById('conv-tree-delete-branch-btn');
 
     function createEmptyBranch(id, name, forkPoint) {
         return {

@@ -13,6 +13,7 @@ FiveM `/me` `/do` 角色扮演文本发送器，支持 AI 生成、AI 重写与 
 - **快捷悬浮窗**：默认启用，支持热键（默认 `F7`）或鼠标侧键快速选预设并发送，可显示 WebUI 发送状态
 - **桌面内嵌窗口 + 系统托盘**：基于 pywebview 的原生桌面窗口体验，支持启动后托盘驻留、托盘恢复主窗口
 - **WebUI + REST API**：可浏览器访问完整 WebUI，完整 REST API 含 Swagger 交互文档
+- **Cloudflare Tunnel**：支持通过 cloudflared 创建公网 HTTPS 隧道，零配置快速分享或自定义域名
 - **多语言支持（i18n）**：WebUI 内建国际化支持
 - **自动更新检查**：启动时检查 GitHub 新版本
 - **远程公告系统**：支持从 GitHub 获取远程公告并展示
@@ -71,6 +72,17 @@ preset 文件夹内可存放指定格式的预设，未来我们也会建设预�
 - 默认触发键 `F7`
 - 可配置 `mouse_side_button`（如 `x1` / `x2`）
 - 支持显示 WebUI 发送状态（`show_webui_send_status: true`）
+
+### Cloudflare Tunnel
+
+通过 cloudflared 创建公网 HTTPS 隧道，实现远程访问：
+
+- **快速隧道（Quick Tunnel）**：零配置，自动生成 `*.trycloudflare.com` 随机域名
+- **命名隧道（Named Tunnel）**：使用预配置的隧道 Token，绑定自定义域名
+- **安全保护**：启动隧道时自动检测并配置 Bearer Token，未配置时自动生成安全随机令牌
+- **速率限制**：隧道激活时自动启用请求限流（60 次/分钟/IP）
+
+使用前提：需安装 [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
 
 ## ⚙️ 配置说明
 
@@ -187,7 +199,8 @@ VanceSender/
 │   │       ├── presets.py           # 预设 CRUD 路由
 │   │       ├── sender.py           # 发送控制路由
 │   │       ├── settings.py         # 设置管理路由
-│   │       └── stats.py            # 统计数据路由
+│   │       ├── stats.py            # 统计数据路由
+│   │       └── tunnel.py           # Cloudflare Tunnel 路由
 │   ├── core/
 │   │   ├── ai_client.py            # OpenAI 兼容 AI 客户端
 │   │   ├── ai_gemini.py            # Google Gemini AI 客户端
@@ -204,9 +217,11 @@ VanceSender/
 │   │   ├── presets.py              # 预设文件读写
 │   │   ├── public_config.py        # GitHub 远程公告
 │   │   ├── quick_overlay.py        # 快捷悬浮窗核心逻辑
+│   │   ├── rate_limit.py           # 隧道速率限制中间件
 │   │   ├── runtime_paths.py        # 运行时路径解析
 │   │   ├── sender.py               # FiveM 文本发送引擎
 │   │   ├── stats.py                # 使用统计
+│   │   ├── tunnel.py               # Cloudflare Tunnel 管理器
 │   │   └── update_checker.py       # GitHub 自动更新检查
 │   └── web/
 │       ├── index.html              # 主界面

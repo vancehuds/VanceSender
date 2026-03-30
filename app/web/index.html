@@ -1411,6 +1411,24 @@
         </div>
     </div>
 
+    <!-- Cloudflared Install Modal -->
+    <div id="modal-cloudflared-install" class="modal glass-card hidden">
+        <h3>安装 Cloudflared</h3>
+        <p class="desc" style="margin-top: 8px; line-height: 1.6; color: var(--text-secondary);">
+            启动隧道需要 Cloudflared 组件，是否自动下载安装？
+        </p>
+        <div id="cloudflared-install-progress" class="hidden" style="margin-top: 16px;">
+            <div class="progress-bar-container" style="background: var(--bg-tertiary); border-radius: 6px; height: 8px; overflow: hidden;">
+                <div id="cloudflared-progress-bar" style="width: 0%; height: 100%; background: var(--accent-primary); transition: width 0.3s ease;"></div>
+            </div>
+            <p id="cloudflared-progress-message" style="margin-top: 8px; font-size: 12px; color: var(--text-muted); text-align: center;"></p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn mac-btn-ghost" data-action="close-modal" type="button" id="cloudflared-install-cancel">取消</button>
+            <button id="cloudflared-install-confirm" class="btn mac-btn-primary" type="button">开始安装</button>
+        </div>
+    </div>
+
     <!-- Provider Edit Modal -->
     <div id="modal-provider" class="modal glass-card hidden">
         <h3 id="provider-modal-title">添加服务商</h3>
